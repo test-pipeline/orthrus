@@ -34,7 +34,7 @@ class CanaryBreakpoint(gdb.Breakpoint):
     def _validAccess(self, pc):
         disasm = ""
         if "x86_64" in ARCH:
-            disasm = gdb.execute("x/i " + hex(pc) + "-14", False, True)
+            disasm = gdb.execute("x/i " + hex(pc) + "-13", False, True)
         else:
             disasm = gdb.execute("x/i " + hex(pc) + "-9", False, True)
         if ("%gs:" in disasm) or ("%fs:" in disasm):
@@ -120,11 +120,16 @@ class GdbOrthrus(gdb.Command):
         return None
     
     def _getExploitableInfo(self):
-        return "GDB exploitable info:\n" + gdb.execute("exploitable", False, True)
+        info =  "GDB exploitable info:\n" + gdb.execute("exploitable", False, True)
+        gdb.execute("set disassembly-flavor att", False, True)
+        
+        return info
     
     def _updateExploitableHash(self, exploitable_info):
         exploitable_info = exploitable_info.splitlines()
         tmp = gdb.execute("exploitable", False, True).splitlines()
+        gdb.execute("set disassembly-flavor att", False, True)
+        
         exploitable_info[3] = tmp[2]
         
         return "".join(exploitable_info)
@@ -204,7 +209,6 @@ class GdbOrthrus(gdb.Command):
         #print ("Arch: " + ARCH + " Compiler:" + COMPILER + " PC: " + PC + " BP: " + BP + " SP: " + SP)
         
         exploitable_info = self._getExploitableInfo()
-        gdb.execute("set disassembly-flavor att", False, True)
         #print (exploitable_info)
         
         cmd_args = self._getProgArgs()
@@ -225,9 +229,12 @@ class GdbOrthrus(gdb.Command):
             #print ("Canary: " + hex(canary_addr))
             CanaryBreakpoint(fa_addr, observe_frame)
             gdb.execute("run " + cmd_args, False, True)
+            gdb.execute("set " + PC + "=" + PC + "-1")
             self._updateExploitableHash(exploitable_info)
             
         self._printFault(fa_addr, isStack)
         print (exploitable_info)
+        
+        gdb.newest_frame().select()
             
 GdbOrthrus()
