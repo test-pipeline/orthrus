@@ -17,7 +17,7 @@ SP = ""
 
 class CanaryBreakpoint(gdb.Breakpoint):
     def __init__(self, canary_addr, observe_frame):
-        gdb.Breakpoint.__init__(self, "*(int*)" + hex(canary_addr), gdb.BP_WATCHPOINT, gdb.WP_WRITE, True)
+        gdb.Breakpoint.__init__(self, "*(long*)" + hex(canary_addr), gdb.BP_WATCHPOINT, gdb.WP_WRITE, True)
         self._observe_frame = observe_frame
     
     def stop(self):
@@ -32,8 +32,12 @@ class CanaryBreakpoint(gdb.Breakpoint):
         return False
 
     def _validAccess(self, pc):
-        disasm = gdb.execute("x/i " + hex(pc) + "-9", False, True)
-        if "%gs:" in disasm or "%fs" in disasm:
+        disasm = ""
+        if "x86_64" in ARCH:
+            disasm = gdb.execute("x/i " + hex(pc) + "-14", False, True)
+        else:
+            disasm = gdb.execute("x/i " + hex(pc) + "-9", False, True)
+        if ("%gs:" in disasm) or ("%fs:" in disasm):
             return True
         return False
     
