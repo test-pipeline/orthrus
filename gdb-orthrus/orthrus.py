@@ -87,8 +87,11 @@ class GdbOrthrus(gdb.Command):
             if not frame.is_valid():
                 break
             if frame.find_sal().symtab:
-                if os.path.isfile(os.path.abspath(frame.find_sal().symtab.filename)):
-                    return frame
+                filename =frame.find_sal().symtab.filename
+                for dirpath, dirnames, filenames in os.walk('./'):
+                    for fn in filenames:
+                        if os.path.basename(filename) == fn:
+                            return frame
             frame = frame.older()
             
         return None
@@ -214,15 +217,16 @@ class GdbOrthrus(gdb.Command):
         cmd_args = self._getProgArgs()
         #print (cmd_args)
         
+        frame = self._getTopUserCodeFrame()
+        if not frame:
+            print("Error: Couldn't find top user code frame!")
+            return
+        frame.select()
+            
         isStack = False
         fa_addr = 0
         if self._isStackCheckFail():
             isStack = True
-            frame = self._getTopUserCodeFrame()
-            if not frame:
-                print("Error: Couldn't find top user code frame!")
-                return
-            frame.select()
             
             observe_frame = frame.name()
             fa_addr = self._getCanaryAddr(frame)
