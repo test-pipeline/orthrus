@@ -819,6 +819,45 @@ class OrthrusTriage(object):
         self._args = args
         self._config = config
     
+    def _add_crash_to_crash_graph(self, jobId, crash_file):
+        job_config = ConfigParser.ConfigParser()
+        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
+        
+        dev_null = open(os.devnull, "w")
+        logfile = open(self._config['orthrus']['directory'] + "/logs/crash_graph.log", "a")
+        if "HARDEN" in crash_file:
+            if not os.path.exists(self._config['orthrus']['directory'] + "/binaries/harden-dbg"):
+                return False
+            p1_cmd = " ".join(["gdb", "-q", "-ex='set args " + job_config.get(jobId, "params").replace("@@", crash_file) + "'", "-ex='run'", "-ex='orthrus'", "-ex='gcore core'", "-ex='quit'", "--args", self._config['orthrus']['directory'] + "/binaries/harden-dbg/bin/" + job_config.get(jobId, "target")])
+            p1 = subprocess.Popen(p1_cmd, shell=True, stdout=subprocess.PIPE, stderr=dev_null)
+            
+            p2_cmd = "joern-runtime-info -r -v -g -l"
+            p2 = subprocess.Popen(p2_cmd, shell=True, stdin=p1.stdout, stdout=logfile, stderr=subprocess.STDOUT)
+            p2.wait()
+            
+        elif "ASAN" in crash_file:
+            if not os.path.exists(self._config['orthrus']['directory'] + "/binaries/asan-dbg"):
+                return False
+            p1_cmd = "ulimit -c 1024000; " + self._config['orthrus']['directory'] + "/binaries/asan-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("@@", crash_file)
+            export = {}
+            export['ASAN_SYMBOLIZER_PATH'] = "/usr/local/bin/llvm-symbolizer"
+            export['ASAN_OPTIONS'] = "abort_on_error=1:symbolize=1:print_cmdline=1"
+            env = os.environ.copy()
+            env.update(export)
+            p1 = subprocess.Popen(p1_cmd, shell=True, executable="/bin/bash", env=env, stdout=dev_null, stderr=subprocess.PIPE)
+
+            p2_cmd = "joern-runtime-info -r -v -g -l"
+            # Injecting the command line string ist a hack for gcc, there the ASAN option 'print_cmdline' is not available.
+            # Plus, Gdb offers only a truncated command line string
+            cmdline = "Command: " + self._config['orthrus']['directory'] + "/binaries/asan-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("@@", crash_file)
+            p2 = subprocess.Popen(p2_cmd, shell=True, stdin=subprocess.PIPE, stdout=logfile, stderr=subprocess.STDOUT)
+            p2.communicate(p1.stderr.read() + cmdline)
+            p2.wait()
+            
+        dev_null.close()
+        logfile.close()
+        
+        return True
     def run(self):
         sys.stdout.write(bcolors.BOLD + bcolors.HEADER + "[+] Triaging crashes for job [" + self._args.job_id + "]" + bcolors.ENDC + "\n")
         if self._args.job_id:
@@ -835,7 +874,7 @@ class OrthrusTriage(object):
             if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
                 sys.stdout.write("\t\t[+] Collect and verify 'harden' mode crashes... ")
                 sys.stdout.flush()
-                
+                 
                 syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/"
                 outDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden"
                 launch = self._config['orthrus']['directory'] + "/binaries/harden-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params")
@@ -845,11 +884,11 @@ class OrthrusTriage(object):
                 p.wait()
                 logfile.close()
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-                
+                 
             if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-asan"):
                 sys.stdout.write("\t\t[+] Collect and verify 'asan' mode crashes... ")
                 sys.stdout.flush()
-                
+                 
                 env = os.environ.copy()
                 asan_flag = {}
                 asan_flag['ASAN_OPTIONS'] = "abort_on_error=1"
@@ -861,8 +900,11 @@ class OrthrusTriage(object):
                 p = subprocess.Popen(cmd, env=env, shell=True)
                 p.wait()
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-                
+                 
             if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/"):
+                sys.stdout.write("\t\t[+] Deduplicate 'harden' mode crashes... ")
+                sys.stdout.flush()
+                 
                 crash_files = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/")
                 if crash_files:
                     hashes = []
@@ -879,8 +921,12 @@ class OrthrusTriage(object):
                             hashes.append(crash_hash)
                             shutil.copy(crash_file, self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/HARDEN-" + os.path.basename(crash_file))
                 shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/")
-                
+                sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
+                 
             if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/"):
+                sys.stdout.write("\t\t[+] Deduplicate 'asan' mode crashes... ")
+                sys.stdout.flush()
+                 
                 crash_files = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/")
                 if crash_files:
                     hashes = []
@@ -901,6 +947,23 @@ class OrthrusTriage(object):
                             hashes.append(crash_hash)
                             shutil.copy(crash_file, self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/ASAN-" + os.path.basename(crash_file))
                 shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/")
+                sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
+                 
+            dedub_crashes = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
+            sys.stdout.write("\t\t[+] Upload " + str(len(dedub_crashes)) + " crashes to database for further triaging... ")
+            sys.stdout.flush()
+            if not dedub_crashes:
+                sys.stdout.write(bcolors.OKBLUE + "nothing to do" + bcolors.ENDC + "\n")
+                return
+            sys.stdout.write("\n")
+            
+            for crash in dedub_crashes:
+                sys.stdout.write("\t\t\t[+] Adding " + crash + " ... ")
+                sys.stdout.flush()
+                if not self._add_crash_to_crash_graph(jobId, self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/" + crash):
+                    sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
+                    continue
+                sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
                 
         return True
 
@@ -935,7 +998,7 @@ class OrthrusDatabase(object):
         job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
         
         dev_null = open(os.devnull, "w")
-        logfile = open(self._config['orthrus']['directory'] + "/logs/upload.log", "w")
+        logfile = open(self._config['orthrus']['directory'] + "/logs/upload.log", "a")
         if "HARDEN" in crash_file:
             if not os.path.exists(self._config['orthrus']['directory'] + "/binaries/harden-dbg"):
                 return False
@@ -958,7 +1021,11 @@ class OrthrusDatabase(object):
             p1 = subprocess.Popen(p1_cmd, shell=True, executable="/bin/bash", env=env, stdout=dev_null, stderr=subprocess.PIPE)
 
             p2_cmd = "joern-runtime-info -r -v -l"
-            p2 = subprocess.Popen(p2_cmd, shell=True, stdin=p1.stderr, stdout=logfile, stderr=subprocess.STDOUT)
+            # Injecting the command line string ist a hack for gcc, there the ASAN option 'print_cmdline' is not available.
+            # Plus, Gdb offers only a truncated command line string
+            cmdline = "Command: " + self._config['orthrus']['directory'] + "/binaries/asan-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("@@", crash_file)
+            p2 = subprocess.Popen(p2_cmd, shell=True, stdin=subprocess.PIPE, stdout=logfile, stderr=subprocess.STDOUT)
+            p2.communicate(p1.stderr.read() + cmdline)
             p2.wait()
             
         dev_null.close()
