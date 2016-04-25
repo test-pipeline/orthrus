@@ -256,8 +256,9 @@ class OrthrusCreate(object):
         if self._args.coverage:
             sys.stdout.write(bcolors.HEADER + "\t[+] Installing binaries for coverage information" + bcolors.ENDC + "\n")
             export_vars = {}
-            install_path = self._config['orthrus']['directory'] + "/binaries/coverage/"
-            os.mkdir(install_path)
+            install_path = self._config['orthrus']['directory'] + "/binaries/coverage/ubsan-dbg/"
+            if not os.path.isdir(install_path):
+                os.makedirs(install_path)
             
             sys.stdout.write("\t\t[+] Cleaning project... ")
             sys.stdout.flush() 
@@ -268,9 +269,10 @@ class OrthrusCreate(object):
 
             sys.stdout.write("\t\t[+] Configure... ")
             sys.stdout.flush() 
-            export_vars['CC'] = 'gcc'
-            export_vars['CXX'] = 'g++'
-            export_vars['CFLAGS'] = '-g -O0 -fprofile-arcs -ftest-coverage' + ' ' + self._args.cflags
+            export_vars['CC'] = 'clang'
+            export_vars['CXX'] = 'clang++'
+            export_vars['CFLAGS'] = '-g -O0 -fstack-protector-all -D_FORTIFY_SOURCE=2 -fno-omit-frame-pointer -fsanitize=undefined -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.cflags
+            export_vars['LDFLAGS'] = '-fsanitize=undefined -fsanitize-coverage=edge,8bit-counters'
             if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
@@ -283,6 +285,40 @@ class OrthrusCreate(object):
                 return False
             self._copy_additional_binaries(install_path + "bin/")
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
+
+            if self._args.afl_asan:
+                sys.stdout.write(bcolors.HEADER + "\t[+] Installing binaries for ASAN coverage information" + bcolors.ENDC + "\n")
+                export_vars = {}
+                install_path = self._config['orthrus']['directory'] + "/binaries/coverage/asan-dbg/"
+                if not os.path.isdir(install_path):
+                    os.makedirs(install_path)
+
+                sys.stdout.write("\t\t[+] Cleaning project... ")
+                sys.stdout.flush()
+                if not self._clean_project():
+                    sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
+                    return False
+                sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
+
+                sys.stdout.write("\t\t[+] Configure... ")
+                sys.stdout.flush()
+                export_vars['CC'] = 'clang'
+                export_vars['CXX'] = 'clang++'
+                export_vars['CFLAGS'] = '-g -O0 -fno-omit-frame-pointer -fsanitize=address -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.cflags
+                export_vars['LDFLAGS'] = '-fsanitize=address -fsanitize-coverage=edge,8bit-counters'
+                if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
+                    sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
+                    return False
+                sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
+
+                sys.stdout.write("\t\t[+] Compiling and install... ")
+                sys.stdout.flush()
+                if not self._make_install(export_vars):
+                    sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
+                    return False
+                self._copy_additional_binaries(install_path + "bin/")
+                sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
+
     
     def _create_joern_db(self, binary, args, logfile = None):
         if not logfile:
@@ -306,7 +342,8 @@ class OrthrusCreate(object):
         
         configure_env = os.environ.copy()
         configure_env.update(export_vars)
-        command = ["./configure " + " ".join(args)]
+        # AFL-fuzz likes statically linked binaries
+        command = ["./configure " + "--disable-shared " + " ".join(args)]
         proc = subprocess.Popen(command, shell=True, executable='/bin/bash', env=configure_env, stdout=logfile, stderr=subprocess.STDOUT)
         
         ret = proc.wait()
@@ -334,27 +371,20 @@ class OrthrusCreate(object):
         
         return True
     
-    def _is_elf_executable(self, file_path):
-        output = subprocess.check_output(["/usr/bin/file", "-b", file_path])
-        if "ELF" in output and "executable" in output:
-            return True
-        return False
-    
+    def _return_elf_binaries(self):
+        # We assume .orthrus doesn't have any binaries since orthrus create will complain if it exists
+        command = "find -type f -executable -exec file -i '{}' \; | grep 'x-executable; charset=binary' | cut -d':' -f1"
+        output = subprocess.check_output(command, shell=True)
+        return filter(None, output.split("\n"))
+
     def _copy_additional_binaries(self, dest):
-        binaries = []
-        for dirpath, dirnames, filenames in os.walk('./'):
-            for fn in filenames:
-                fpath = os.path.join(dirpath, fn)
-                if os.path.isfile(fpath) and self._is_elf_executable(fpath):
-                    binaries.append(fpath)
-                
-            if ".orthrus" in dirnames:
-                dirnames.remove('.orthrus')
-        
+        # Create bin dir if it doesn't exist
+        if not os.path.isdir(dest):
+            os.makedirs(dest)
+        binaries = self._return_elf_binaries()
+        # Overwriting existing binaries is fine
         for f in binaries:
-            head, tail = os.path.split(f)
-            if not os.path.exists(dest + tail):
-                shutil.copy(f, dest)
+            shutil.copy(f, dest)
     
     def _clean_project(self, logfile = None):
         if not logfile:
