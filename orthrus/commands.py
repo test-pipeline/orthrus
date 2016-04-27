@@ -859,7 +859,7 @@ class OrthrusTriage(object):
             if not os.path.exists(self._config['orthrus']['directory'] + "/binaries/harden-dbg"):
                 return False
             p1_cmd = " ".join(["gdb", "-q", "-ex='set args " + job_config.get(jobId, "params").replace("@@", crash_file) + "'", "-ex='run'", "-ex='orthrus'", "-ex='gcore core'", "-ex='quit'", "--args", self._config['orthrus']['directory'] + "/binaries/harden-dbg/bin/" + job_config.get(jobId, "target")])
-            p1 = subprocess.Popen(p1_cmd, shell=True, stdout=subprocess.PIPE, stderr=dev_null)
+            p1 = subprocess.Popen(p1_cmd, shell=True, executable="/bin/bash", stdout=subprocess.PIPE, stderr=dev_null)
             
             p2_cmd = "joern-runtime-info -r -v -g -l"
             p2 = subprocess.Popen(p2_cmd, shell=True, stdin=p1.stdout, stdout=logfile, stderr=subprocess.STDOUT)
@@ -888,6 +888,24 @@ class OrthrusTriage(object):
         logfile.close()
         
         return True
+    
+    def _triage_crash_graph(self, jobId):
+        job_config = ConfigParser.ConfigParser()
+        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
+        
+        cmd = "joern-runtime-info -r -v -g --triage"
+        p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        output = p.communicate("")[0]
+        output = output[output.find("Removed"):]
+        output = output[output.find("\n") + 1:]
+        
+        remove_list = output.splitlines()
+        for filename in remove_list:
+            if os.path.isfile(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/" + filename):
+                os.remove(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/" + filename)
+        
+        return True
+            
     def run(self):
         sys.stdout.write(bcolors.BOLD + bcolors.HEADER + "[+] Triaging crashes for job [" + self._args.job_id + "]" + bcolors.ENDC + "\n")
         if self._args.job_id:
@@ -904,7 +922,7 @@ class OrthrusTriage(object):
             if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
                 sys.stdout.write("\t\t[+] Collect and verify 'harden' mode crashes... ")
                 sys.stdout.flush()
-                 
+                  
                 syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/"
                 outDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden"
                 launch = self._config['orthrus']['directory'] + "/binaries/harden-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params")
@@ -914,11 +932,11 @@ class OrthrusTriage(object):
                 p.wait()
                 logfile.close()
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-                 
+                  
             if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-asan"):
                 sys.stdout.write("\t\t[+] Collect and verify 'asan' mode crashes... ")
                 sys.stdout.flush()
-                 
+                  
                 env = os.environ.copy()
                 asan_flag = {}
                 asan_flag['ASAN_OPTIONS'] = "abort_on_error=1"
@@ -930,11 +948,11 @@ class OrthrusTriage(object):
                 p = subprocess.Popen(cmd, env=env, shell=True)
                 p.wait()
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-                 
+                  
             if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/"):
                 sys.stdout.write("\t\t[+] Deduplicate 'harden' mode crashes... ")
                 sys.stdout.flush()
-                 
+                  
                 crash_files = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/")
                 if crash_files:
                     hashes = []
@@ -952,11 +970,11 @@ class OrthrusTriage(object):
                             shutil.copy(crash_file, self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/HARDEN-" + os.path.basename(crash_file))
                 shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/")
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-                 
+                  
             if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/"):
                 sys.stdout.write("\t\t[+] Deduplicate 'asan' mode crashes... ")
                 sys.stdout.flush()
-                 
+                  
                 crash_files = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/")
                 if crash_files:
                     hashes = []
@@ -995,6 +1013,13 @@ class OrthrusTriage(object):
                     continue
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
                 
+            sys.stdout.write("\t\t[+] Triaging crashes... ")
+            sys.stdout.flush()
+            if not self._triage_crash_graph(jobId):
+                sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
+                return
+            sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
+            
         return True
 
 class OrthrusDatabase(object):
@@ -1011,6 +1036,7 @@ class OrthrusDatabase(object):
         command = binary + " start"
         p = subprocess.Popen(command, shell=True, executable='/bin/bash', env=env, stdout=subprocess.PIPE)
         p.wait()
+        #sys.stdout.write(p.communicate()[0])
         if p.returncode != 0:
             return False
         return True
