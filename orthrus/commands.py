@@ -377,8 +377,9 @@ class OrthrusCreate(object):
         return True
     
     def _return_elf_binaries(self):
-        # We assume .orthrus doesn't have any binaries since orthrus create will complain if it exists
-        command = "find -type f -executable -exec file -i '{}' \; | grep 'x-executable; charset=binary' | cut -d':' -f1"
+        # Search everywhere in working dir except in .orthrus
+        command = "find -type f -executable -not -path \"./.orthrus/*\"" \
+                    " -exec file -i '{}' \; | grep 'x-executable; charset=binary' | cut -d':' -f1"
         output = subprocess.check_output(command, shell=True)
         return filter(None, output.split("\n"))
 
