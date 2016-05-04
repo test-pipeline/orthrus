@@ -55,6 +55,9 @@ class OrthrusTool():
         create_parser.add_argument('-f', '--cflags', nargs='?', 
                                 type = str, default="",
                                 help = 'Additional flags to go into CFLAGS for compilation')
+        create_parser.add_argument('-l', '--ldflags', nargs='?', 
+                                type = str, default="",
+                                help = 'Additional flags to go into LDFLAGS for compilation')
         create_parser.set_defaults(func=self._create)
         
         # Command 'add'

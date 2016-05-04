@@ -9,8 +9,10 @@ import binascii
 import ConfigParser
 import tarfile
 import time
-import mmap
-from time import sleep
+import threading
+from Queue import Queue
+import shlex
+import pty
 
 class bcolors:
     HEADER = '\033[95m'
@@ -43,7 +45,7 @@ class OrthrusCreate(object):
         else:
             sys.stdout.write(bcolors.ERROR + "Error: Orthrus workspace already exists!\n" + bcolors.ENDC)
             return False
-        
+          
         #
         # Creating joern Neo4j database
         #
@@ -51,14 +53,14 @@ class OrthrusCreate(object):
         if not os.path.isfile(self._config['joern']['joern_path'] + "/joern.jar"):
             sys.stdout.write(bcolors.ERROR + "Error: Can't find joern binary!\n" + bcolors.ENDC)
             return False
-          
+            
         sys.stdout.write("\t\t[+] Cleaning project... ")
         sys.stdout.flush()
         if not self._clean_project():
             sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
             return False
         sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-              
+                
         sys.stdout.write("\t\t[+] Create Neo4j database for project... ")
         sys.stdout.flush()
         args = [os.path.normpath(os.path.abspath("./")), "-outdir", ".orthrus/joernIndex"]
@@ -66,13 +68,13 @@ class OrthrusCreate(object):
             sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
             return False
         sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-          
+            
         sys.stdout.write("\t\t[+] Patching Neo4j server configuration... ")
         sys.stdout.flush()
         if not os.path.isfile(self._config['neo4j']['neo4j_path'] + "/conf/neo4j-wrapper.conf"):
             sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
             return False
-          
+            
         alreadyPatched = False
         with open(self._config['neo4j']['neo4j_path'] + "/conf/neo4j-wrapper.conf", 'r+') as neo4j_file:
             neo4j_config = ""
@@ -82,7 +84,7 @@ class OrthrusCreate(object):
                         alreadyPatched = True
                     else:
                         line = "#" + line
-                          
+                            
                 neo4j_config += line
             neo4j_file.seek(0)
             neo4j_file.write(neo4j_config)
@@ -94,8 +96,8 @@ class OrthrusCreate(object):
                                             "\t\t\tand uncomment the first line (-Dorg.neo4j.server.properties=)!\n" + bcolors.ENDC)
         else:
             sys.stdout.write(bcolors.OKBLUE + "already patched" + bcolors.ENDC + "\n")
-          
-          
+            
+            
         sys.stdout.write("\t\t[+] Copy default Neo4j server configuration... ")
         sys.stdout.flush()
         if not os.path.isfile(self._config['neo4j']['neo4j_path'] + "/conf/neo4j-server.properties"):
@@ -103,13 +105,13 @@ class OrthrusCreate(object):
             return False
         shutil.copy(self._config['neo4j']['neo4j_path'] + "/conf/neo4j-server.properties", ".orthrus/conf/")
         sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-          
+            
         sys.stdout.write("\t\t[+] Update Neo4j server configuration... ")
         sys.stdout.flush()
         if not os.path.isfile(".orthrus/conf/neo4j-server.properties"):
             sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
             return False
-          
+            
         with open(".orthrus/conf/neo4j-server.properties", 'r+') as neo4j_file:
             neo4j_config = ""
             for line in neo4j_file:
@@ -121,32 +123,33 @@ class OrthrusCreate(object):
             neo4j_file.truncate()
             neo4j_file.close()
         sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-        
+          
         if self._args.afl_asan:
             sys.stdout.write(bcolors.HEADER + "\t[+] Installing binaries for afl-fuzz with AddressSanitizer" + bcolors.ENDC + "\n")
-            
+              
             export_vars = {}
             install_path = self._config['orthrus']['directory'] + "/binaries/afl-asan/"
             os.mkdir(install_path)
-            
+              
             sys.stdout.write("\t\t[+] Cleaning project... ")
             sys.stdout.flush()
             if not self._clean_project():
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-            
+              
             sys.stdout.write("\t\t[+] Configure... ")
             sys.stdout.flush() 
-            export_vars['CC'] = 'afl-gcc'
-            export_vars['CXX'] = 'afl-g++'
+            export_vars['CC'] = 'afl-clang'
+            export_vars['CXX'] = 'afl-clang++'
             export_vars['AFL_USE_ASAN'] = '1'
-            export_vars['CFLAGS'] = '-O2' + ' ' + self._args.cflags
+            export_vars['AFL_DONT_OPTIMIZE'] = '1'
+            export_vars['CFLAGS'] = '-O3' + ' ' + self._args.cflags
             if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-            
+              
             sys.stdout.write("\t\t[+] Compiling and install... ")
             sys.stdout.flush()
             if not self._make_install(export_vars, open(self._config['orthrus']['directory'] + "/logs/afl-asan_inst.log", 'w')):
@@ -154,8 +157,8 @@ class OrthrusCreate(object):
                 return False
             self._copy_additional_binaries(install_path + "bin/")
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-            
-            
+              
+              
             #
             # ASAN Debug 
             #
@@ -163,24 +166,24 @@ class OrthrusCreate(object):
             export_vars = {}
             install_path = self._config['orthrus']['directory'] + "/binaries/asan-dbg/"
             os.mkdir(install_path)
-            
+              
             sys.stdout.write("\t\t[+] Cleaning project... ")
             sys.stdout.flush() 
             if not self._clean_project():
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-
+  
             sys.stdout.write("\t\t[+] Configure... ")
             sys.stdout.flush() 
-            export_vars['CC'] = 'gcc'
-            export_vars['CXX'] = 'g++'
+            export_vars['CC'] = 'clang'
+            export_vars['CXX'] = 'clang++'
             export_vars['CFLAGS'] = '-g -O0 -fsanitize=address -fno-omit-frame-pointer' + ' ' + self._args.cflags
             if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-            
+              
             sys.stdout.write("\t\t[+] Compiling and install... ")
             sys.stdout.flush() 
             if not self._make_install(export_vars):
@@ -188,38 +191,39 @@ class OrthrusCreate(object):
                 return False
             self._copy_additional_binaries(install_path + "bin/")
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-                
+                 
         if self._args.afl_harden:
             sys.stdout.write(bcolors.HEADER + "\t[+] Installing binaries for afl-fuzz in harden mode" + bcolors.ENDC + "\n")
             export_vars = {}
             install_path = self._config['orthrus']['directory'] + "/binaries/afl-harden/"
             os.mkdir(install_path)
-            
+               
             sys.stdout.write("\t\t[+] Cleaning project... ")
             sys.stdout.flush() 
             if not self._clean_project():
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-
+   
             sys.stdout.write("\t\t[+] Configure... ") 
-            export_vars['CC'] = 'afl-gcc'
-            export_vars['CXX'] = 'afl-g++'
+            export_vars['CC'] = 'afl-clang'
+            export_vars['CXX'] = 'afl-clang++'
             export_vars['AFL_HARDEN'] = '1'
+            export_vars['AFL_DONT_OPTIMIZE'] = '1'
             export_vars['CFLAGS'] = '-O2' + ' ' + self._args.cflags
             if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-            
+               
             sys.stdout.write("\t\t[+] Compiling and install... ")
             sys.stdout.flush()
-            if not self._make_install(export_vars):
+            if not self._make_install(export_vars, open(self._config['orthrus']['directory'] + "/logs/afl-harden_inst.log", 'w')):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             self._copy_additional_binaries(install_path + "bin/")
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-            
+             
             #
             # Harden Debug 
             #
@@ -227,27 +231,27 @@ class OrthrusCreate(object):
             export_vars = {}
             install_path = self._config['orthrus']['directory'] + "/binaries/harden-dbg/"
             os.mkdir(install_path)
-            
+             
             sys.stdout.write("\t\t[+] Cleaning project... ")
             sys.stdout.flush()
             if not self._clean_project():
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-
+ 
             sys.stdout.write("\t\t[+] Configure... ")
             sys.stdout.flush() 
-            export_vars['CC'] = 'gcc'
-            export_vars['CXX'] = 'g++'
+            export_vars['CC'] = 'clang'
+            export_vars['CXX'] = 'clang++'
             export_vars['CFLAGS'] = '-g -O0 -fstack-protector-all -D_FORTIFY_SOURCE=2 -fno-omit-frame-pointer' + ' ' + self._args.cflags
             if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-            
+             
             sys.stdout.write("\t\t[+] Compiling and install... ")
             sys.stdout.flush() 
-            if not self._make_install(export_vars):
+            if not self._make_install(export_vars, open(self._config['orthrus']['directory'] + "/logs/harden-dbg_inst.log", 'w')):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             self._copy_additional_binaries(install_path + "bin/")
@@ -259,61 +263,62 @@ class OrthrusCreate(object):
             install_path = self._config['orthrus']['directory'] + "/binaries/coverage/ubsan-dbg/"
             if not os.path.isdir(install_path):
                 os.makedirs(install_path)
-            
+             
             sys.stdout.write("\t\t[+] Cleaning project... ")
             sys.stdout.flush() 
             if not self._clean_project():
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-
+ 
             sys.stdout.write("\t\t[+] Configure... ")
             sys.stdout.flush() 
             export_vars['CC'] = 'clang'
             export_vars['CXX'] = 'clang++'
             export_vars['CFLAGS'] = '-g -O0 -fstack-protector-all -D_FORTIFY_SOURCE=2 -fno-omit-frame-pointer -fsanitize=undefined -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.cflags
-            export_vars['LDFLAGS'] = '-fsanitize=undefined -fsanitize-coverage=edge,8bit-counters'
+            export_vars['LDFLAGS'] = '-fsanitize=undefined -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.ldflags
+ 
             if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-            
+             
             sys.stdout.write("\t\t[+] Compiling and install... ")
             sys.stdout.flush() 
-            if not self._make_install(export_vars):
+            if not self._make_install(export_vars, open(self._config['orthrus']['directory'] + "/logs/ubsan_dbg_cov_inst.log", 'w')):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             self._copy_additional_binaries(install_path + "bin/")
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-
+ 
             if self._args.afl_asan:
                 sys.stdout.write(bcolors.HEADER + "\t[+] Installing binaries for ASAN coverage information" + bcolors.ENDC + "\n")
                 export_vars = {}
                 install_path = self._config['orthrus']['directory'] + "/binaries/coverage/asan-dbg/"
                 if not os.path.isdir(install_path):
                     os.makedirs(install_path)
-
+ 
                 sys.stdout.write("\t\t[+] Cleaning project... ")
                 sys.stdout.flush()
                 if not self._clean_project():
                     sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                     return False
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-
+ 
                 sys.stdout.write("\t\t[+] Configure... ")
                 sys.stdout.flush()
                 export_vars['CC'] = 'clang'
                 export_vars['CXX'] = 'clang++'
                 export_vars['CFLAGS'] = '-g -O0 -fno-omit-frame-pointer -fsanitize=address -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.cflags
-                export_vars['LDFLAGS'] = '-fsanitize=address -fsanitize-coverage=edge,8bit-counters'
+                export_vars['LDFLAGS'] = '-fsanitize=address -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.ldflags
                 if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                     sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                     return False
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-
+ 
                 sys.stdout.write("\t\t[+] Compiling and install... ")
                 sys.stdout.flush()
-                if not self._make_install(export_vars):
+                if not self._make_install(export_vars, open(self._config['orthrus']['directory'] + "/logs/asan_dbg_cov_inst.log", 'w')):
                     sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                     return False
                 self._copy_additional_binaries(install_path + "bin/")
@@ -545,21 +550,40 @@ class OrthrusAdd(object):
                 
                 sys.stdout.write("\t\t[+] Minimizing corpus for job [" + jobId + "]... \n")
                 sys.stdout.flush()
-                
+                 
                 job_config = ConfigParser.ConfigParser()
                 job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
+                export = {}
+                export['PYTHONUNBUFFERED'] = "1"
+                env = os.environ.copy()
+                env.update(export)
+         
                 launch = ""
                 if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
-                    launch = self._config['orthrus']['directory'] + "/binaries/afl-harden/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params")
+                    launch = self._config['orthrus']['directory'] + "/binaries/afl-harden/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("&","\&")
                 else:
                     launch = self._config['orthrus']['directory'] + "/binaries/afl-asan/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params")
-                cmin = " ".join(["afl-minimize", "-c", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect", "--cmin", "--cmin-mem-limit=800", "--cmin-timeout=5000", "--reseed", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out", "--", "'" + launch + "'"])
-                subprocess.call(cmin, shell=True)
-                
+                cmin = " ".join(["afl-minimize", "-c", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect", "--cmin", "--cmin-mem-limit=800", "--cmin-timeout=5000", "--dry-run", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out", "--", "'" + launch + "'"])
+                p = subprocess.Popen(cmin, bufsize=0, shell=True, executable='/bin/bash', env=env, stdout=subprocess.PIPE)
+                for line in p.stdout:
+                    if "[*]" in line or "[!]" in line:
+                        sys.stdout.write("\t\t\t" + line)
+                        
+                reseed_cmd = " ".join(["afl-minimize", "-c", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin", "--reseed", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out", "--", "'" + launch + "'"])
+                p = subprocess.Popen(reseed_cmd, bufsize=0, shell=True, executable='/bin/bash', env=env, stdout=subprocess.PIPE)
+                for line in p.stdout:
+                    if "[*]" in line or "[!]" in line:
+                        sys.stdout.write("\t\t\t" + line)
+                        
                 if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect"):
                     shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect")
                 if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin"):
                     shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin")
+                if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.crashes"):
+                    shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.crashes")
+                if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.hangs"):
+                    shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.hangs")
+            
         return True
 
 class OrthrusRemove(object):
@@ -666,58 +690,61 @@ class OrthrusStart(object):
     def _tidy_sync_dir(self, jobId):
         syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out"
         for session in os.listdir(syncDir):
-            for directory in os.listdir(syncDir + "/" + session):
-                if "crashes." in directory:
-                    for num, filename in enumerate(os.listdir(syncDir + "/" + session + "/" + directory)):
-                        src_path = syncDir + "/" + session + "/" + directory + "/" + filename
-                        dst_path = syncDir + "/" + session + "/" + "crashes" + "/" + filename
-                        if os.path.isfile(dst_path):
-                            dst_path += "," + str(num)
-                        shutil.move(src_path, dst_path)
-                    shutil.rmtree(syncDir + "/" + session + "/" + directory + "/")
-                if "hangs." in directory:
-                    for num, filename in enumerate(os.listdir(syncDir + "/" + session + "/" + directory)):
-                        src_path = syncDir + "/" + session + "/" + directory + "/" + filename
-                        dst_path = syncDir + "/" + session + "/" + "hangs" + "/" + filename
-                        if os.path.isfile(dst_path):
-                            dst_path += "," + str(num)
-                        shutil.move(src_path, dst_path)
-                    shutil.rmtree(syncDir + "/" + session + "/" + directory + "/")
-#                 if "queue." in directory:
-#                     for num, filename in enumerate(os.listdir(syncDir + "/" + session + "/" + directory)):
-#                         src_path = syncDir + "/" + session + "/" + directory + "/" + filename
-#                         dst_path = syncDir + "/" + session + "/" + "queue" + "/" + filename
-#                         if os.path.isfile(dst_path):
-#                             dst_path += "," + str(num)
-#                         shutil.move(src_path, dst_path)
-#                     shutil.rmtree(syncDir + "/" + session + "/" + directory + "/")
+            if os.path.isfile(syncDir + "/" + session):
+                os.remove(syncDir + "/" + session)
+            if os.path.isdir(syncDir + "/" + session):
+                for directory in os.listdir(syncDir + "/" + session):
+                    if "crashes." in directory:
+                        for num, filename in enumerate(os.listdir(syncDir + "/" + session + "/" + directory)):
+                            src_path = syncDir + "/" + session + "/" + directory + "/" + filename
+                            dst_path = syncDir + "/" + session + "/" + "crashes" + "/" + filename
+                            if not os.path.isfile(dst_path):
+                                #dst_path += "," + str(num)
+                                shutil.move(src_path, dst_path)
+                        shutil.rmtree(syncDir + "/" + session + "/" + directory + "/")
+                    if "hangs." in directory:
+                        for num, filename in enumerate(os.listdir(syncDir + "/" + session + "/" + directory)):
+                            src_path = syncDir + "/" + session + "/" + directory + "/" + filename
+                            dst_path = syncDir + "/" + session + "/" + "hangs" + "/" + filename
+                            if not os.path.isfile(dst_path):
+                                #dst_path += "," + str(num)
+                                shutil.move(src_path, dst_path)
+                        shutil.rmtree(syncDir + "/" + session + "/" + directory + "/")
+    #                 if "queue." in directory:
+    #                     for num, filename in enumerate(os.listdir(syncDir + "/" + session + "/" + directory)):
+    #                         src_path = syncDir + "/" + session + "/" + directory + "/" + filename
+    #                         dst_path = syncDir + "/" + session + "/" + "queue" + "/" + filename
+    #                         if os.path.isfile(dst_path):
+    #                             dst_path += "," + str(num)
+    #                         shutil.move(src_path, dst_path)
+    #                     shutil.rmtree(syncDir + "/" + session + "/" + directory + "/")
         
         for session in os.listdir(syncDir):
-            if "SESSION000" != session:
+            if "SESSION000" != session and os.path.isdir(syncDir + "/" + session):
                 for directory in os.listdir(syncDir + "/" + session):
                     if "crashes" == directory:
                         for num, filename in enumerate(os.listdir(syncDir + "/" + session + "/" + directory)):
                             src_path = syncDir + "/" + session + "/" + directory + "/" + filename
                             dst_path = syncDir + "/" + "SESSION000" + "/" + "crashes" + "/" + filename
-                            if os.path.isfile(dst_path):
-                                dst_path += "," + str(num)
-                            shutil.move(src_path, dst_path)
+                            if not os.path.isfile(dst_path):
+                                #dst_path += "," + str(num)
+                                shutil.move(src_path, dst_path)
                     if "hangs" == directory:
                         for num, filename in enumerate(os.listdir(syncDir + "/" + session + "/" + directory)):
                             src_path = syncDir + "/" + session + "/" + directory + "/" + filename
                             dst_path = syncDir + "/" + "SESSION000" + "/" + "hangs" + "/" + filename
-                            if os.path.isfile(dst_path):
-                                dst_path += "," + str(num)
-                            shutil.move(src_path, dst_path)
+                            if not os.path.isfile(dst_path):
+                                #dst_path += "," + str(num)
+                                shutil.move(src_path, dst_path)
                     if "queue" == directory:
                         for num, filename in enumerate(os.listdir(syncDir + "/" + session + "/" + directory)):
                             src_path = syncDir + "/" + session + "/" + directory + "/" + filename
                             dst_path = syncDir + "/" + "SESSION000" + "/" + "queue" + "/" + filename
                             if os.path.isdir(src_path):
                                 continue
-                            if os.path.isfile(dst_path):
-                                dst_path += "," + str(num)
-                            shutil.move(src_path, dst_path)
+                            if not os.path.isfile(dst_path):
+                                #dst_path += "," + str(num)
+                                shutil.move(src_path, dst_path)
                 shutil.rmtree(syncDir + "/" + session)
                 
         return True
@@ -728,24 +755,33 @@ class OrthrusStart(object):
 
         launch = ""
         if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
-            launch = self._config['orthrus']['directory'] + "/binaries/afl-harden/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params")
+            launch = self._config['orthrus']['directory'] + "/binaries/afl-harden/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("&","\&")
         else:
-            launch = self._config['orthrus']['directory'] + "/binaries/afl-asan/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params")
+            launch = self._config['orthrus']['directory'] + "/binaries/afl-asan/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("&","\&")
         
         export = {}
         export['PYTHONUNBUFFERED'] = "1"
         env = os.environ.copy()
         env.update(export)
-        cmin = " ".join(["afl-minimize", "-c", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect", "--cmin", "--cmin-mem-limit=800", "--cmin-timeout=5000", "--reseed", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out", "--", "'" + launch + "'"])
+        cmin = " ".join(["afl-minimize", "-c", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect", "--cmin", "--cmin-mem-limit=800", "--cmin-timeout=5000", "--dry-run", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out", "--", "'" + launch + "'"])
         p = subprocess.Popen(cmin, bufsize=0, shell=True, executable='/bin/bash', env=env, stdout=subprocess.PIPE)
         for line in p.stdout:
             if "[*]" in line or "[!]" in line:
                 sys.stdout.write("\t\t\t" + line)
-            
+        seed_cmd = " ".join(["afl-minimize", "-c", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin", "--reseed", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out", "--", "'" + launch + "'"])
+        p = subprocess.Popen(seed_cmd, bufsize=0, shell=True, executable='/bin/bash', env=env, stdout=subprocess.PIPE)
+        for line in p.stdout:
+            if "[*]" in line or "[!]" in line:
+                sys.stdout.write("\t\t\t" + line)
+                        
         if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect"):
             shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect")
         if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin"):
             shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin")
+        if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.crashes"):
+            shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.crashes")
+        if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.hangs"):
+            shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.hangs")
             
         return True
      
@@ -842,7 +878,69 @@ class OrthrusShow(object):
                 sys.stdout.write("\t     Triaged crashes : " + str(triaged_unique) + " available\n")
                 
         return True
-    
+
+class DedubThread(threading.Thread):
+    def __init__(self, thread_id, timeout_secs, target_cmd, in_queue, hashes, in_queue_lock, hashes_lock, outDir, mode):
+        threading.Thread.__init__(self)
+        self.id = thread_id
+        self.timeout_secs = timeout_secs
+        self.target_cmd = target_cmd
+        self.in_queue = in_queue
+        self.hashes = hashes
+        self.in_queue_lock = in_queue_lock
+        self.hashes_lock = hashes_lock
+        self.outDir = outDir
+        self.mode = mode
+        self.exit = False
+        
+    def run(self):
+        while not self.exit:
+            self.in_queue_lock.acquire()
+            if not self.in_queue.empty():
+                sample = self.in_queue.get()
+                self.in_queue_lock.release()
+                sample = os.path.abspath(sample)
+                cmd = ""
+                in_file = None
+                if "@@" in self.target_cmd:
+                    cmd = self.target_cmd.replace("@@", sample)
+                else:
+                    cmd = self.target_cmd
+                    in_file = open(sample, "rb")
+                    
+#                 try:
+                env = os.environ.copy()
+                asan_flag = {}
+                asan_flag['ASAN_OPTIONS'] = "abort_on_error=1:disable_coredump=1:symbolize=0"
+                env.update(asan_flag)
+                
+                dev_null = open(os.devnull, "r+")
+                output = ""
+                p = subprocess.Popen(cmd, shell=True, executable="/bin/bash", env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=dev_null)
+                if in_file:
+                    output = p.communicate(in_file.read())[0]
+                else:
+                    output = p.communicate()[0]
+                dev_null.close()
+                output = output[output.find("Hash: ") + 6:]
+                crash_hash = output[:output.find(".")]
+                
+                self.hashes_lock.acquire()
+                if crash_hash in self.hashes:
+                    self.hashes_lock.release()
+                    os.remove(sample)
+                else:
+                    self.hashes.add(crash_hash)
+                    self.hashes_lock.release()
+
+                    shutil.copy(sample, self.outDir + self.mode + "-" + os.path.basename(sample))
+#                 except Exception:
+                if in_file:
+                    in_file.close()
+            else:
+                self.in_queue_lock.release()
+                self.exit = True
+                
 class OrthrusTriage(object):
     
     def __init__(self, args, config):
@@ -854,24 +952,25 @@ class OrthrusTriage(object):
         job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
         
         dev_null = open(os.devnull, "w")
-        logfile = open(self._config['orthrus']['directory'] + "/logs/crash_graph.log", "a")
+        logfile = open(self._config['orthrus']['directory'] + "/logs/crash_graph_add.log", "a")
         if "HARDEN" in crash_file:
             if not os.path.exists(self._config['orthrus']['directory'] + "/binaries/harden-dbg"):
                 return False
-            p1_cmd = " ".join(["gdb", "-q", "-ex='set args " + job_config.get(jobId, "params").replace("@@", crash_file) + "'", "-ex='run'", "-ex='orthrus'", "-ex='gcore core'", "-ex='quit'", "--args", self._config['orthrus']['directory'] + "/binaries/harden-dbg/bin/" + job_config.get(jobId, "target")])
+            p1_cmd = " ".join(["gdb", "-q", "-ex='set args " + job_config.get(jobId, "params").replace("@@", crash_file) + "'", "-ex='run'", "-ex='orthrus'", "-ex='quit'", "--args", self._config['orthrus']['directory'] + "/binaries/harden-dbg/bin/" + job_config.get(jobId, "target")])
             p1 = subprocess.Popen(p1_cmd, shell=True, executable="/bin/bash", stdout=subprocess.PIPE, stderr=dev_null)
             
             p2_cmd = "joern-runtime-info -r -v -g -l"
-            p2 = subprocess.Popen(p2_cmd, shell=True, stdin=p1.stdout, stdout=logfile, stderr=subprocess.STDOUT)
+            p2 = subprocess.Popen(p2_cmd, shell=True, stdin=subprocess.PIPE, stdout=logfile, stderr=subprocess.STDOUT)
+            p2.communicate(p1.stdout.read())
             p2.wait()
             
         elif "ASAN" in crash_file:
             if not os.path.exists(self._config['orthrus']['directory'] + "/binaries/asan-dbg"):
                 return False
-            p1_cmd = "ulimit -c 1024000; " + self._config['orthrus']['directory'] + "/binaries/asan-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("@@", crash_file)
+            p1_cmd = "ulimit -c 0; " + self._config['orthrus']['directory'] + "/binaries/asan-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("@@", crash_file)
             export = {}
             export['ASAN_SYMBOLIZER_PATH'] = "/usr/local/bin/llvm-symbolizer"
-            export['ASAN_OPTIONS'] = "abort_on_error=1:symbolize=1:print_cmdline=1"
+            export['ASAN_OPTIONS'] = "abort_on_error=1:symbolize=1:print_cmdline=1:disable_coredump=1"
             env = os.environ.copy()
             env.update(export)
             p1 = subprocess.Popen(p1_cmd, shell=True, executable="/bin/bash", env=env, stdout=dev_null, stderr=subprocess.PIPE)
@@ -893,19 +992,71 @@ class OrthrusTriage(object):
         job_config = ConfigParser.ConfigParser()
         job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
         
+        logfile = open(self._config['orthrus']['directory'] + "/logs/crash_graph_triage.log", "a")
+        
         cmd = "joern-runtime-info -r -v -g --triage"
         p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         output = p.communicate("")[0]
-        output = output[output.find("Removed"):]
+        output = output[output.find("Triaged set:"):]
         output = output[output.find("\n") + 1:]
+        logfile.write(output)
         
-        remove_list = output.splitlines()
-        for filename in remove_list:
-            if os.path.isfile(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/" + filename):
-                os.remove(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/" + filename)
+        keep_list = output.splitlines()
+        samples = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
+        for filename in samples:
+            if filename not in keep_list:
+                if os.path.isfile(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/" + filename):
+                    os.remove(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/" + filename)
         
+        logfile.close()
         return True
             
+    def dedublicate_crashes(self, jobId, samples, mode, num_threads):
+        target_cmd = ""
+        in_queue_lock = threading.Lock()
+        hashes_lock = threading.Lock()
+        hashes = set()
+        in_queue = Queue(len(samples))
+        
+        job_config = ConfigParser.ConfigParser()
+        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
+            
+        outDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/"
+        # fill input queue with samples
+        in_queue_lock.acquire()
+        for s in samples:
+#             print s
+            in_queue.put(s)
+        in_queue_lock.release()
+        
+        if mode == "HARDEN":
+            target_cmd = " ".join(["gdb", "-q", "-ex='set args " + job_config.get(jobId, "params") + "'", "-ex='run'", "-ex='orthrus'", "-ex='quit'", "--args", self._config['orthrus']['directory'] + "/binaries/harden-dbg/bin/" + job_config.get(jobId, "target")])
+        elif mode == "ASAN":
+            target_cmd = " ".join(["gdb", "-q", "-ex='set args " + job_config.get(jobId, "params") + "'", "-ex='run'", "-ex='orthrus'", "-ex='quit'", "--args", self._config['orthrus']['directory'] + "/binaries/asan-dbg/bin/" + job_config.get(jobId, "target")])
+
+        
+        thread_list = []
+        for i in range(0, num_threads, 1):
+#             print "Start thread: " + str(i)
+            t = DedubThread(i, 10, target_cmd, in_queue, hashes, in_queue_lock, hashes_lock, outDir, mode)
+            thread_list.append(t)
+            t.daemon = True
+            t.start()
+        
+        for t in thread_list:
+            t.join()
+            
+        return True
+    
+    def _remove_cg_graph(self):
+        cmd = " ".join(["joern-runtime-info", "-g -u"])
+        p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        output = p.communicate("")[0]
+        if not output:
+            return False
+        else:
+            return True
+        
     def run(self):
         sys.stdout.write(bcolors.BOLD + bcolors.HEADER + "[+] Triaging crashes for job [" + self._args.job_id + "]" + bcolors.ENDC + "\n")
         if self._args.job_id:
@@ -913,7 +1064,12 @@ class OrthrusTriage(object):
             if not os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/"):
                 os.mkdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
             else:
+                sys.stdout.write("[?] Rerun triaging? [y/n]...: ")
+                sys.stdout.flush()
+                if 'y' not in sys.stdin.readline()[0]:
+                    return True
                 shutil.move(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique." + time.strftime("%Y-%m-%d-%H:%M:%S"))
+                self._remove_cg_graph()
                 os.mkdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
             
             job_config = ConfigParser.ConfigParser()
@@ -922,81 +1078,61 @@ class OrthrusTriage(object):
             if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
                 sys.stdout.write("\t\t[+] Collect and verify 'harden' mode crashes... ")
                 sys.stdout.flush()
-                  
+                     
                 syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/"
                 outDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden"
-                launch = self._config['orthrus']['directory'] + "/binaries/harden-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params")
-                cmd = " ".join(["afl-collect", "-r", syncDir, outDir, "--", launch])
+                launch = self._config['orthrus']['directory'] + "/binaries/harden-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("&","\&")
+                cmd = " ".join(["afl-collect", "-r", "-j 2", syncDir, outDir, "--", launch])
                 logfile = open(os.devnull, "w")
-                p = subprocess.Popen(cmd, shell=True, stdout=logfile, stderr=subprocess.STDOUT)
+                p = subprocess.Popen("ulimit -c 0; " + cmd, shell=True, stdout=logfile, stderr=subprocess.STDOUT)
                 p.wait()
                 logfile.close()
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-                  
+                     
             if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-asan"):
                 sys.stdout.write("\t\t[+] Collect and verify 'asan' mode crashes... ")
                 sys.stdout.flush()
-                  
+                     
                 env = os.environ.copy()
                 asan_flag = {}
-                asan_flag['ASAN_OPTIONS'] = "abort_on_error=1"
+                asan_flag['ASAN_OPTIONS'] = "abort_on_error=1:disable_coredump=1:symbolize=0"
                 env.update(asan_flag)
                 syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/"
                 outDir =self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan"
-                launch = self._config['orthrus']['directory'] + "/binaries/asan-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params")
-                cmd = " ".join(["afl-collect", "-r", syncDir, outDir, "--", launch])
-                p = subprocess.Popen(cmd, env=env, shell=True)
+                launch = self._config['orthrus']['directory'] + "/binaries/asan-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("&","\&")
+                cmd = " ".join(["afl-collect", "-r", "-j 2", syncDir, outDir, "--", launch])
+                logfile = open(os.devnull, "w")
+                p = subprocess.Popen(cmd, shell=True, executable="/bin/bash", env=env, stdout=logfile, stderr=subprocess.STDOUT)
                 p.wait()
+                logfile.close()
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-                  
+                     
             if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/"):
                 sys.stdout.write("\t\t[+] Deduplicate 'harden' mode crashes... ")
                 sys.stdout.flush()
-                  
+                     
                 crash_files = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/")
-                if crash_files:
-                    hashes = []
-                    for crash_file in crash_files:
-                        crash_file = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/" + crash_file
-                        cmd = " ".join(["gdb", "-q", "-ex='set args " + job_config.get(jobId, "params").replace("@@", crash_file) + "'", "-ex='run'", "-ex='orthrus'", "-ex='quit'", "--args", self._config['orthrus']['directory'] + "/binaries/harden-dbg/bin/" + job_config.get(jobId, "target")])
-                        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                        output = p.communicate()[0]
-                        output = output[output.find("Hash: ") + 6:]
-                        crash_hash = output[:output.find(".")]
-                        if crash_hash in hashes:
-                            os.remove(crash_file)
-                        else:
-                            hashes.append(crash_hash)
-                            shutil.copy(crash_file, self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/HARDEN-" + os.path.basename(crash_file))
+                for num, crash_file in enumerate(crash_files):
+                    crash_files[num] = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/" + crash_file
+                       
+                if not self.dedublicate_crashes(jobId, crash_files, "HARDEN", 2):
+                    sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/")
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-                  
+                       
             if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/"):
                 sys.stdout.write("\t\t[+] Deduplicate 'asan' mode crashes... ")
                 sys.stdout.flush()
-                  
+                      
                 crash_files = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/")
-                if crash_files:
-                    hashes = []
-                    for crash_file in crash_files:
-                        env = os.environ.copy()
-                        asan_flag = {}
-                        asan_flag['ASAN_OPTIONS'] = "abort_on_error=1"
-                        env.update(asan_flag)
-                        crash_file = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/" + crash_file
-                        cmd = " ".join(["gdb", "-q", "-ex='set args " + job_config.get(jobId, "params").replace("@@", crash_file) + "'", "-ex='run'", "-ex='orthrus'", "-ex='quit'", "--args", self._config['orthrus']['directory'] + "/binaries/asan-dbg/bin/" + job_config.get(jobId, "target")])
-                        p = subprocess.Popen(cmd, shell=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                        output = p.communicate()[0]
-                        output = output[output.find("Hash: ") + 6:]
-                        crash_hash = output[:output.find(".")]
-                        if crash_hash in hashes:
-                            os.remove(crash_file)
-                        else:
-                            hashes.append(crash_hash)
-                            shutil.copy(crash_file, self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/ASAN-" + os.path.basename(crash_file))
+                for num, crash_file in enumerate(crash_files):
+                    crash_files[num] = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/" + crash_file
+                        
+                if not self.dedublicate_crashes(jobId, crash_files, "ASAN", 2):
+                    sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/")
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-                 
+                   
             dedub_crashes = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
             sys.stdout.write("\t\t[+] Upload " + str(len(dedub_crashes)) + " crashes to database for further triaging... ")
             sys.stdout.flush()
@@ -1004,7 +1140,7 @@ class OrthrusTriage(object):
                 sys.stdout.write(bcolors.OKBLUE + "nothing to do" + bcolors.ENDC + "\n")
                 return
             sys.stdout.write("\n")
-            
+               
             for crash in dedub_crashes:
                 sys.stdout.write("\t\t\t[+] Adding " + crash + " ... ")
                 sys.stdout.flush()
@@ -1012,7 +1148,7 @@ class OrthrusTriage(object):
                     sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                     continue
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-                
+                  
             sys.stdout.write("\t\t[+] Triaging crashes... ")
             sys.stdout.flush()
             if not self._triage_crash_graph(jobId):
