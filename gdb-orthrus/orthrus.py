@@ -15,6 +15,19 @@ PC = ""
 BP = ""
 SP = ""
 
+class SupportBreakpoint (gdb.Breakpoint):
+    def __init__(self, location, observe_frame, arguments):
+        gdb.Breakpoint.__init__(self, location, gdb.BP_BREAKPOINT)
+        self._observe_frame = observe_frame
+        self._arguments = arguments
+                
+    def stop (self):
+        for key, value in self._arguments:
+            val = gdb.parse_and_eval(key)
+            if val != value:
+                return False
+        return True
+              
 class CanaryBreakpoint(gdb.Breakpoint):
     def __init__(self, canary_addr, observe_frame):
         gdb.Breakpoint.__init__(self, "*(long*)" + hex(canary_addr), gdb.BP_WATCHPOINT, gdb.WP_WRITE, True)
@@ -33,10 +46,15 @@ class CanaryBreakpoint(gdb.Breakpoint):
 
     def _validAccess(self, pc):
         disasm = ""
-        if "x86_64" in ARCH:
+        if "x86_64" in ARCH and "gcc" in COMPILER:
             disasm = gdb.execute("x/i " + hex(pc) + "-13", False, True)
-        else:
+        elif "i386" in ARCH and "gcc" in COMPILER:
             disasm = gdb.execute("x/i " + hex(pc) + "-9", False, True)
+        elif "x86_64" in ARCH and "clang" in COMPILER:
+            disasm = gdb.execute("x/i " + hex(pc) + "-14", False, True)
+        elif "i386" in ARCH and "clang" in COMPILER:
+            disasm = gdb.execute("x/i " + hex(pc) + "-10", False, True)
+            
         if ("%gs:" in disasm) or ("%fs:" in disasm):
             return True
         return False
@@ -66,7 +84,7 @@ class GdbOrthrus(gdb.Command):
             sp = "$esp"
             
         #TODO: Check which compiler was used
-        compiler = "gcc"
+        compiler = "clang"
         
         return (arch, compiler, pc, bp, sp)
     
@@ -104,21 +122,47 @@ class GdbOrthrus(gdb.Command):
         return cmd_args
     
     def _getCanaryAddr(self, frame):
+        global COMPILER
+        re_clang = re.compile("mov\s+(%gs|%fs):.+?\n.+?cmp\s+(?P<offset>-?0x[0-9a-zA-Z]+)\(")
+        re_gcc = re.compile("mov\s+(?P<offset>-?0x[0-9a-zA-Z]+)\(.+?\n.+?(xor)\s+(%gs|%fs):")
         disasm = ""
         pc = frame.pc()
+        #print (hex(pc))
+        #print (ARCH)
         bp = gdb.parse_and_eval(BP)
-         
-        if "x86_64" in ARCH:
-            disasm = gdb.execute("x/i " + hex(pc) + "-20", False, True)
+        #print (hex(int(bp)))
+        
+        disasm = gdb.execute("x/20i " + hex(pc) + "-60", False, True)
+
+        match = re_clang.search(disasm)
+        if not match:
+            COMPILER = "gcc"
+            match = re_gcc.search(disasm)
+            
+        if match:
+            offset = match.group("offset")
+            #print (offset)
+            if "-" in offset:
+                return ((-1 * int(offset[1:], 16)) + int(bp))
+            else:
+                return (int(offset[1:], 16) + int(bp))
         else:
-            disasm = gdb.execute("x/i " + hex(pc) + "-17", False, True)
-             
-        tmp = disasm[disasm.find("mov"):]
-        tmp = tmp[tmp.find(" "):tmp.find("(")].lstrip(" ")
-        if "-" in tmp:
-            return ((-1 * int(tmp[1:], 16)) + int(bp))
-        else:
-            return (int(tmp[1:], 16) + int(bp))
+            print ("No match")
+        
+            
+#         if "x86_64" in ARCH:
+#             disasm = gdb.execute("x/i " + hex(pc) + "-20", False, True)
+#         else:
+#             disasm = gdb.execute("x/i " + hex(pc) + "-17", False, True)
+            
+        
+#         tmp = disasm[disasm.find("mov"):]
+#         tmp = tmp[tmp.find(" "):tmp.find("(")].lstrip(" ")
+#         if "-" in tmp:
+#             return ((-1 * int(tmp[1:], 16)) + int(bp))
+#         else:
+#             return (int(tmp[1:], 16) + int(bp))
+
 
         return None
     
@@ -206,6 +250,17 @@ class GdbOrthrus(gdb.Command):
         bt += gdb.execute("bt", False, True)
         print (bt)
         
+    def _incompleteBackTrace(self):
+        frame = gdb.newest_frame()
+        while True:
+            if not frame:
+                break
+            if frame.name() is None:
+                return True
+            frame = frame.older()
+            
+        return False
+    
     def invoke(self, argstr, from_tty):
         global ARCH, COMPILER, PC, BP, SP
         ARCH, COMPILER, PC, BP, SP = self._platformInfo()
@@ -225,15 +280,36 @@ class GdbOrthrus(gdb.Command):
             
         isStack = False
         fa_addr = 0
+
         if self._isStackCheckFail():
             isStack = True
             
             observe_frame = frame.name()
+            #print ("Frame: " + observe_frame)
             fa_addr = self._getCanaryAddr(frame)
-            #print ("Canary: " + hex(canary_addr))
+            
+            #print ("Canary: " + hex(fa_addr))
             CanaryBreakpoint(fa_addr, observe_frame)
+
             gdb.execute("run " + cmd_args, False, True)
-            gdb.execute("set " + PC + "=" + PC + "-1")
+            
+            if self._incompleteBackTrace():
+                #print ("Stack trace incomplete")
+                frame2 = self._getTopUserCodeFrame()
+                #print ("New Top frame: " + frame2.name())
+                frame2.select()
+                args = gdb.execute("info args", False, True)
+                arguments = {}
+                for arg in args.splitlines():
+                    tmp = arg.split(" = ")
+                    arguments[tmp[0]] = tmp[1]
+                
+                location = frame2.find_sal().symtab.filename + ":" + str(frame2.find_sal().line)
+                #print (location)
+                SupportBreakpoint(location, observe_frame, arguments)
+                gdb.execute("run " + cmd_args, False, True)
+                
+            #gdb.execute("set " + PC + "=" + PC + "-1")
             self._updateExploitableHash(exploitable_info)
             
         self._printFault(fa_addr, isStack)
