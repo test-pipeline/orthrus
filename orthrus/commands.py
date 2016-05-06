@@ -264,7 +264,7 @@ class OrthrusCreate(object):
         if self._args.coverage:
             sys.stdout.write(bcolors.HEADER + "\t[+] Installing binaries for fuzzing coverage information" + bcolors.ENDC + "\n")
             export_vars = {}
-            install_path = self._config['orthrus']['directory'] + "/binaries/coverage/fuzzing"
+            install_path = self._config['orthrus']['directory'] + "/binaries/coverage/fuzzing/"
             if not os.path.isdir(install_path):
                 os.makedirs(install_path)
             
@@ -824,6 +824,19 @@ class OrthrusStart(object):
             
         return True
      
+    def _start_afl_coverage(self, jobId):
+        job_config = ConfigParser.ConfigParser()
+        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
+        
+        target = self._config['orthrus']['directory'] + "/binaries/coverage/fuzzing/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("@@","AFL_FILE")
+        cmd = [self._config['afl-cov']['afl_cov_path'] + "/afl-cov", "-d", ".orthrus/jobs/" + jobId + "/afl-out", "--live", "--lcov-path", "/usr/bin/lcov", "--coverage-cmd", "'" + target + "'", "--code-dir", ".", "-v"]
+        logfile = open(self._config['orthrus']['directory'] + "/logs/afl-coverage.log", "w")
+        print " ".join(cmd)
+        p = subprocess.Popen(" ".join(cmd), shell=True, stdout=logfile, stderr=subprocess.STDOUT)
+        
+        return True
+
+        
     def run(self):
         sys.stdout.write(bcolors.BOLD + bcolors.HEADER + "[+] Starting fuzzing jobs" + bcolors.ENDC + "\n")
         
@@ -854,7 +867,14 @@ class OrthrusStart(object):
                         sys.stdout.write("\t\t[+] Minimize fuzzer sync dir... \n")
                         if not self._minimize_sync(jobId):
                             return False
-                    
+                if self._args.coverage:
+                    sys.stdout.write("\t\t[+] Start afl-cov for Job [" + jobId +"]... ")
+                    sys.stdout.flush()
+                    if not self._start_afl_coverage(jobId):
+                        sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
+                        return False
+                    sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
+                
                 sys.stdout.write("\t\t[+] Start Fuzzers for Job [" + jobId +"]... ")
                 sys.stdout.flush()
                 if not self._start_fuzzers(jobId, total_cores):

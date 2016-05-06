@@ -88,6 +88,10 @@ class OrthrusTool():
         start_parser.add_argument('-j', '--job-id', nargs='?', 
                                 type = str, default="",
                                 help = 'Job Id for the job which should be started')
+        start_parser.add_argument('-c', '--coverage',
+                           action = 'store_true',
+                           help = """Collect coverage information while fuzzing""",
+                           default = False)
         start_parser.add_argument('-m', '--minimize',
                            action = 'store_true',
                            help = """Minimize corpus before start""",
