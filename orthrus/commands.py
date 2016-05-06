@@ -145,6 +145,7 @@ class OrthrusCreate(object):
             export_vars['AFL_USE_ASAN'] = '1'
             export_vars['AFL_DONT_OPTIMIZE'] = '1'
             export_vars['CFLAGS'] = '-O3' + ' ' + self._args.cflags
+            export_vars['CXXFLAGS'] = '-O3' + ' ' + self._args.cflags
             if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
@@ -179,6 +180,7 @@ class OrthrusCreate(object):
             export_vars['CC'] = 'clang'
             export_vars['CXX'] = 'clang++'
             export_vars['CFLAGS'] = '-g -O0 -fsanitize=address -fno-omit-frame-pointer' + ' ' + self._args.cflags
+            export_vars['CXXFLAGS'] = '-g -O0 -fsanitize=address -fno-omit-frame-pointer' + ' ' + self._args.cflags
             if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
@@ -211,6 +213,7 @@ class OrthrusCreate(object):
             export_vars['AFL_HARDEN'] = '1'
             export_vars['AFL_DONT_OPTIMIZE'] = '1'
             export_vars['CFLAGS'] = '-O2' + ' ' + self._args.cflags
+            export_vars['CXXFLAGS'] = '-O2' + ' ' + self._args.cflags
             if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
@@ -244,6 +247,7 @@ class OrthrusCreate(object):
             export_vars['CC'] = 'clang'
             export_vars['CXX'] = 'clang++'
             export_vars['CFLAGS'] = '-g -O0 -fstack-protector-all -D_FORTIFY_SOURCE=2 -fno-omit-frame-pointer' + ' ' + self._args.cflags
+            export_vars['CXXFLAGS'] = '-g -O0 -fstack-protector-all -D_FORTIFY_SOURCE=2 -fno-omit-frame-pointer' + ' ' + self._args.cflags
             if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
@@ -275,6 +279,7 @@ class OrthrusCreate(object):
             export_vars['CC'] = 'clang'
             export_vars['CXX'] = 'clang++'
             export_vars['CFLAGS'] = '-g -O0 -fprofile-arcs -ftest-coverage' + ' ' + self._args.cflags
+            export_vars['CXXFLAGS'] = '-g -O0 -fprofile-arcs -ftest-coverage' + ' ' + self._args.cflags
             if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
@@ -306,6 +311,7 @@ class OrthrusCreate(object):
             export_vars['CC'] = 'clang'
             export_vars['CXX'] = 'clang++'
             export_vars['CFLAGS'] = '-g -O0 -fstack-protector-all -D_FORTIFY_SOURCE=2 -fno-omit-frame-pointer -fsanitize=undefined -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.cflags
+            export_vars['CXXFLAGS'] = '-g -O0 -fstack-protector-all -D_FORTIFY_SOURCE=2 -fno-omit-frame-pointer -fsanitize=undefined -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.cflags
             export_vars['LDFLAGS'] = '-fsanitize=undefined -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.ldflags
  
             if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
@@ -340,6 +346,7 @@ class OrthrusCreate(object):
                 export_vars['CC'] = 'clang'
                 export_vars['CXX'] = 'clang++'
                 export_vars['CFLAGS'] = '-g -O0 -fno-omit-frame-pointer -fsanitize=address -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.cflags
+                export_vars['CXXFLAGS'] = '-g -O0 -fno-omit-frame-pointer -fsanitize=address -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.cflags
                 export_vars['LDFLAGS'] = '-fsanitize=address -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.ldflags
                 if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                     sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
