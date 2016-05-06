@@ -265,7 +265,8 @@ class OrthrusCreate(object):
             sys.stdout.write(bcolors.HEADER + "\t[+] Installing binaries for fuzzing coverage information" + bcolors.ENDC + "\n")
             export_vars = {}
             install_path = self._config['orthrus']['directory'] + "/binaries/coverage/fuzzing"
-            os.mkdir(install_path)
+            if not os.path.isdir(install_path):
+                os.makedirs(install_path)
             
             sys.stdout.write("\t\t[+] Cleaning project... ")
             sys.stdout.flush() 
