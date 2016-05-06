@@ -85,6 +85,9 @@ class OrthrusTool():
         
         # Command 'start'
         start_parser = subparsers.add_parser('start', help=START_HELP)
+        start_parser.add_argument('-j', '--job-id', nargs='?', 
+                                type = str, default="",
+                                help = 'Job Id for the job which should be started')
         start_parser.add_argument('-m', '--minimize',
                            action = 'store_true',
                            help = """Minimize corpus before start""",

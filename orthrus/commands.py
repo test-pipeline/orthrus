@@ -258,7 +258,37 @@ class OrthrusCreate(object):
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
                 
         if self._args.coverage:
-            sys.stdout.write(bcolors.HEADER + "\t[+] Installing binaries for coverage information" + bcolors.ENDC + "\n")
+            sys.stdout.write(bcolors.HEADER + "\t[+] Installing binaries for fuzzing coverage information" + bcolors.ENDC + "\n")
+            export_vars = {}
+            install_path = self._config['orthrus']['directory'] + "/binaries/coverage/fuzzing"
+            os.mkdir(install_path)
+            
+            sys.stdout.write("\t\t[+] Cleaning project... ")
+            sys.stdout.flush() 
+            if not self._clean_project():
+                sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
+                return False
+            sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
+
+            sys.stdout.write("\t\t[+] Configure... ")
+            sys.stdout.flush() 
+            export_vars['CC'] = 'clang'
+            export_vars['CXX'] = 'clang++'
+            export_vars['CFLAGS'] = '-g -O0 -fprofile-arcs -ftest-coverage' + ' ' + self._args.cflags
+            if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
+                sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
+                return False
+            sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
+            
+            sys.stdout.write("\t\t[+] Compiling and install... ")
+            sys.stdout.flush() 
+            if not self._make_install(export_vars):
+                sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
+                return False
+            self._copy_additional_binaries(install_path + "bin/")
+            sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
+            
+            sys.stdout.write(bcolors.HEADER + "\t[+] Installing binaries for harden coverage information" + bcolors.ENDC + "\n")
             export_vars = {}
             install_path = self._config['orthrus']['directory'] + "/binaries/coverage/ubsan-dbg/"
             if not os.path.isdir(install_path):
@@ -800,27 +830,29 @@ class OrthrusStart(object):
         job_config = ConfigParser.ConfigParser()
         job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
         
-        total_cores = self._get_cpu_core_info()
-        for jobId in job_config.sections():
-            if len(os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/")) > 0:
-                sys.stdout.write("\t\t[+] Tidy fuzzer sync dir... ")
+        if self._args.job_id:
+            jobId = self._args.job_id
+            total_cores = self._get_cpu_core_info()
+            if jobId in job_config.sections():
+                if len(os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/")) > 0:
+                    sys.stdout.write("\t\t[+] Tidy fuzzer sync dir... ")
+                    sys.stdout.flush()
+                    if not self._tidy_sync_dir(jobId):
+                        sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
+                        return False
+                    sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
+                    
+                    if self._args.minimize:
+                        sys.stdout.write("\t\t[+] Minimize fuzzer sync dir... \n")
+                        if not self._minimize_sync(jobId):
+                            return False
+                    
+                sys.stdout.write("\t\t[+] Start Fuzzers for Job [" + jobId +"]... ")
                 sys.stdout.flush()
-                if not self._tidy_sync_dir(jobId):
+                if not self._start_fuzzers(jobId, total_cores):
+                    subprocess.call("afl-multikill")
                     sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                     return False
-                sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-                
-                if self._args.minimize:
-                    sys.stdout.write("\t\t[+] Minimize fuzzer sync dir... \n")
-                    if not self._minimize_sync(jobId):
-                        return False
-                
-            sys.stdout.write("\t\t[+] Start Fuzzers for Job [" + jobId +"]... ")
-            sys.stdout.flush()
-            if not self._start_fuzzers(jobId, total_cores):
-                subprocess.call("afl-multikill")
-                sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
-                return False
             
         return True
     
