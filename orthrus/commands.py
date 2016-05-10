@@ -667,12 +667,9 @@ class OrthrusStart(object):
         self._config = config
     
     def _get_cpu_core_info(self):
-        num_cores = 0
-        info = subprocess.check_output("afl-gotcpu", shell=True, stderr=subprocess.STDOUT)
-        for line in info:
-            if "Core" in line:
-                num_cores += 1
-        return num_cores
+        num_cores = subprocess.check_output("nproc", shell=True, stderr=subprocess.STDOUT)
+        
+        return int(num_cores)
     
     def _start_fuzzers(self, jobId, available_cores):
         start_cmd = ""
