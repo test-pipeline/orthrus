@@ -277,8 +277,8 @@ class OrthrusCreate(object):
 
             sys.stdout.write("\t\t[+] Configure... ")
             sys.stdout.flush() 
-            export_vars['CC'] = 'clang'
-            export_vars['CXX'] = 'clang++'
+            export_vars['CC'] = 'gcc'
+            export_vars['CXX'] = 'g++'
             export_vars['CFLAGS'] = '-g -O0 -fprofile-arcs -ftest-coverage' + ' ' + self._args.cflags
             export_vars['CXXFLAGS'] = '-g -O0 -fprofile-arcs -ftest-coverage' + ' ' + self._args.cflags
             if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
@@ -938,7 +938,7 @@ class OrthrusShow(object):
         return True
 
 class DedubThread(threading.Thread):
-    def __init__(self, thread_id, timeout_secs, target_cmd, in_queue, hashes, in_queue_lock, hashes_lock, outDir, mode):
+    def __init__(self, thread_id, timeout_secs, target_cmd, in_queue, hashes, in_queue_lock, hashes_lock, outDir, mode, jobId):
         threading.Thread.__init__(self)
         self.id = thread_id
         self.timeout_secs = timeout_secs
@@ -949,6 +949,7 @@ class DedubThread(threading.Thread):
         self.hashes_lock = hashes_lock
         self.outDir = outDir
         self.mode = mode
+        self.jobId = jobId
         self.exit = False
         
     def run(self):
@@ -991,7 +992,7 @@ class DedubThread(threading.Thread):
                     self.hashes.add(crash_hash)
                     self.hashes_lock.release()
 
-                    shutil.copy(sample, self.outDir + self.mode + "-" + os.path.basename(sample))
+                    shutil.copy(sample, self.outDir + self.mode + ":" + self.jobId + "," + os.path.basename(sample))
 #                 except Exception:
                 if in_file:
                     in_file.close()
@@ -1096,7 +1097,7 @@ class OrthrusTriage(object):
         thread_list = []
         for i in range(0, num_threads, 1):
 #             print "Start thread: " + str(i)
-            t = DedubThread(i, 10, target_cmd, in_queue, hashes, in_queue_lock, hashes_lock, outDir, mode)
+            t = DedubThread(i, 10, target_cmd, in_queue, hashes, in_queue_lock, hashes_lock, outDir, mode, jobId)
             thread_list.append(t)
             t.daemon = True
             t.start()
