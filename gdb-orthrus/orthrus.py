@@ -132,7 +132,7 @@ class GdbOrthrus(gdb.Command):
         bp = gdb.parse_and_eval(BP)
         #print (hex(int(bp)))
         
-        disasm = gdb.execute("x/20i " + hex(pc) + "-60", False, True)
+        disasm = gdb.execute("disass", False, True)
 
         match = re_clang.search(disasm)
         if not match:
@@ -313,6 +313,8 @@ class GdbOrthrus(gdb.Command):
             self._updateExploitableHash(exploitable_info)
             
         self._printFault(fa_addr, isStack)
+        main_info = gdb.execute("info line main", False, True)
+        print ("Main function: " + main_info)
         print (exploitable_info)
         
         gdb.newest_frame().select()
