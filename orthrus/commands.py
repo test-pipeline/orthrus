@@ -146,7 +146,8 @@ class OrthrusCreate(object):
             export_vars['AFL_DONT_OPTIMIZE'] = '1'
             export_vars['CFLAGS'] = '-O3' + ' ' + self._args.cflags
             export_vars['CXXFLAGS'] = '-O3' + ' ' + self._args.cflags
-            if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
+            # , '--exec-prefix=' + os.path.abspath(install_path)
+            if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" "), open(self._config['orthrus']['directory'] + "/logs/configure.log", 'w')):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
@@ -181,7 +182,8 @@ class OrthrusCreate(object):
             export_vars['CXX'] = 'clang++'
             export_vars['CFLAGS'] = '-g -O0 -fsanitize=address -fno-omit-frame-pointer' + ' ' + self._args.cflags
             export_vars['CXXFLAGS'] = '-g -O0 -fsanitize=address -fno-omit-frame-pointer' + ' ' + self._args.cflags
-            if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
+            # , '--exec-prefix=' + os.path.abspath(install_path)
+            if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
@@ -214,7 +216,8 @@ class OrthrusCreate(object):
             export_vars['AFL_DONT_OPTIMIZE'] = '1'
             export_vars['CFLAGS'] = '-O2' + ' ' + self._args.cflags
             export_vars['CXXFLAGS'] = '-O2' + ' ' + self._args.cflags
-            if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
+            #, '--exec-prefix=' + os.path.abspath(install_path)
+            if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
@@ -248,7 +251,8 @@ class OrthrusCreate(object):
             export_vars['CXX'] = 'clang++'
             export_vars['CFLAGS'] = '-g -O0 -fstack-protector-all -D_FORTIFY_SOURCE=2 -fno-omit-frame-pointer' + ' ' + self._args.cflags
             export_vars['CXXFLAGS'] = '-g -O0 -fstack-protector-all -D_FORTIFY_SOURCE=2 -fno-omit-frame-pointer' + ' ' + self._args.cflags
-            if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
+            # , '--exec-prefix=' + os.path.abspath(install_path)
+            if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
@@ -281,7 +285,8 @@ class OrthrusCreate(object):
             export_vars['CXX'] = 'g++'
             export_vars['CFLAGS'] = '-g -O0 -fprofile-arcs -ftest-coverage' + ' ' + self._args.cflags
             export_vars['CXXFLAGS'] = '-g -O0 -fprofile-arcs -ftest-coverage' + ' ' + self._args.cflags
-            if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
+            # , '--exec-prefix=' + os.path.abspath(install_path)
+            if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
@@ -315,7 +320,8 @@ class OrthrusCreate(object):
             export_vars['CXXFLAGS'] = '-g -O0 -fstack-protector-all -D_FORTIFY_SOURCE=2 -fno-omit-frame-pointer -fsanitize=undefined -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.cflags
             export_vars['LDFLAGS'] = '-fsanitize=undefined -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.ldflags
  
-            if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
+            # , '--exec-prefix=' + os.path.abspath(install_path)
+            if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
@@ -349,7 +355,8 @@ class OrthrusCreate(object):
                 export_vars['CFLAGS'] = '-g -O0 -fno-omit-frame-pointer -fsanitize=address -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.cflags
                 export_vars['CXXFLAGS'] = '-g -O0 -fno-omit-frame-pointer -fsanitize=address -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.cflags
                 export_vars['LDFLAGS'] = '-fsanitize=address -fsanitize-coverage=edge,8bit-counters' + ' ' + self._args.ldflags
-                if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path), '--exec-prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
+                #, '--exec-prefix=' + os.path.abspath(install_path)
+                if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                     sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                     return False
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
@@ -386,7 +393,8 @@ class OrthrusCreate(object):
         configure_env = os.environ.copy()
         configure_env.update(export_vars)
         # AFL-fuzz likes statically linked binaries
-        command = ["./configure " + "--disable-shared " + " ".join(args)]
+        # "--disable-shared " +
+        command = ["./configure " +  " ".join(args)]
         proc = subprocess.Popen(command, shell=True, executable='/bin/bash', env=configure_env, stdout=logfile, stderr=subprocess.STDOUT)
         
         ret = proc.wait()
@@ -404,7 +412,7 @@ class OrthrusCreate(object):
             
         make_env = os.environ.copy()
         make_env.update(export_vars)
-        command = ["make all install"]
+        command = ["make install"]
         proc = subprocess.Popen(command, shell=True, executable='/bin/bash', env=make_env, stdout=logfile, stderr=subprocess.STDOUT)
         
         ret = proc.wait()
@@ -1047,7 +1055,7 @@ class OrthrusTriage(object):
         
         return True
     
-    def _triage_crash_graph(self, jobId):
+    def _triage_crash_graph(self, jobIds):
         job_config = ConfigParser.ConfigParser()
         job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
         
@@ -1056,18 +1064,20 @@ class OrthrusTriage(object):
         cmd = "joern-runtime-info -r -v -g --triage"
         p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         output = p.communicate("")[0]
+        logfile.write(output)
         output = output[output.find("Triaged set:"):]
         output = output[output.find("\n") + 1:]
-        logfile.write(output)
         
         keep_list = output.splitlines()
-        samples = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
-        for filename in samples:
-            if filename not in keep_list:
-                if os.path.isfile(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/" + filename):
-                    os.remove(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/" + filename)
+        for jobId in jobIds:
+            samples = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
+            for filename in samples:
+                if filename not in keep_list:
+                    if os.path.isfile(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/" + filename):
+                        os.remove(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/" + filename)
         
         logfile.close()
+        
         return True
             
     def dedublicate_crashes(self, jobId, samples, mode, num_threads):
@@ -1117,9 +1127,18 @@ class OrthrusTriage(object):
             return True
         
     def run(self):
-        sys.stdout.write(bcolors.BOLD + bcolors.HEADER + "[+] Triaging crashes for job [" + self._args.job_id + "]" + bcolors.ENDC + "\n")
+        job_config = ConfigParser.ConfigParser()
+        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
+        
+        jobIds = []
         if self._args.job_id:
-            jobId = self._args.job_id
+            jobIds[0] = self._args.job_id
+        else:
+            jobIds = job_config.sections()
+            
+        for jobId in jobIds:
+            sys.stdout.write(bcolors.BOLD + bcolors.HEADER + "[+] Triaging crashes for job [" + jobId + "]" + bcolors.ENDC + "\n")
+            
             if not os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/"):
                 os.mkdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
             else:
@@ -1130,14 +1149,11 @@ class OrthrusTriage(object):
                 shutil.move(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique." + time.strftime("%Y-%m-%d-%H:%M:%S"))
                 self._remove_cg_graph()
                 os.mkdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
-            
-            job_config = ConfigParser.ConfigParser()
-            job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-                
+                 
             if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
                 sys.stdout.write("\t\t[+] Collect and verify 'harden' mode crashes... ")
                 sys.stdout.flush()
-                     
+                      
                 syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/"
                 outDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden"
                 launch = self._config['orthrus']['directory'] + "/binaries/harden-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("&","\&")
@@ -1147,11 +1163,11 @@ class OrthrusTriage(object):
                 p.wait()
                 logfile.close()
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-                     
+                      
             if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-asan"):
                 sys.stdout.write("\t\t[+] Collect and verify 'asan' mode crashes... ")
                 sys.stdout.flush()
-                     
+                      
                 env = os.environ.copy()
                 asan_flag = {}
                 asan_flag['ASAN_OPTIONS'] = "abort_on_error=1:disable_coredump=1:symbolize=0"
@@ -1165,28 +1181,28 @@ class OrthrusTriage(object):
                 p.wait()
                 logfile.close()
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-                     
+                      
             if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/"):
                 sys.stdout.write("\t\t[+] Deduplicate 'harden' mode crashes... ")
                 sys.stdout.flush()
-                     
+                      
                 crash_files = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/")
                 for num, crash_file in enumerate(crash_files):
                     crash_files[num] = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/" + crash_file
-                       
+                        
                 if not self.dedublicate_crashes(jobId, crash_files, "HARDEN", 2):
                     sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/")
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
-                       
+                        
             if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/"):
                 sys.stdout.write("\t\t[+] Deduplicate 'asan' mode crashes... ")
                 sys.stdout.flush()
-                      
+                       
                 crash_files = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/")
                 for num, crash_file in enumerate(crash_files):
                     crash_files[num] = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/" + crash_file
-                        
+                         
                 if not self.dedublicate_crashes(jobId, crash_files, "ASAN", 2):
                     sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/")
@@ -1208,12 +1224,12 @@ class OrthrusTriage(object):
                     continue
                 sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
                   
-            sys.stdout.write("\t\t[+] Triaging crashes... ")
-            sys.stdout.flush()
-            if not self._triage_crash_graph(jobId):
-                sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
-                return
-            sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
+        sys.stdout.write("\t\t[+] Triaging crashes... ")
+        sys.stdout.flush()
+        if not self._triage_crash_graph(jobIds):
+            sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
+            return
+        sys.stdout.write(bcolors.OKGREEN + "done" + bcolors.ENDC + "\n")
             
         return True
 

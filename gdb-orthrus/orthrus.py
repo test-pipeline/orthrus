@@ -309,7 +309,7 @@ class GdbOrthrus(gdb.Command):
                 SupportBreakpoint(location, observe_frame, arguments)
                 gdb.execute("run " + cmd_args, False, True)
                 
-            #gdb.execute("set " + PC + "=" + PC + "-1")
+            gdb.execute("set " + PC + "=" + PC + "-1")
             self._updateExploitableHash(exploitable_info)
             
         self._printFault(fa_addr, isStack)
