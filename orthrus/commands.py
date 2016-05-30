@@ -182,6 +182,7 @@ class OrthrusCreate(object):
             export_vars['CXX'] = 'clang++'
             export_vars['CFLAGS'] = '-g -O0 -fsanitize=address -fno-omit-frame-pointer' + ' ' + self._args.cflags
             export_vars['CXXFLAGS'] = '-g -O0 -fsanitize=address -fno-omit-frame-pointer' + ' ' + self._args.cflags
+            export_vars['LDFLAGS'] = '-fsanitize=address'
             # , '--exec-prefix=' + os.path.abspath(install_path)
             if not self._configure_project(export_vars, ['--prefix=' + os.path.abspath(install_path)] + self._args.configure_flags.split(" ")):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
@@ -190,7 +191,7 @@ class OrthrusCreate(object):
               
             sys.stdout.write("\t\t[+] Compiling and install... ")
             sys.stdout.flush() 
-            if not self._make_install(export_vars):
+            if not self._make_install(export_vars, open(self._config['orthrus']['directory'] + "/logs/asan-dbg_inst.log", 'w')):
                 sys.stdout.write(bcolors.FAIL + "failed" + bcolors.ENDC + "\n")
                 return False
             self._copy_additional_binaries(install_path + "bin/")
