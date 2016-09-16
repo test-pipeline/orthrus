@@ -437,7 +437,8 @@ class OrthrusCreate(object):
         binaries = self._return_elf_binaries()
         # Overwriting existing binaries is fine
         for f in binaries:
-            shutil.copy(f, dest)
+            if not os.path.isfile(dest + os.path.basename(f)):
+                shutil.copy(f, dest)
     
     def _clean_project(self, logfile = None):
         if not logfile:
