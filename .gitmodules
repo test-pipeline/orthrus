@@ -1,0 +1,3 @@
+[submodule "testdata/Automake-Autoconf-Template-Project"]
+	path = testdata/Automake-Autoconf-Template-Project
+	url = git@gitlab.sec.t-labs.tu-berlin.de:collaboration/Automake-Autoconf-Template-Project.git
