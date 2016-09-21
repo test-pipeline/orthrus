@@ -48,7 +48,8 @@ class OrthrusTool():
         cmd.run()
 
     def _clean(self, args):
-        print "Clean command"
+        color_print(bcolors.INFO, "Not implemented")
+        pass
 
     def _destroy(self, args):
         cmd = OrthrusDestroy(args, self._config)

@@ -38,7 +38,8 @@ class BuildEnv(object):
         self.exportvars.update(buildenv.misc)
 
     def getenvdict(self):
-        return self.buildenv.update(self.exportvars)
+        self.buildenv.update(self.exportvars)
+        return self.buildenv
 
 class Builder(object):
 
