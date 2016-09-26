@@ -63,7 +63,7 @@ class OrthrusCreate(object):
         os.mkdir(install_path)
 
         ### Configure
-        util.color_print_singleline(util.bcolors.HEADER, "\t\t[+] Configure... ")
+        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Configure... ")
 
         config_flags = ['--prefix=' + os.path.abspath(install_path)] + \
                        self.args.configure_flags.split(" ")
@@ -229,7 +229,11 @@ class OrthrusAdd(object):
         asanjob_config.add_section("afl.ctrl")
         asanjob_config.set("afl.ctrl", "file", ".orthrus/jobs/" + self.jobId + "/afl-out/.cur_input_asan")
         asanjob_config.set("afl.ctrl", "timeout", "3000+")
-        asanjob_config.set("afl.ctrl", "mem_limit", "800")
+        # See: https://github.com/mirrorer/afl/blob/master/docs/notes_for_asan.txt
+        if util.is64bit():
+            asanjob_config.set("afl.ctrl", "mem_limit", "30000000")
+        else:
+            asanjob_config.set("afl.ctrl", "mem_limit", "800")
         asanjob_config.add_section("job")
         asanjob_config.set("job", "session", "SESSION")
         if os.path.exists(self._config['orthrus']['directory'] + "binaries/afl-harden"):
@@ -300,58 +304,12 @@ class OrthrusAdd(object):
                 os.mkdir(tmpDir)
                 tar.extractall(tmpDir)
                 for directory in os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/tmp/"):
-#                    outDir = self._config['orthrus'][
-#                                 'directory'] + "/jobs/" + jobId + "/afl-out/SESSION" + "{:03d}".format(next_session)
                     outDir = self._config['orthrus']['directory'] + '/jobs/' + jobId + '/afl-out/'
                     shutil.move(tmpDir + directory, outDir)
-#                    next_session += 1
                 shutil.rmtree(tmpDir)
         util.color_print(util.bcolors.OKGREEN, "done")
 
-        util.color_print(util.bcolors.OKGREEN, "\t\t[+] Minimizing corpus for job [" + jobId + "]...")
-
-        job_config = ConfigParser.ConfigParser()
-        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-        export = {}
-        export['PYTHONUNBUFFERED'] = "1"
-        env = os.environ.copy()
-        env.update(export)
-
-        launch = ""
-        if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
-            launch = self._config['orthrus']['directory'] + "/binaries/afl-harden/bin/" + job_config.get(jobId,
-                                                                                                         "target") + " " + job_config.get(
-                jobId, "params").replace("&", "\&")
-        else:
-            launch = self._config['orthrus']['directory'] + "/binaries/afl-asan/bin/" + job_config.get(jobId,
-                                                                                                       "target") + " " + job_config.get(
-                jobId, "params")
-        cmin = " ".join(
-            ["afl-minimize", "-c", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect", "--cmin",
-             "--cmin-mem-limit=800", "--cmin-timeout=5000", "--dry-run",
-             self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out", "--", "'" + launch + "'"])
-        p = subprocess.Popen(cmin, bufsize=0, shell=True, executable='/bin/bash', env=env, stdout=subprocess.PIPE)
-        for line in p.stdout:
-            if "[*]" in line or "[!]" in line:
-                util.color_print(util.bcolors.OKGREEN, "\t\t\t" + line)
-
-        reseed_cmd = " ".join(
-            ["afl-minimize", "-c", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin",
-             "--reseed", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out", "--",
-             "'" + launch + "'"])
-        p = subprocess.Popen(reseed_cmd, bufsize=0, shell=True, executable='/bin/bash', env=env, stdout=subprocess.PIPE)
-        for line in p.stdout:
-            if "[*]" in line or "[!]" in line:
-                util.color_print(util.bcolors.OKGREEN, "\t\t\t" + line)
-
-        if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect"):
-            shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect")
-        if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin"):
-            shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin")
-        if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.crashes"):
-            shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.crashes")
-        if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.hangs"):
-            shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.hangs")
+        util.minimize_sync_dir(self._config, jobId)
 
         return True
     
@@ -424,11 +382,9 @@ class OrthrusStart(object):
     
     def _get_cpu_core_info(self):
         num_cores = subprocess.check_output("nproc", shell=True, stderr=subprocess.STDOUT)
-        
         return int(num_cores)
     
     def _start_fuzzers(self, jobId, available_cores):
-        start_cmd = ""
         if os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/") == []:
             start_cmd = "start"
         else:
@@ -438,48 +394,81 @@ class OrthrusStart(object):
         if core_per_subjob == 0:
             core_per_subjob = 1
 
+        cmd = ["cat /proc/sys/kernel/core_pattern"]
+        util.color_print_singleline(util.bcolors.OKGREEN, "Checking core_pattern...")
+        if "core" not in subprocess.check_output(" ".join(cmd), shell=True, stderr=subprocess.STDOUT):
+            util.color_print(util.bcolors.FAIL, "failed. Please do echo core | sudo tee /proc/sys/kernel/core_pattern")
+            return False
+        util.color_print(util.bcolors.OKGREEN, "okay")
+
+        env = os.environ.copy()
+        env.update({'AFL_SKIP_CPUFREQ': '1'})
+
         if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
-            harden_file = open(self._config['orthrus']['directory'] + "/logs/afl-harden.log", "w")
-            p = subprocess.Popen(" ".join(["afl-multicore", "--config=.orthrus/jobs/" + jobId + "/harden-job.conf", start_cmd, str(core_per_subjob), "-v"]), shell=True, stdout=harden_file, stderr=subprocess.PIPE)
-            p.wait()
-            util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
+            util.color_print(util.bcolors.OKGREEN, "\t\t[+] Starting AFL harden fuzzer job as master...")
+
+            harden_file = self._config['orthrus']['directory'] + "/logs/afl-harden.log"
+            cmd = ["afl-multicore", "--config=.orthrus/jobs/" + jobId + "/harden-job.conf",
+                                           start_cmd, str(core_per_subjob), "-v"]
+
+            if not util.run_cmd(" ".join(cmd), env, harden_file):
+                util.color_print(util.bcolors.FAIL, "failed")
+                return False
+
+            util.color_print(util.bcolors.OKGREEN, "\t\t[+] Starting AFL job...done")
             
             output = open(self._config['orthrus']['directory'] + "/logs/afl-harden.log", "r")
             for line in output:
                 if "Starting master" in line or "Starting slave" in line:
-                    util.color_print("\t\t\t" + line)
+                    util.color_print(util.bcolors.OKGREEN, "\t\t\t" + line)
                 if " Master " in line or " Slave " in line:
-                    util.color_print("\t\t\t\t" + util.bcolors.OKGREEN + "[+]" + util.bcolors.ENDC + line)
+                    util.color_print_singleline(util.bcolors.OKGREEN, "\t\t\t\t" + "[+] " + line)
             output.close()
             
             if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-asan"):
-                asan_file = open(self._config['orthrus']['directory'] + "/logs/afl-asan.log", "w")
-                p = subprocess.Popen("afl-multicore --config=.orthrus/jobs/" + jobId + "/asan-job.conf " + "add" + " " + str(core_per_subjob) +" -v", shell=True, stdout=asan_file, stderr=subprocess.STDOUT)
-                p.wait()
+                util.color_print(util.bcolors.OKGREEN, "\t\t[+] Starting AFL ASAN fuzzer job as slave...")
+                asan_file = self._config['orthrus']['directory'] + "/logs/afl-asan.log"
+                cmd = ["afl-multicore", "--config=.orthrus/jobs/" + jobId + "/asan-job.conf ", "add", \
+                                str(core_per_subjob), "-v"]
+
+                if not util.run_cmd(" ".join(cmd), env, asan_file):
+                    util.color_print(util.bcolors.FAIL, "failed")
+                    return False
+
+                util.color_print(util.bcolors.OKGREEN, "\t\t[+] Starting AFL job...done")
+
                 output2 = open(self._config['orthrus']['directory'] + "/logs/afl-asan.log", "r")
                 for line in output2:
                     if "Starting master" in line or "Starting slave" in line:
-                        util.color_print("\t\t\t" + line)
+                        util.color_print(util.bcolors.OKGREEN, "\t\t\t" + line)
                     if " Master " in line or " Slave " in line:
-                        util.color_print("\t\t\t\t" + util.bcolors.OKGREEN + "[+]" + util.bcolors.ENDC + line)
+                        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t\t\t" + "[+] " + line)
                 output2.close()
+
         elif os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-asan"):
-            asan_file = open(self._config['orthrus']['directory'] + "/logs/afl-asan.log", "w")
-            p = subprocess.Popen("afl-multicore --config=.orthrus/jobs/" + jobId + "/asan-job.conf " + start_cmd + " " + str(available_cores) +" -v", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            p.wait()
-            util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
-            
+
+            util.color_print(util.bcolors.OKGREEN, "\t\t[+] Starting AFL ASAN fuzzer job as master...")
+            asan_file = self._config['orthrus']['directory'] + "/logs/afl-asan.log"
+            cmd = ["afl-multicore", "-c", ".orthrus/jobs/" + jobId + "/asan-job.conf", start_cmd, \
+                   str(available_cores), "-v"]
+
+            if not util.run_cmd(" ".join(cmd), env, asan_file):
+                util.color_print(util.bcolors.FAIL, "failed")
+                return False
+
+            util.color_print(util.bcolors.OKGREEN, "\t\t[+] Starting AFL job...done")
+
             output2 = open(self._config['orthrus']['directory'] + "/logs/afl-asan.log", "r")
             for line in output2:
                 if "Starting master" in line or "Starting slave" in line:
-                    util.color_print("\t\t\t" + line)
+                    util.color_print(util.bcolors.OKGREEN, "\t\t\t" + line)
                 if " Master " in line or " Slave " in line:
-                    util.color_print("\t\t\t\t" + util.bcolors.OKGREEN + "[+]" + util.bcolors.ENDC + line)
+                    util.color_print_singleline(util.bcolors.OKGREEN, "\t\t\t\t" + "[+] " + line)
             output2.close()
                 
         return True
     
-    def _tidy_sync_dir(self, jobId):
+    def compact_sync_dir(self, jobId):
         syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out"
         for session in os.listdir(syncDir):
             if os.path.isfile(syncDir + "/" + session):
@@ -541,42 +530,6 @@ class OrthrusStart(object):
                 
         return True
                 
-    def _minimize_sync(self, jobId):
-        job_config = ConfigParser.ConfigParser()
-        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-
-        launch = ""
-        if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
-            launch = self._config['orthrus']['directory'] + "/binaries/afl-harden/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("&","\&")
-        else:
-            launch = self._config['orthrus']['directory'] + "/binaries/afl-asan/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("&","\&")
-        
-        export = {}
-        export['PYTHONUNBUFFERED'] = "1"
-        env = os.environ.copy()
-        env.update(export)
-        cmin = " ".join(["afl-minimize", "-c", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect", "--cmin", "--cmin-mem-limit=800", "--cmin-timeout=5000", "--dry-run", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out", "--", "'" + launch + "'"])
-        p = subprocess.Popen(cmin, bufsize=0, shell=True, executable='/bin/bash', env=env, stdout=subprocess.PIPE)
-        for line in p.stdout:
-            if "[*]" in line or "[!]" in line:
-                util.color_print("\t\t\t" + line)
-        seed_cmd = " ".join(["afl-minimize", "-c", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin", "--reseed", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out", "--", "'" + launch + "'"])
-        p = subprocess.Popen(seed_cmd, bufsize=0, shell=True, executable='/bin/bash', env=env, stdout=subprocess.PIPE)
-        for line in p.stdout:
-            if "[*]" in line or "[!]" in line:
-                util.color_print("\t\t\t" + line)
-                        
-        if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect"):
-            shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect")
-        if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin"):
-            shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin")
-        if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.crashes"):
-            shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.crashes")
-        if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.hangs"):
-            shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.hangs")
-            
-        return True
-     
     def _start_afl_coverage(self, jobId):
         job_config = ConfigParser.ConfigParser()
         job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
@@ -591,15 +544,14 @@ class OrthrusStart(object):
 
         
     def run(self):
-        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER + "[+] Starting fuzzing jobs" + util.bcolors.ENDC + "\n")
-        
-        util.color_print("\t\t[+] Check Orthrus workspace... ")
-        sys.stdout.flush()
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Starting fuzzing jobs")
+        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Check Orthrus workspace... ")
+
         if not os.path.exists(self._config['orthrus']['directory'] + "/jobs/jobs.conf"):
-            util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
+            util.color_print(util.bcolors.FAIL, "failed! No job configuration found.")
         if os.path.getsize(self._config['orthrus']['directory'] + "/jobs/jobs.conf") < 1:
-            util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
-        util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
+            util.color_print(util.bcolors.FAIL, "failed! Empty jobs field")
+        util.color_print(util.bcolors.OKGREEN, "done")
         
         job_config = ConfigParser.ConfigParser()
         job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
@@ -609,32 +561,34 @@ class OrthrusStart(object):
             total_cores = self._get_cpu_core_info()
             if jobId in job_config.sections():
                 if len(os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/")) > 0:
-                    util.color_print("\t\t[+] Tidy fuzzer sync dir... ")
-                    sys.stdout.flush()
-                    if not self._tidy_sync_dir(jobId):
-                        util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
+                    util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Tidy fuzzer sync dir... ")
+
+                    if not self.compact_sync_dir(jobId):
+                        util.color_print(util.bcolors.FAIL, "failed")
                         return False
-                    util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
+                    util.color_print(util.bcolors.OKGREEN, "done")
                     
                     if self._args.minimize:
-                        util.color_print("\t\t[+] Minimize fuzzer sync dir... \n")
-                        if not self._minimize_sync(jobId):
+                        if not util.minimize_sync_dir(self._config, jobId):
                             return False
+
                 if self._args.coverage:
-                    util.color_print("\t\t[+] Start afl-cov for Job [" + jobId +"]... ")
-                    sys.stdout.flush()
+                    util.color_print(util.bcolors.OKGREEN, "\t\t[+] Start afl-cov for Job [" + jobId +"]... ")
                     if not self._start_afl_coverage(jobId):
                         util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
                         return False
-                    util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
+                    util.color_print(util.bcolors.OKGREEN, "done")
                 
-                util.color_print("\t\t[+] Start Fuzzers for Job [" + jobId +"]... ")
-                sys.stdout.flush()
+                util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Start Fuzzers for Job [" + jobId +"]... ")
                 if not self._start_fuzzers(jobId, total_cores):
-                    subprocess.call("afl-multikill")
-                    util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
+                    try:
+                        subprocess.call("pkill -9 afl-fuzz", shell=True, stderr=subprocess.STDOUT)
+                    except OSError, subprocess.CalledProcessError:
+                        util.color_print(util.bcolors.FAIL, "failed")
+                        return False
+                    util.color_print(util.bcolors.FAIL, "failed")
                     return False
-            
+
         return True
     
 class OrthrusStop(object):
@@ -644,21 +598,27 @@ class OrthrusStop(object):
         self._config = config
     
     def run(self):
-        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Stopping fuzzing jobs:")
-        p = subprocess.Popen("afl-multikill", shell=True, stdout=subprocess.PIPE)
-        p.wait()
-        output = p.communicate()[0]
-        util.color_print("\t" + "\n".join(output.splitlines()[2:]))
-        
-        job_config = ConfigParser.ConfigParser()
-        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-            
-        if self._args.minimize:
-            pass
-                    
-        util.color_print("\n")
-        
+        util.color_print_singleline(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Stopping fuzzing jobs...")
+        cmd = ["pkill", "-9", "afl-fuzz"]
+        rv = util.run_cmd(" ".join(cmd))
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "done")
         return True
+        #
+        #
+        # p = subprocess.Popen("afl-multikill", shell=True, stdout=subprocess.PIPE)
+        # p.wait()
+        # output = p.communicate()[0]
+        # util.color_print("\t" + "\n".join(output.splitlines()[2:]))
+        #
+        # job_config = ConfigParser.ConfigParser()
+        # job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
+        #
+        # if self._args.minimize:
+        #     pass
+        #
+        # util.color_print("\n")
+        #
+        # return True
 
 class OrthrusResume(object):
     pass
@@ -771,118 +731,6 @@ class OrthrusTriage(object):
         self._args = args
         self._config = config
     
-    def _add_crash_to_crash_graph(self, jobId, crash_file):
-        job_config = ConfigParser.ConfigParser()
-        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-        
-        dev_null = open(os.devnull, "w")
-        logfile = open(self._config['orthrus']['directory'] + "/logs/crash_graph_add.log", "a")
-        if "HARDEN" in crash_file:
-            if not os.path.exists(self._config['orthrus']['directory'] + "/binaries/harden-dbg"):
-                return False
-            p1_cmd = " ".join(["gdb", "-q", "-ex='set args " + job_config.get(jobId, "params").replace("@@", crash_file) + "'", "-ex='run'", "-ex='orthrus'", "-ex='quit'", "--args", self._config['orthrus']['directory'] + "/binaries/harden-dbg/bin/" + job_config.get(jobId, "target")])
-            p1 = subprocess.Popen(p1_cmd, shell=True, executable="/bin/bash", stdout=subprocess.PIPE, stderr=dev_null)
-            
-            p2_cmd = "joern-runtime-info -r -v -g -l"
-            p2 = subprocess.Popen(p2_cmd, shell=True, stdin=subprocess.PIPE, stdout=logfile, stderr=subprocess.STDOUT)
-            p2.communicate(p1.stdout.read())
-            p2.wait()
-            
-        elif "ASAN" in crash_file:
-            if not os.path.exists(self._config['orthrus']['directory'] + "/binaries/asan-dbg"):
-                return False
-            p1_cmd = "ulimit -c 0; " + self._config['orthrus']['directory'] + "/binaries/asan-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("@@", crash_file)
-            export = {}
-            export['ASAN_SYMBOLIZER_PATH'] = "/usr/local/bin/llvm-symbolizer"
-            export['ASAN_OPTIONS'] = "abort_on_error=1:symbolize=1:print_cmdline=1:disable_coredump=1"
-            env = os.environ.copy()
-            env.update(export)
-            p1 = subprocess.Popen(p1_cmd, shell=True, executable="/bin/bash", env=env, stdout=dev_null, stderr=subprocess.PIPE)
-
-            p2_cmd = "joern-runtime-info -r -v -g -l"
-            # Injecting the command line string ist a hack for gcc, there the ASAN option 'print_cmdline' is not available.
-            # Plus, Gdb offers only a truncated command line string
-            cmdline = "Command: " + self._config['orthrus']['directory'] + "/binaries/asan-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("@@", crash_file)
-            p2 = subprocess.Popen(p2_cmd, shell=True, stdin=subprocess.PIPE, stdout=logfile, stderr=subprocess.STDOUT)
-            p2.communicate(p1.stderr.read() + cmdline)
-            p2.wait()
-            
-        dev_null.close()
-        logfile.close()
-        
-        return True
-    
-    def _triage_crash_graph(self, jobIds):
-        job_config = ConfigParser.ConfigParser()
-        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-        
-        logfile = open(self._config['orthrus']['directory'] + "/logs/crash_graph_triage.log", "a")
-        
-        cmd = "joern-runtime-info -r -v -g --triage"
-        p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-        output = p.communicate("")[0]
-        logfile.write(output)
-        output = output[output.find("Triaged set:"):]
-        output = output[output.find("\n") + 1:]
-        
-        keep_list = output.splitlines()
-        for jobId in jobIds:
-            samples = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
-            for filename in samples:
-                if filename not in keep_list:
-                    if os.path.isfile(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/" + filename):
-                        os.remove(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/" + filename)
-        
-        logfile.close()
-        
-        return True
-            
-    def deduplicate_crashes(self, jobId, samples, mode, num_threads):
-        target_cmd = ""
-        in_queue_lock = threading.Lock()
-        hashes_lock = threading.Lock()
-        hashes = set()
-        in_queue = Queue(len(samples))
-        
-        job_config = ConfigParser.ConfigParser()
-        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-            
-        outDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/"
-        # fill input queue with samples
-        in_queue_lock.acquire()
-        for s in samples:
-#             print s
-            in_queue.put(s)
-        in_queue_lock.release()
-        
-        if mode == "HARDEN":
-            target_cmd = " ".join(["gdb", "-q", "-ex='set args " + job_config.get(jobId, "params") + "'", "-ex='run'", "-ex='orthrus'", "-ex='quit'", "--args", self._config['orthrus']['directory'] + "/binaries/harden-dbg/bin/" + job_config.get(jobId, "target")])
-        elif mode == "ASAN":
-            target_cmd = " ".join(["gdb", "-q", "-ex='set args " + job_config.get(jobId, "params") + "'", "-ex='run'", "-ex='orthrus'", "-ex='quit'", "--args", self._config['orthrus']['directory'] + "/binaries/asan-dbg/bin/" + job_config.get(jobId, "target")])
-
-        
-        thread_list = []
-        for i in range(0, num_threads, 1):
-#             print "Start thread: " + str(i)
-            t = DedubThread(i, 10, target_cmd, in_queue, hashes, in_queue_lock, hashes_lock, outDir, mode, jobId)
-            thread_list.append(t)
-            t.daemon = True
-            t.start()
-        
-        for t in thread_list:
-            t.join()
-            
-        return True
-    
-    def _remove_cg_graph(self):
-        cmd = " ".join(["joern-runtime-info", "-g -u"])
-        p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-        output = p.communicate("")[0]
-        if not output:
-            return False
-        else:
-            return True
-        
     def run(self):
         job_config = ConfigParser.ConfigParser()
         job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
@@ -990,192 +838,6 @@ class OrthrusTriage(object):
             
         return True
 
-class OrthrusDatabase(object):
-    
-    def __init__(self, args, config):
-        self._args = args
-        self._config = config
-    
-    def _start_joern(self, binary, configfile):
-        export = {}
-        export['wrapper_java_additional'] = "-Dorg.neo4j.server.properties=" + configfile
-        env = os.environ.copy()
-        env.update(export)
-        command = binary + " start"
-        p = subprocess.Popen(command, shell=True, executable='/bin/bash', env=env, stdout=subprocess.PIPE)
-        p.wait()
-        #util.color_print(p.communicate()[0])
-        if p.returncode != 0:
-            return False
-        return True
-    
-    def _stop_joern(self, binary):
-        command = binary + " stop"
-        p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
-        p.wait()
-        if p.returncode != 0:
-            return False
-        return True
-    
-    def _upload_crash(self, jobId, crash_file):
-        job_config = ConfigParser.ConfigParser()
-        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-        
-        dev_null = open(os.devnull, "w")
-        logfile = open(self._config['orthrus']['directory'] + "/logs/upload.log", "a")
-        if "HARDEN" in crash_file:
-            if not os.path.exists(self._config['orthrus']['directory'] + "/binaries/harden-dbg"):
-                return False
-            p1_cmd = " ".join(["gdb", "-q", "-ex='set args " + job_config.get(jobId, "params").replace("@@", crash_file) + "'", "-ex='run'", "-ex='orthrus'", "-ex='gcore core'", "-ex='quit'", "--args", self._config['orthrus']['directory'] + "/binaries/harden-dbg/bin/" + job_config.get(jobId, "target")])
-            p1 = subprocess.Popen(p1_cmd, shell=True, stdout=subprocess.PIPE, stderr=dev_null)
-            
-            p2_cmd = "joern-runtime-info -r -v -l"
-            p2 = subprocess.Popen(p2_cmd, shell=True, stdin=p1.stdout, stdout=logfile, stderr=subprocess.STDOUT)
-            p2.wait()
-            
-        elif "ASAN" in crash_file:
-            if not os.path.exists(self._config['orthrus']['directory'] + "/binaries/asan-dbg"):
-                return False
-            p1_cmd = "ulimit -c 1024000; " + self._config['orthrus']['directory'] + "/binaries/asan-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("@@", crash_file)
-            export = {}
-            export['ASAN_SYMBOLIZER_PATH'] = "/usr/local/bin/llvm-symbolizer"
-            export['ASAN_OPTIONS'] = "abort_on_error=1:symbolize=1:print_cmdline=1"
-            env = os.environ.copy()
-            env.update(export)
-            p1 = subprocess.Popen(p1_cmd, shell=True, executable="/bin/bash", env=env, stdout=dev_null, stderr=subprocess.PIPE)
-
-            p2_cmd = "joern-runtime-info -r -v -l"
-            # Injecting the command line string ist a hack for gcc, there the ASAN option 'print_cmdline' is not available.
-            # Plus, Gdb offers only a truncated command line string
-            cmdline = "Command: " + self._config['orthrus']['directory'] + "/binaries/asan-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("@@", crash_file)
-            p2 = subprocess.Popen(p2_cmd, shell=True, stdin=subprocess.PIPE, stdout=logfile, stderr=subprocess.STDOUT)
-            p2.communicate(p1.stderr.read() + cmdline)
-            p2.wait()
-            
-        dev_null.close()
-        logfile.close()
-        
-        return True
-    
-    def _unload_crash(self, pid):
-        cmd = " ".join(["joern-runtime-info", "-v -u"])
-        p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-        
-        output = p.communicate(pid)[0]
-        if not output:
-            return False
-        else:
-            for line in output.splitlines():
-                if pid in line:
-                    return True
-        
-        return False
-        
-    def _get_all_crash_pids(self):
-        query = "queryNodeIndex('type:RtCrash').pid"
-        
-        cmd = " ".join(["joern-lookup", "-g"])
-        p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-        
-        output = p.communicate(query)[0]
-        if not output:
-            return []
-        else:
-            return output.splitlines()
-        
-    def run(self):
-        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER + "[+] Performing database operation" + util.bcolors.ENDC + "\n")
-        
-        if self._args.startup:
-            util.color_print(util.bcolors.BOLD + util.bcolors.HEADER + "\t[+] Joern Neo4j database" + util.bcolors.ENDC + "\n")
-            
-            util.color_print("\t\t[+] Check Orthrus workspace... ")
-            sys.stdout.flush()
-            if not os.path.exists(self._config['orthrus']['directory'] + "/conf/neo4j-server.properties"):
-                util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
-            util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
-            
-            util.color_print("\t\t[+] Starting Joern Neo4j database instance... ")
-            sys.stdout.flush()
-            configfile = os.path.abspath(self._config['orthrus']['directory'] + "/conf/neo4j-server.properties")
-            if not self._start_joern(self._config['neo4j']['neo4j_path'] + "/bin/neo4j", configfile):
-                util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
-                return False
-            util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
-            
-            return True
-        
-        if self._args.shutdown:
-            util.color_print(util.bcolors.BOLD + util.bcolors.HEADER + "\t[+] Joern Neo4j database" + util.bcolors.ENDC + "\n")
-            
-            util.color_print("\t\t[+] Stopping Joern Neo4j database instance... ")
-            sys.stdout.flush()
-            if not self._stop_joern(self._config['neo4j']['neo4j_path'] + "/bin/neo4j"):
-                util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
-                return False
-            util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
-            
-            return True
-        
-        if self._args.load_crashes:
-            job_config = ConfigParser.ConfigParser()
-            job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-            if self._args.all:
-                return False
-            elif self._args.job_id:
-                jobId = self._args.job_id
-                util.color_print("\t[+] Checking triaged crash samples... ")
-                sys.stdout.flush()
-                
-                uniqueDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/"
-                
-                if not os.path.exists(uniqueDir) or not len(os.listdir(uniqueDir)):
-                    util.color_print(util.bcolors.WARNING + "no crashes" + util.bcolors.ENDC + "\n")
-                    return True
-                util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
-                
-                crashes = os.listdir(uniqueDir)
-                util.color_print("\t[+] Processing " + str(len(crashes)) + " crash samples... \n")
-                
-                for crash in crashes:
-                    crash_path = uniqueDir + crash
-                    util.color_print("\t\t[+] Upload crash " + crash + "... ")
-                    sys.stdout.flush()
-                    if not self._upload_crash(jobId, crash_path):
-                        util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
-                        continue
-                    util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
-            else:
-                return False
-        elif self._args.unload_crashes:
-            job_config = ConfigParser.ConfigParser()
-            job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-            if self._args.all:
-                util.color_print("\t[+] Removing all crash nodes from database... ")
-                sys.stdout.flush()
-                
-                pids = self._get_all_crash_pids()
-                if not pids:
-                    util.color_print(util.bcolors.WARNING + "no crashes" + util.bcolors.ENDC + "\n")
-                    return True
-                util.color_print(util.bcolors.OKBLUE + "found " + str(len(pids)) + " crashes" + util.bcolors.ENDC + "\n")
-                
-                for pid in pids:
-                    util.color_print("\t\t[+] Removing crash for PID " + pid + "... ")
-                    sys.stdout.flush()
-                    if not self._unload_crash(pid):
-                        util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
-                        continue
-                    util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
-                return True
-            elif self._args.job_id:
-                return False
-            
-        if self._args.load_coverage:
-            pass
-        
-        return True
-    
 class OrthrusDestroy(object):
     
     def __init__(self, args, config, testinput=None):

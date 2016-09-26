@@ -29,7 +29,7 @@ class TestOrthrusShow(unittest.TestCase):
         cmd = OrthrusCreate(args, self.config)
         cmd.run()
         # Add job
-        args = parse_cmdline(self.description, ['add', '--job=main 12 @@'])
+        args = parse_cmdline(self.description, ['add', '--job=main @@'])
         self.add_cmd = OrthrusAdd(args, self.config)
         self.add_cmd.run()
 

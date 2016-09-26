@@ -36,9 +36,12 @@ def color_print_singleline(color, msg):
     sys.stdout.write(color + msg + bcolors.ENDC)
     sys.stdout.flush()
 
-def run_cmd(command, env, logfile=None):
+def run_cmd(command, env=None, logfile=None):
     if not logfile:
         logfile = os.devnull
+
+    if not env:
+        env = os.environ.copy()
 
     logfh = open(logfile, 'w')
     proc = subprocess.Popen(command, shell=True, executable='/bin/bash',
@@ -244,3 +247,63 @@ def parse_config(configfile=None):
         os.path.expanduser((configparser.get("afl-cov", "afl_cov_path"))))
 
     return config
+
+def minimize_sync_dir(config, jobId):
+    color_print(bcolors.OKGREEN, "\t\t[+] Minimizing corpus for job [" + jobId + "]...")
+
+    job_config = ConfigParser.ConfigParser()
+    job_config.read(config['orthrus']['directory'] + "/jobs/jobs.conf")
+    export = {}
+    export['PYTHONUNBUFFERED'] = "1"
+    env = os.environ.copy()
+    env.update(export)
+    isasan = False
+
+    if os.path.exists(config['orthrus']['directory'] + "/binaries/afl-harden"):
+        launch = config['orthrus']['directory'] + "/binaries/afl-harden/bin/" + job_config.get(jobId,
+                                                                                                     "target") + " " + job_config.get(
+            jobId, "params").replace("&", "\&")
+    else:
+        isasan = True
+        launch = config['orthrus']['directory'] + "/binaries/afl-asan/bin/" + job_config.get(jobId,
+                                                                                                   "target") + " " + job_config.get(
+            jobId, "params")
+
+    if isasan and is64bit():
+        mem_limit = 30000000
+    else:
+        mem_limit = 800
+    cmin = " ".join(
+        ["afl-minimize", "-c", config['orthrus']['directory'] + "/jobs/" + jobId + "/collect", "--cmin",
+         "--cmin-mem-limit={}".format(mem_limit), "--cmin-timeout=5000", "--dry-run",
+         config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out", "--", "'" + launch + "'"])
+    p = subprocess.Popen(cmin, bufsize=0, shell=True, executable='/bin/bash', env=env, stdout=subprocess.PIPE)
+    for line in p.stdout:
+        if "[*]" in line or "[!]" in line:
+            color_print(bcolors.OKGREEN, "\t\t\t" + line)
+
+    reseed_cmd = " ".join(
+        ["afl-minimize", "-c", config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin",
+         "--reseed", config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out", "--",
+         "'" + launch + "'"])
+    p = subprocess.Popen(reseed_cmd, bufsize=0, shell=True, executable='/bin/bash', env=env, stdout=subprocess.PIPE)
+    for line in p.stdout:
+        if "[*]" in line or "[!]" in line:
+            color_print(bcolors.OKGREEN, "\t\t\t" + line)
+
+    if os.path.exists(config['orthrus']['directory'] + "/jobs/" + jobId + "/collect"):
+        shutil.rmtree(config['orthrus']['directory'] + "/jobs/" + jobId + "/collect")
+    if os.path.exists(config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin"):
+        shutil.rmtree(config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin")
+    if os.path.exists(config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.crashes"):
+        shutil.rmtree(config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.crashes")
+    if os.path.exists(config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.hangs"):
+        shutil.rmtree(config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin.hangs")
+
+    return True
+
+def is64bit():
+    cmd = 'uname -m'
+    if 'x86_64' in subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT):
+        return True
+    return False
