@@ -380,10 +380,6 @@ class OrthrusStart(object):
         self._args = args
         self._config = config
     
-    def _get_cpu_core_info(self):
-        num_cores = subprocess.check_output("nproc", shell=True, stderr=subprocess.STDOUT)
-        return int(num_cores)
-    
     def _start_fuzzers(self, jobId, available_cores):
         if os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/") == []:
             start_cmd = "start"
@@ -558,7 +554,7 @@ class OrthrusStart(object):
         
         if self._args.job_id:
             jobId = self._args.job_id
-            total_cores = self._get_cpu_core_info()
+            total_cores = int(util.getnproc())
             if jobId in job_config.sections():
                 if len(os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/")) > 0:
                     util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Tidy fuzzer sync dir... ")
@@ -662,180 +658,78 @@ class OrthrusShow(object):
                 
         return True
 
-class DedubThread(threading.Thread):
-    def __init__(self, thread_id, timeout_secs, target_cmd, in_queue, hashes, in_queue_lock, hashes_lock, outDir, mode, jobId):
-        threading.Thread.__init__(self)
-        self.id = thread_id
-        self.timeout_secs = timeout_secs
-        self.target_cmd = target_cmd
-        self.in_queue = in_queue
-        self.hashes = hashes
-        self.in_queue_lock = in_queue_lock
-        self.hashes_lock = hashes_lock
-        self.outDir = outDir
-        self.mode = mode
-        self.jobId = jobId
-        self.exit = False
-        
-    def run(self):
-        while not self.exit:
-            self.in_queue_lock.acquire()
-            if not self.in_queue.empty():
-                sample = self.in_queue.get()
-                self.in_queue_lock.release()
-                sample = os.path.abspath(sample)
-                cmd = ""
-                in_file = None
-                if "@@" in self.target_cmd:
-                    cmd = self.target_cmd.replace("@@", sample)
-                else:
-                    cmd = self.target_cmd
-                    in_file = open(sample, "rb")
-                    
-#                 try:
-                env = os.environ.copy()
-                asan_flag = {}
-                asan_flag['ASAN_OPTIONS'] = "abort_on_error=1:disable_coredump=1:symbolize=0"
-                env.update(asan_flag)
-                
-                dev_null = open(os.devnull, "r+")
-                output = ""
-                p = subprocess.Popen(cmd, shell=True, executable="/bin/bash", env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=dev_null)
-                if in_file:
-                    output = p.communicate(in_file.read())[0]
-                else:
-                    output = p.communicate()[0]
-                dev_null.close()
-                output = output[output.find("Hash: ") + 6:]
-                crash_hash = output[:output.find(".")]
-                
-                self.hashes_lock.acquire()
-                if crash_hash in self.hashes:
-                    self.hashes_lock.release()
-                    os.remove(sample)
-                else:
-                    self.hashes.add(crash_hash)
-                    self.hashes_lock.release()
-
-                    shutil.copy(sample, self.outDir + self.mode + ":" + self.jobId + "," + os.path.basename(sample))
-#                 except Exception:
-                if in_file:
-                    in_file.close()
-            else:
-                self.in_queue_lock.release()
-                self.exit = True
-                
 class OrthrusTriage(object):
     
     def __init__(self, args, config):
         self._args = args
         self._config = config
-    
+
+    def triage(self, jobId, inst):
+        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Collect and verify '{}' mode crashes... "
+                                    .format(inst))
+
+        env = os.environ.copy()
+        asan_flag = {}
+        asan_flag['ASAN_OPTIONS'] = "abort_on_error=1:disable_coredump=1:symbolize=1"
+        env.update(asan_flag)
+
+        syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/"
+        outDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_{}".format(inst)
+        logfile = self._config['orthrus']['directory'] + "/logs/" + "afl-{}_dbg.log".format(inst)
+        launch = self._config['orthrus']['directory'] + "/binaries/{}-dbg/bin/".format(inst) + \
+                 self.job_config.get(jobId, "target") + " " + \
+                 self.job_config.get(jobId, "params").replace("&", "\&")
+        cmd = " ".join(["afl-collect", "-r", "-j", util.getnproc(), "-e gdb_script",
+                        syncDir, outDir, "--", launch])
+        rv = util.run_cmd("ulimit -c 0; " + cmd, env, logfile)
+        if not rv:
+            util.color_print(util.bcolors.FAIL, "failed")
+        else:
+            util.color_print(util.bcolors.OKGREEN, "done")
+        return rv
+
     def run(self):
-        job_config = ConfigParser.ConfigParser()
-        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
+        self.job_config = ConfigParser.ConfigParser()
+        self.job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
         
         jobIds = []
         if self._args.job_id:
-            jobIds[0] = self._args.job_id
+            jobIds.append(self._args.job_id)
         else:
-            jobIds = job_config.sections()
+            jobIds = self.job_config.sections()
             
         for jobId in jobIds:
-            util.color_print(util.bcolors.BOLD + util.bcolors.HEADER + "[+] Triaging crashes for job [" + jobId + "]" + util.bcolors.ENDC + "\n")
+            util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Triaging crashes for job [" \
+                             + jobId + "]")
             
             if not os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/"):
                 os.mkdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
             else:
-                util.color_print("[?] Rerun triaging? [y/n]...: ")
-                sys.stdout.flush()
+                util.color_print(util.bcolors.OKGREEN, "[?] Rerun triaging? [y/n]...: ")
+
                 if 'y' not in sys.stdin.readline()[0]:
                     return True
-                shutil.move(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/", self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique." + time.strftime("%Y-%m-%d-%H:%M:%S"))
-                self._remove_cg_graph()
+
+                shutil.move(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/",
+                            self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique." \
+                            + time.strftime("%Y-%m-%d-%H:%M:%S"))
                 os.mkdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
                  
             if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
-                util.color_print("\t\t[+] Collect and verify 'harden' mode crashes... ")
-                sys.stdout.flush()
-                      
-                syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/"
-                outDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden"
-                launch = self._config['orthrus']['directory'] + "/binaries/harden-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("&","\&")
-                cmd = " ".join(["afl-collect", "-r", "-j 2", syncDir, outDir, "--", launch])
-                logfile = open(os.devnull, "w")
-                p = subprocess.Popen("ulimit -c 0; " + cmd, shell=True, stdout=logfile, stderr=subprocess.STDOUT)
-                p.wait()
-                logfile.close()
-                util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
-                      
+                if not self.triage(jobId, 'harden'):
+                    return False
             if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-asan"):
-                util.color_print("\t\t[+] Collect and verify 'asan' mode crashes... ")
-                sys.stdout.flush()
-                      
-                env = os.environ.copy()
-                asan_flag = {}
-                asan_flag['ASAN_OPTIONS'] = "abort_on_error=1:disable_coredump=1:symbolize=0"
-                env.update(asan_flag)
-                syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/"
-                outDir =self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan"
-                launch = self._config['orthrus']['directory'] + "/binaries/asan-dbg/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("&","\&")
-                cmd = " ".join(["afl-collect", "-r", "-j 2", syncDir, outDir, "--", launch])
-                logfile = open(os.devnull, "w")
-                p = subprocess.Popen(cmd, shell=True, executable="/bin/bash", env=env, stdout=logfile, stderr=subprocess.STDOUT)
-                p.wait()
-                logfile.close()
-                util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
-                      
-            if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/"):
-                util.color_print("\t\t[+] Deduplicate 'harden' mode crashes... ")
-                sys.stdout.flush()
-                      
-                crash_files = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/")
-                for num, crash_file in enumerate(crash_files):
-                    crash_files[num] = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/" + crash_file
-                        
-                if not self.deduplicate_crashes(jobId, crash_files, "HARDEN", 2):
-                    util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
-                shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_harden/")
-                util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
-                        
-            if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/"):
-                util.color_print("\t\t[+] Deduplicate 'asan' mode crashes... ")
-                sys.stdout.flush()
-                       
-                crash_files = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/")
-                for num, crash_file in enumerate(crash_files):
-                    crash_files[num] = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/" + crash_file
-                         
-                if not self.deduplicate_crashes(jobId, crash_files, "ASAN", 2):
-                    util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
-                shutil.rmtree(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_asan/")
-                util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
-                   
-            dedub_crashes = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
-            util.color_print("\t\t[+] Upload " + str(len(dedub_crashes)) + " crashes to database for further triaging... ")
-            sys.stdout.flush()
-            if not dedub_crashes:
-                util.color_print(util.bcolors.OKBLUE + "nothing to do" + util.bcolors.ENDC + "\n")
-                return
-            util.color_print("\n")
-               
-            for crash in dedub_crashes:
-                util.color_print("\t\t\t[+] Adding " + crash + " ... ")
-                sys.stdout.flush()
-                if not self._add_crash_to_crash_graph(jobId, self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/" + crash):
-                    util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
-                    continue
-                util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
-                  
-        util.color_print("\t\t[+] Triaging crashes... ")
-        sys.stdout.flush()
-        if not self._triage_crash_graph(jobIds):
-            util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
-            return
-        util.color_print(util.bcolors.OKGREEN + "done" + util.bcolors.ENDC + "\n")
-            
+                if not self.triage(jobId, 'asan'):
+                    return False
+
+            triaged_crashes = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
+            util.color_print(util.bcolors.OKGREEN, "\t\t[+] Triaged " + str(len(triaged_crashes)) + \
+                             " crashes. See {}".format(self._config['orthrus']['directory'] + "/jobs/" \
+                                                        + jobId + "/unique/"))
+            if not triaged_crashes:
+                util.color_print(util.bcolors.OKBLUE, "\t\t[+] Nothing to do")
+                return True
+
         return True
 
 class OrthrusDestroy(object):

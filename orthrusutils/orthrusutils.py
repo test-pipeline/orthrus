@@ -307,3 +307,8 @@ def is64bit():
     if 'x86_64' in subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT):
         return True
     return False
+
+def getnproc():
+    cmd = 'nproc'
+    nproc = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+    return nproc.rstrip()
