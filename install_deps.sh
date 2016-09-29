@@ -17,3 +17,5 @@ echo -e "\t[+] Installing afl-utils"
 git clone https://github.com/rc0r/afl-utils.git
 cd afl-utils && sudo mkdir -p /usr/lib/python3.4/site-packages && sudo python3 setup.py install
 cd ../
+echo -e "\t[+] Setting up exploitable"
+echo "source /usr/lib/python3.4/site-packages/exploitable-1.32_rcor-py3.4.egg/exploitable/exploitable.py" >> ~/.gdbinit

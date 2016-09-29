@@ -15,6 +15,7 @@ addons:
                         - lcov
                         - automake
                         - python3-setuptools
+                        - gdb
 
 language: python
 python:
