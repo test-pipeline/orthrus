@@ -14,11 +14,11 @@ addons:
                         - llvm-3.8
                         - lcov
                         - automake
+                        - python3-setuptools
 
 language: python
 python:
         - 2.7
-        - 3.0
 
 before_install:
         - pip install coveralls
