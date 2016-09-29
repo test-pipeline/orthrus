@@ -1,7 +1,6 @@
 import os
 from collections import namedtuple
 import orthrusutils.orthrusutils as util
-import subprocess
 
 class BuildEnv(object):
 
