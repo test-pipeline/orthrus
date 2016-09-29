@@ -315,4 +315,4 @@ def getnproc():
 
 def printfile(filename):
     cmd = 'cat ' + filename
-    return subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+    print subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
