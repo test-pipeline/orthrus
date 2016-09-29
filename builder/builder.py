@@ -22,7 +22,7 @@ class BuildEnv(object):
                         '-D_FORTIFY_SOURCE=2 -fno-omit-frame-pointer', '', '', {})
 
     BEnv_coverage = BEnv('gcc', 'g++', '-g -O0 -fprofile-arcs -ftest-coverage',
-                        '-g -O0 -fprofile-arcs -ftest-coverage', '', '', {})
+                        '-g -O0 -fprofile-arcs -ftest-coverage', '-lgcov', '-lgcov', {})
 
 
     def __init__(self, buildenv):
@@ -60,6 +60,7 @@ class Builder(object):
 
         if not util.run_cmd(command, self.env, self.logfile):
             util.color_print(util.bcolors.FAIL, "\t\t[-] Error running configure. Check the log!")
+            util.run_cmd("cat " + self.logfile)
             return False
         return True
 

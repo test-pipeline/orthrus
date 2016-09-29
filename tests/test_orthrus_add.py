@@ -14,13 +14,13 @@ class TestOrthrusAdd(unittest.TestCase):
 
     def test_add_and_seed(self):
         args = parse_cmdline(self.description, ['add', '--job=main @@',
-                            '-s=/home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/seeds'])
+                            '-s=./seeds'])
         cmd = OrthrusAdd(args, self.config)
         self.assertTrue(cmd.run())
 
     def test_add_and_import(self):
         args = parse_cmdline(self.description, ['add', '--job=main @@',
-                    '-i=/home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/afl-out.tar.gz'])
+                    '-i=./afl-out.tar.gz'])
         cmd = OrthrusAdd(args, self.config)
         self.assertTrue(cmd.run())
 
