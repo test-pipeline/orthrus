@@ -1,0 +1,3 @@
+[submodule "testdata/Automake-Autoconf-Template-Project"]
+	path = testdata/Automake-Autoconf-Template-Project
+	url = https://github.com/test-pipeline/Automake-Autoconf-Template-Project.git
