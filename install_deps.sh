@@ -15,5 +15,5 @@ aclocal && automake --force-missing --add-missing && autoconf
 cd ../../
 echo -e "\t[+] Installing afl-utils"
 git clone https://github.com/rc0r/afl-utils.git
-cd afl-utils && sudo python3 setup.py install
+cd afl-utils && sudo mkdir -p /usr/lib/python3.4/site-packages && sudo python3 setup.py install
 cd ../
