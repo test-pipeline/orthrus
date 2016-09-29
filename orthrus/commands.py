@@ -393,7 +393,9 @@ class OrthrusStart(object):
         cmd = ["cat /proc/sys/kernel/core_pattern"]
         util.color_print_singleline(util.bcolors.OKGREEN, "Checking core_pattern...")
         if "core" not in subprocess.check_output(" ".join(cmd), shell=True, stderr=subprocess.STDOUT):
-            util.color_print(util.bcolors.FAIL, "failed. Please do echo core | sudo tee /proc/sys/kernel/core_pattern")
+            util.color_print(util.bcolors.FAIL, "failed")
+            util.color_print(util.bcolors.FAIL, "\t\t\t[-] Please do echo core | "
+                                                "sudo tee /proc/sys/kernel/core_pattern")
             return False
         util.color_print(util.bcolors.OKGREEN, "okay")
 
@@ -580,9 +582,7 @@ class OrthrusStart(object):
                     try:
                         subprocess.call("pkill -9 afl-fuzz", shell=True, stderr=subprocess.STDOUT)
                     except OSError, subprocess.CalledProcessError:
-                        util.color_print(util.bcolors.FAIL, "failed")
                         return False
-                    util.color_print(util.bcolors.FAIL, "failed")
                     return False
 
         return True
@@ -745,7 +745,6 @@ class OrthrusDestroy(object):
 
         if (self.testinput and 'y' in self.testinput) or 'y' in sys.stdin.readline()[0]:
             util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Deleting all files... ")
-            sys.stdout.flush()
             if not os.path.exists(self._config['orthrus']['directory']):
                 util.color_print(util.bcolors.OKBLUE, "destroyed already")
             else:
