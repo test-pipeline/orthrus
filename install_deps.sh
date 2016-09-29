@@ -11,5 +11,5 @@ echo core | sudo tee /proc/sys/kernel/core_pattern
 echo -e "\t[+] Running autotools in test dir"
 cd testdata/Automake-Autoconf-Template-Project
 libtoolize --force
-aclocal && autoheader && automake --force-missing --add-missing && autoconf
+aclocal && automake --force-missing --add-missing && autoconf
 cd ../../
