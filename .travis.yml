@@ -29,5 +29,3 @@ install: ./install_deps.sh
 script: cd testdata/Automake-Autoconf-Template-Project && coverage run --rcfile=../../.coveragerc ../../setup.py test
 after_success:
         - coveralls
-after_failure:
-        - cat ~/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/logs/*

@@ -1,6 +1,7 @@
 import os
 from collections import namedtuple
 import orthrusutils.orthrusutils as util
+import subprocess
 
 class BuildEnv(object):
 
@@ -60,7 +61,7 @@ class Builder(object):
 
         if not util.run_cmd(command, self.env, self.logfile):
             util.color_print(util.bcolors.FAIL, "\t\t[-] Error running configure. Check the log!")
-            util.run_cmd("cat " + self.logfile)
+            print subprocess.check_output("cat " + self.logfile)
             return False
         return True
 
