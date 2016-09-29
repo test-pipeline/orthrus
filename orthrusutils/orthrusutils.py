@@ -312,3 +312,7 @@ def getnproc():
     cmd = 'nproc'
     nproc = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
     return nproc.rstrip()
+
+def printfile(filename):
+    cmd = 'cat ' + filename
+    return subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)

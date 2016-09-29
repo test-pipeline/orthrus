@@ -403,7 +403,7 @@ class OrthrusStart(object):
         env.update({'AFL_SKIP_CPUFREQ': '1'})
 
         if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
-            util.color_print(util.bcolors.OKGREEN, "\t\t[+] Starting AFL harden fuzzer job as master...")
+            util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Starting AFL harden fuzzer job as master...")
 
             harden_file = self._config['orthrus']['directory'] + "/logs/afl-harden.log"
             cmd = ["afl-multicore", "--config=.orthrus/jobs/" + jobId + "/harden-job.conf",
@@ -413,7 +413,7 @@ class OrthrusStart(object):
                 util.color_print(util.bcolors.FAIL, "failed")
                 return False
 
-            util.color_print(util.bcolors.OKGREEN, "\t\t[+] Starting AFL job...done")
+            util.color_print(util.bcolors.OKGREEN, "done")
             
             output = open(self._config['orthrus']['directory'] + "/logs/afl-harden.log", "r")
             for line in output:
@@ -424,7 +424,7 @@ class OrthrusStart(object):
             output.close()
             
             if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-asan"):
-                util.color_print(util.bcolors.OKGREEN, "\t\t[+] Starting AFL ASAN fuzzer job as slave...")
+                util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Starting AFL ASAN fuzzer job as slave...")
                 asan_file = self._config['orthrus']['directory'] + "/logs/afl-asan.log"
                 cmd = ["afl-multicore", "--config=.orthrus/jobs/" + jobId + "/asan-job.conf ", "add", \
                                 str(core_per_subjob), "-v"]
@@ -433,7 +433,7 @@ class OrthrusStart(object):
                     util.color_print(util.bcolors.FAIL, "failed")
                     return False
 
-                util.color_print(util.bcolors.OKGREEN, "\t\t[+] Starting AFL job...done")
+                util.color_print(util.bcolors.OKGREEN, "done")
 
                 output2 = open(self._config['orthrus']['directory'] + "/logs/afl-asan.log", "r")
                 for line in output2:
@@ -445,16 +445,17 @@ class OrthrusStart(object):
 
         elif os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-asan"):
 
-            util.color_print(util.bcolors.OKGREEN, "\t\t[+] Starting AFL ASAN fuzzer job as master...")
+            util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Starting AFL ASAN fuzzer job as master...")
             asan_file = self._config['orthrus']['directory'] + "/logs/afl-asan.log"
             cmd = ["afl-multicore", "-c", ".orthrus/jobs/" + jobId + "/asan-job.conf", start_cmd, \
                    str(available_cores), "-v"]
 
             if not util.run_cmd(" ".join(cmd), env, asan_file):
                 util.color_print(util.bcolors.FAIL, "failed")
+                util.printfile(asan_file)
                 return False
 
-            util.color_print(util.bcolors.OKGREEN, "\t\t[+] Starting AFL job...done")
+            util.color_print(util.bcolors.OKGREEN, "done")
 
             output2 = open(self._config['orthrus']['directory'] + "/logs/afl-asan.log", "r")
             for line in output2:
