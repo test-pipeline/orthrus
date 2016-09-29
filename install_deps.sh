@@ -13,3 +13,7 @@ cd testdata/Automake-Autoconf-Template-Project
 libtoolize --force
 aclocal && automake --force-missing --add-missing && autoconf
 cd ../../
+echo -e "\t[+] Installing afl-utils"
+git clone https://github.com/rc0r/afl-utils.git
+cd afl-utils && sudo python3 setup.py install
+cd ../
