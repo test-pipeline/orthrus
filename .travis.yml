@@ -1,0 +1,29 @@
+# Ubuntu 14.04 Trusty support
+sudo: required
+dist: trusty
+
+addons:
+        apt:
+                sources:
+                        - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.8 main'
+                          key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+                packages:
+                        - clang-3.8
+                        - libclang-common-3.8-dev
+                        - llvm-3.8-runtime
+                        - llvm-3.8
+
+language: python
+python:
+        - 2.7
+
+before_install:
+        - pip install coveralls
+        - pip install pytest pytest-cov
+
+#install: ./install_deps.sh
+
+script: cd testdata/Automake-Autoconf-Template-Project && coverage run \ 
+        --rcfile=../../.coveragerc ../../setup.py tests
+after_success:
+        - coveralls
