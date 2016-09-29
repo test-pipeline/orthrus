@@ -12,6 +12,7 @@ addons:
                         - libclang-common-3.8-dev
                         - llvm-3.8-runtime
                         - llvm-3.8
+                        - lcov
 
 language: python
 python:
@@ -20,6 +21,8 @@ python:
 before_install:
         - pip install coveralls
         - pip install pytest pytest-cov
+        - sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-3.8 50
+        - sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-3.8 50
 
 install: ./install_deps.sh
 
