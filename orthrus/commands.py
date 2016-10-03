@@ -665,7 +665,21 @@ class OrthrusTriage(object):
         self._args = args
         self._config = config
 
-    def triage(self, jobId, inst):
+    def tidy(self, crash_dir):
+
+        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Tidying crash dir...")
+
+        dest = crash_dir + "/.scripts"
+        if not os.path.exists(dest):
+            os.mkdir(dest)
+
+        for script in glob.glob(crash_dir + "/gdb_script*"):
+            shutil.move(script, dest)
+
+        util.color_print(util.bcolors.OKGREEN, "done!")
+        return True
+
+    def triage(self, jobId, inst, indir=None, outdir=None):
         util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Collect and verify '{}' mode crashes... "
                                     .format(inst))
 
@@ -674,20 +688,46 @@ class OrthrusTriage(object):
         asan_flag['ASAN_OPTIONS'] = "abort_on_error=1:disable_coredump=1:symbolize=1"
         env.update(asan_flag)
 
-        syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/"
-        outDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/crash_{}".format(inst)
+        if inst is 'harden':
+            prefix = 'HARDEN'
+        elif inst is 'asan' or inst is 'all':
+            prefix = 'ASAN'
+            inst = 'asan'
+        else:
+            util.color_print(util.bcolors.FAIL, "failed!")
+            return False
+
+        if not indir:
+            syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/"
+        else:
+            syncDir = indir
+
+        if not outdir:
+            dirname = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/exploitable/" + \
+                      "{}/".format(prefix) + "crashes"
+            if not os.path.exists(dirname):
+                os.makedirs(dirname)
+            triage_outDir = dirname
+        else:
+            triage_outDir = outdir
+
         logfile = self._config['orthrus']['directory'] + "/logs/" + "afl-{}_dbg.log".format(inst)
         launch = self._config['orthrus']['directory'] + "/binaries/{}-dbg/bin/".format(inst) + \
                  self.job_config.get(jobId, "target") + " " + \
                  self.job_config.get(jobId, "params").replace("&", "\&")
         cmd = " ".join(["afl-collect", "-r", "-j", util.getnproc(), "-e gdb_script",
-                        syncDir, outDir, "--", launch])
+                        syncDir, triage_outDir, "--", launch])
         rv = util.run_cmd("ulimit -c 0; " + cmd, env, logfile)
         if not rv:
             util.color_print(util.bcolors.FAIL, "failed")
-        else:
-            util.color_print(util.bcolors.OKGREEN, "done")
-        return rv
+            return rv
+
+        util.color_print(util.bcolors.OKGREEN, "done")
+
+        if not self.tidy(triage_outDir):
+            return False
+
+        return True
 
     def run(self):
         self.job_config = ConfigParser.ConfigParser()
@@ -723,10 +763,16 @@ class OrthrusTriage(object):
                 if not self.triage(jobId, 'asan'):
                     return False
 
-            triaged_crashes = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
+            #Second pass over all exploitable crashes
+            exp_path = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/exploitable/"
+            uniq_path = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/"
+            if os.path.exists(exp_path):
+                if not self.triage(jobId, 'all', exp_path, uniq_path):
+                    return False
+
+            triaged_crashes = os.listdir(uniq_path)
             util.color_print(util.bcolors.OKGREEN, "\t\t[+] Triaged " + str(len(triaged_crashes)) + \
-                             " crashes. See {}".format(self._config['orthrus']['directory'] + "/jobs/" \
-                                                        + jobId + "/unique/"))
+                             " crashes. See {}".format(uniq_path))
             if not triaged_crashes:
                 util.color_print(util.bcolors.OKBLUE, "\t\t[+] Nothing to do")
                 return True
