@@ -42,7 +42,7 @@ $ sudo apt-get --no-install-suggests --no-install-recommends --force-yes install
   - Gcov (coverage)
 - All binaries installed in `.orthrus/binaries` subdir relative to WD root
 
-```bash
+```
 $ cd $AUTOTOOLS_PROJECT_WD
 $ orthrus create -fuzz -asan -cov
 [+] Create Orthrus workspace
@@ -75,7 +75,7 @@ ASAN+AFL (slave)
 - Each job allocated an independent data directory
   - Can be operated (started, stopped, managed) independently
 
-```bash
+```
 $ orthrus add --job="main @@"
 [+] Adding fuzzing job to Orthrus workspace
                 [+] Check Orthrus workspace... done
@@ -89,7 +89,7 @@ $ ls .orthrus/jobs/
 1167520733  jobs.conf
 ```
 - ...and pass the job ID as an argument to orthrus remove
-```bash
+```
 $ orthrus remove -j 1167520733
 [+] Removing fuzzing job from Orthrus workspace
                 [+] Check Orthrus workspace... done
@@ -100,7 +100,7 @@ $ orthrus remove -j 1167520733
 - You can also import an existing AFL generated corpus tarball (contents of 
 afl-sync-dir e.g., SESSION000, SESSION001, etc.)
 
-```bash
+```
 $ orthrus add --job="main @@" -i=./afl-out.tar.gz
 [+] Adding fuzzing job to Orthrus workspace
                 [+] Check Orthrus workspace... done
@@ -152,7 +152,7 @@ llect.cmin -- /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Temp
 ```
 
 - You can seed a job, like so
-```bash
+```
 $ orthrus add --job="main @@" -s=./seeds
 [+] Adding fuzzing job to Orthrus workspace
                 [+] Check Orthrus workspace... done
@@ -166,7 +166,7 @@ $ orthrus add --job="main @@" -s=./seeds
 ## Step 3: Start/Stop afl fuzzers (via afl-utils)
 
 - To start fuzzing for a pre-defined job, you do
-```bash
+```
 $ orthrus start -j 1167520733
 [+] Starting fuzzing jobs
                 [+] Check Orthrus workspace... done
@@ -186,13 +186,13 @@ $ orthrus start -j 1167520733
 ```
 
 - To stop fuzzing, you do
-```bash
+```
 $ orthrus stop
 [+] Stopping fuzzing jobs...done
 ```
 
 - To resume an earlier session, do
-```bash
+```
 $ orthrus start -j 1167520733 -m
 [+] Starting fuzzing jobs
                 [+] Check Orthrus workspace... done
@@ -259,7 +259,7 @@ WIP
 ## Step 5: Triage crashes (via afl-utils/exploitable)
 
 - To triage an existing AFL corpus, do
-```bash
+```
 $ orthrus triage -j 1167520733
 [+] Triaging crashes for job [1167520733]
                 [+] Collect and verify 'harden' mode crashes... done
@@ -274,12 +274,52 @@ $ orthrus triage -j 1167520733
 ## Step 6: Destroy orthrus session
 
 - This permanently deletes all orthrus data (under `.orthrus`)
-```bash
+```
 $ orthrus destroy
 [+] Destroy Orthrus workspace
 [?] Delete complete workspace? [y/n]...: y
                 [+] Deleting all files... done
 ```
+
+# Full usage
+```
+$ orthrus -h
+usage: A tool to manage, conduct, and assess security testing of autotools projects.
+       [-h] [-v] {create,add,remove,start,stop,show,triage,destroy} ...
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --verbose         Verbose mode, print information about the progress
+
+subcommands:
+  Orthrus subcommands
+
+  {create,add,remove,start,stop,show,triage,destroy}
+    create              Create an orthrus workspace
+    add                 Add a fuzzing job
+    remove              Remove a fuzzing job
+    start               Start the fuzzing jobs
+    stop                Stop the fuzzing jobs
+    show                Show whats currently going on
+    triage              Triage crash samples
+    destroy             Destroy the orthrus workspace
+
+# For subcommand help
+$ orthrus create -h
+usage: A tool to manage, conduct, and assess security testing of autotools projects. create
+       [-h] [-asan] [-fuzz] [-cov] [-d [CONFIGURE_FLAGS]]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -asan, --afl-asan     Setup binaries for afl with AddressSanitizer
+  -fuzz, --afl-harden   Setup binaries for afl in 'harden' mode (stack-
+                        protector, fortify)
+  -cov, --coverage      Setup binaries to collect coverage information
+  -d [CONFIGURE_FLAGS], --configure-flags [CONFIGURE_FLAGS]
+                        Additional flags for configuring the source
+
+```
+
 
 # Credits
 
