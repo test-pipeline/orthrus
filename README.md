@@ -246,6 +246,7 @@ llect.cmin -- /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Temp
 
                                 [+]  Slave 001 started (PID: 28809)
                                 [+]  Slave 002 started (PID: 28813)
+```
 
 
 - The `-m` flag minimizes the existing AFL corpus, archives the existing queue
