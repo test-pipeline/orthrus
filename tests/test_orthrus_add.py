@@ -24,6 +24,12 @@ class TestOrthrusAdd(unittest.TestCase):
         cmd = OrthrusAdd(args, self.config)
         self.assertTrue(cmd.run())
 
+    def test_add_and_import_crashes(self):
+        args = parse_cmdline(self.description, ['add', '--job=main @@',
+                    '-i=./afl-crash-out.tar.gz'])
+        cmd = OrthrusAdd(args, self.config)
+        self.assertTrue(cmd.run())
+
     def setUp(self):
         self.config = {'orthrus' : {'directory': self.orthrusdirname}}
         args = parse_cmdline(self.description, ['create', '-asan'])
