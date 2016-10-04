@@ -1,6 +1,6 @@
 # Orthrus [![Build Status](https://travis-ci.org/test-pipeline/orthrus.svg?branch=master)](https://travis-ci.org/test-pipeline/orthrus) [![License](http://img.shields.io/:license-gpl3-blue.svg?style=flat-square)](http://www.gnu.org/licenses/gpl-3.0.html) [![Coverage Status](https://coveralls.io/repos/github/test-pipeline/orthrus/badge.svg?branch=master)](https://coveralls.io/github/test-pipeline/orthrus?branch=master)
 
-Orthrus is a tool for managing, conducting, and assessing security (fuzz) testing. At the moment, it supports Clang/LLVM instrumentation and the AFL ecosystem (afl-fuzz, afl-utils, afl-cov). The ultimate aim is for Orthrus to be a generic wrapper around state-of-the-art fuzz and instrumentation tools.
+Orthrus is a tool for managing, conducting, and assessing security (fuzz) testing for [autotools][4] projects. At the moment, it supports Clang/LLVM instrumentation and the AFL ecosystem (afl-fuzz, afl-utils, afl-cov). The ultimate aim is for Orthrus to be a generic wrapper around state-of-the-art fuzz and instrumentation tools on the one hand, and disparate build systems on the other.
 
 # Pre-requisites
 
@@ -334,4 +334,5 @@ Orthrus was possible due to excellent work by
 [1]: http://lcamtuf.coredump.cx/afl/
 [2]: https://github.com/rc0r/afl-utils/tree/v1.27a
 [3]: https://github.com/mrash/afl-cov/
+[4]: https://en.wikipedia.org/wiki/GNU_Build_System
 
