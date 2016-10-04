@@ -1,3 +1,4 @@
+import time
 import sys
 import subprocess
 import os
@@ -281,6 +282,9 @@ def minimize_sync_dir(config, jobId):
     for line in p.stdout:
         if "[*]" in line or "[!]" in line:
             color_print(bcolors.OKGREEN, "\t\t\t" + line)
+
+    # Sleep for a short bit so that archived queue time stamps differ
+    time.sleep(2)
 
     reseed_cmd = " ".join(
         ["afl-minimize", "-c", config['orthrus']['directory'] + "/jobs/" + jobId + "/collect.cmin",
