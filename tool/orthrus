@@ -3,7 +3,7 @@
 from orthrus.commands import *
 from orthrusutils.orthrusutils import *
 
-DESCRIPTION = """A tool for extended analysis of fuzzed applications."""
+DESCRIPTION = """A tool to manage, conduct, and assess security testing of autotools projects."""
 
 class OrthrusTool():
     def __init__(self, description, args):
@@ -44,8 +44,8 @@ class OrthrusTool():
         cmd.run()
 
     def _database(self, args):
-        cmd = OrthrusDatabase(args, self._config)
-        cmd.run()
+        color_print(bcolors.INFO, "Not implemented")
+        pass
 
     def _clean(self, args):
         color_print(bcolors.INFO, "Not implemented")
