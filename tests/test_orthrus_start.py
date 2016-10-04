@@ -29,7 +29,25 @@ class TestOrthrusStart(unittest.TestCase):
         args = parse_cmdline(self.description, ['stop'])
         cmd = OrthrusStop(args, self.config)
         self.assertTrue(cmd.run())
-        args = parse_cmdline(self.description, ['start', '-j', add_cmd.jobId])
+        args = parse_cmdline(self.description, ['start', '-j', add_cmd.jobId, '-m'])
+        cmd = OrthrusStart(args, self.config)
+        self.assertTrue(cmd.run())
+
+    def test_start_after_import(self):
+        args = parse_cmdline(self.description, ['add', '--job=main @@',
+            '-i=./afl-arch-out.tar.gz'])
+        cmd = OrthrusAdd(args, self.config)
+        self.assertTrue(cmd.run())
+        args = parse_cmdline(self.description, ['start', '-j', cmd.jobId])
+        cmd = OrthrusStart(args, self.config)
+        self.assertTrue(cmd.run())
+
+    def test_start_minimize_after_import(self):
+        args = parse_cmdline(self.description, ['add', '--job=main @@',
+            '-i=./afl-arch-out.tar.gz'])
+        cmd = OrthrusAdd(args, self.config)
+        self.assertTrue(cmd.run())
+        args = parse_cmdline(self.description, ['start', '-j', cmd.jobId, '-m'])
         cmd = OrthrusStart(args, self.config)
         self.assertTrue(cmd.run())
 

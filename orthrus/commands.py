@@ -788,7 +788,7 @@ class OrthrusDestroy(object):
     
     def run(self):
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Destroy Orthrus workspace")
-        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[?] Delete complete workspace? [y/n]...: ")
+        util.color_print_singleline(util.bcolors.BOLD + util.bcolors.HEADER, "[?] Delete complete workspace? [y/n]...: ")
 
         if (self.testinput and 'y' in self.testinput) or 'y' in sys.stdin.readline()[0]:
             util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Deleting all files... ")

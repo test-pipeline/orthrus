@@ -17,9 +17,8 @@ setup(
                  "Programming Language :: Python :: 2",
                  "Operating System :: POSIX :: Linux"],
     scripts = ['tool/orthrus'],
-    install_requires = ['afl-utils'],
-    dependency_links = ['https://github.com/rc0r/afl-utils/tarball/master#egg=afl-utils-v1.27a'],
-                        #'https://github.com/mrash/afl-cov/tarball/master#egg=afl-cov-0.6'],
+    # install_requires = ['afl-utils'],
+    # dependency_links = ['https://github.com/rc0r/afl-utils/tarball/master#egg=afl-utils-v1.27a'],
     keywords=[ 'Fuzzing',
                'American Fuzzy Lop',
                'Triage'
