@@ -341,7 +341,7 @@ $ orthrus show -c
 Opening coverage html for job 1167520733 in a new browser tab
 ```
 
-## Step 6: Destroy orthrus session
+## Step 7: Destroy orthrus session
 
 - This permanently deletes all orthrus data (under `.orthrus`)
 ```
@@ -392,6 +392,11 @@ optional arguments:
 
 ```
 
+# Issues and PRs
+
+- Feel free to file an issue if something doesn't work as expected :-)
+  - Attaching logs from `.orthrus/logs` would be helpful 
+- PRs for interesting workflows are much appreciated!
 
 # Credits
 
