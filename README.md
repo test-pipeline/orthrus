@@ -16,12 +16,15 @@ $ echo "source /usr/lib/python3.4/site-packages/exploitable-1.32_rcor-py3.4.egg/
 $ sudo rm -rf afl-utils-1.27a
 ```
 
-- [afl-cov][3]
-- Clang/LLVM toolchain
-- gcov/lcov
-- An autotools open-source project for fuzzing
+- [afl-cov][3] (v0.5)
+```bash
+wget -q https://github.com/mrash/afl-cov/archive/0.5.tar.gz && tar xzf 0.5.tar.gz
+rm 0.5.tar.gz && cd afl-cov-0.5
+sudo cp afl-cov /usr/local/bin/
+cd .. && rm -rf afl-cov-0.5
+```
 
-Command line installation for the last two (tested on Ubuntu 14.04):
+- Clang/LLVM toolchain
 ```bash
 $ sudo apt-get install lcov
 $ curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -
@@ -29,6 +32,12 @@ $ echo "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.8 main" | sudo t
 $ sudo apt-get update
 $ sudo apt-get --no-install-suggests --no-install-recommends --force-yes install clang-3.8 libclang-common-3.8-dev llvm-3.8-runtime llvm-3.8
 ```
+- lcov
+```bash
+$ sudo apt-get install lcov
+```
+- An autotools open-source project for fuzzing
+
 
 # Workflow
 
