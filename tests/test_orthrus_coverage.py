@@ -11,8 +11,9 @@ class TestOrthrusCoverage(unittest.TestCase):
         args = parse_cmdline(self.description, ['coverage', '-j', self.add_cmd.jobId])
         cmd = OrthrusCoverage(args, self.config)
         self.assertTrue(cmd.run())
-        time.sleep(90)
-        subprocess.Popen('ls .orthrus/jobs/'+self.add_cmd.jobId+'/afl-out/cov; genhtml --version', shell=True, executable='/bin/bash')
+        time.sleep(30)
+        subprocess.Popen('ls .orthrus/jobs/'+self.add_cmd.jobId+'/afl-out/cov; ls .orthrus/logs',
+                         shell=True, executable='/bin/bash')
         self.assertTrue(os.path.isfile(self.orthrusdirname + '/jobs/' + self.add_cmd.jobId + \
                                        '/afl-out/cov/web/lcov-web-final.html'))
 
