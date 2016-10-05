@@ -639,10 +639,11 @@ class OrthrusStop(object):
 
 class OrthrusShow(object):
     
-    def __init__(self, args, config):
+    def __init__(self, args, config, test=False):
         self._args = args
         self._config = config
-    
+        self.test = test
+
     def run(self):
         job_config = ConfigParser.ConfigParser()
         job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
@@ -659,7 +660,14 @@ class OrthrusShow(object):
                 if os.path.exists(cov_web_indexhtml):
                     util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Opening coverage html for job {} "
                                                                               "in a new browser tab".format(jobId))
+                    # Early return for tests
+                    if self.test:
+                        return True
                     webbrowser.open_new_tab(cov_web_indexhtml)
+                else:
+                    util.color_print(util.bcolors.INFO, "No coverage info at {}. Have you run orthrus coverage or"
+                                                        " orthrus start -c already?".format(cov_web_indexhtml))
+                    return False
         else:
             util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Status of jobs:")
             
