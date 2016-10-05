@@ -12,7 +12,7 @@ class TestOrthrusCoverage(unittest.TestCase):
         cmd = OrthrusCoverage(args, self.config)
         self.assertTrue(cmd.run())
         time.sleep(30)
-        subprocess.Popen('cat .orthrus/logs/afl-coverage.log', shell=True, executable='/bin/bash')
+        subprocess.Popen('which nohup; which afl-cov; which lcov', shell=True, executable='/bin/bash')
         self.assertTrue(os.path.isfile(self.orthrusdirname + '/jobs/' + self.add_cmd.jobId + \
                                        '/afl-out/cov/web/lcov-web-final.html'))
 

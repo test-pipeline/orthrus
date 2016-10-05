@@ -13,6 +13,7 @@ addons:
                         - llvm-3.8-runtime
                         - llvm-3.8
                         - lcov
+                        - coreutils
                         - automake
                         - python3-setuptools
                         - gdb
