@@ -4,6 +4,7 @@ Orthrus commands implementation
 import os
 import sys
 import shutil
+import re
 import subprocess
 import random
 import glob
@@ -532,16 +533,21 @@ class OrthrusStart(object):
     def _start_afl_coverage(self, jobId):
         job_config = ConfigParser.ConfigParser()
         job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
+
+        # Run afl-cov as a nohup process
+        util.run_afl_cov(self._config['orthrus']['directory'], jobId, job_config.get(jobId, "target"),
+                         job_config.get(jobId, "params"), True)
         
-        target = self._config['orthrus']['directory'] + "/binaries/coverage/fuzzing/bin/" + job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("@@","AFL_FILE")
-        cmd = [self._config['afl-cov']['afl_cov_path'] + "/afl-cov", "-d", ".orthrus/jobs/" + jobId + "/afl-out", "--live", "--lcov-path", "/usr/bin/lcov", "--coverage-cmd", "'" + target + "'", "--code-dir", ".", "-v"]
-        logfile = open(self._config['orthrus']['directory'] + "/logs/afl-coverage.log", "w")
-        print " ".join(cmd)
-        p = subprocess.Popen(" ".join(cmd), shell=True, stdout=logfile, stderr=subprocess.STDOUT)
-        
+        # target = self._config['orthrus']['directory'] + "/binaries/coverage/bin/" + \
+        #          job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("@@","AFL_FILE")
+        # cmd = ["nohup", "afl-cov", "-d", ".orthrus/jobs/" + jobId + \
+        #        "/afl-out", "--live", "--lcov-path", "/usr/bin/lcov", "--coverage-cmd", "'" + target + \
+        #        "'", "--code-dir", ".", "-v"]
+        # logfile = self._config['orthrus']['directory'] + "/logs/afl-coverage.log"
+        # p = subprocess.Popen(" ".join(cmd), shell=True, executable="/bin/bash")
+
         return True
 
-        
     def run(self):
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Starting fuzzing jobs")
         util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Check Orthrus workspace... ")
@@ -572,7 +578,8 @@ class OrthrusStart(object):
                             return False
 
                 if self._args.coverage:
-                    util.color_print(util.bcolors.OKGREEN, "\t\t[+] Start afl-cov for Job [" + jobId +"]... ")
+                    util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Start afl-cov for Job "
+                                                                      "[" + jobId +"]... ")
                     if not self._start_afl_coverage(jobId):
                         util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
                         return False
@@ -593,33 +600,43 @@ class OrthrusStop(object):
     def __init__(self, args, config):
         self._args = args
         self._config = config
-    
+
+    def get_afl_cov_pid(self):
+        pid_regex = re.compile(r'afl_cov_pid[^\d]+(?P<pid>\d+)')
+
+        jobs_dir = self._config['orthrus']['directory'] + "/jobs"
+        jobs_list = os.walk(jobs_dir).next()[1]
+
+        pids = []
+        if not jobs_list:
+            return pids
+        for job in jobs_list:
+            dir = jobs_dir + "/" + job + "/afl-out/cov"
+            if not os.path.isdir(dir):
+                continue
+            file = dir + "/afl-cov-status"
+            if not os.path.isfile(file):
+                continue
+            with open(file) as f:
+                content = f.readline()
+            match = pid_regex.match(content)
+            if match:
+                pids.append(match.groups()[0])
+        return pids
+
     def run(self):
         util.color_print_singleline(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Stopping fuzzing jobs...")
-        cmd = ["pkill", "-9", "afl-fuzz"]
-        rv = util.run_cmd(" ".join(cmd))
+        kill_fuzz_cmd = ["pkill", "-9", "afl-fuzz"]
+        util.run_cmd(" ".join(kill_fuzz_cmd))
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "done")
+        if self._args.coverage:
+            util.color_print_singleline(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Stopping afl-cov for jobs...")
+            for pid in self.get_afl_cov_pid():
+                kill_aflcov_cmd = ["pkill", "-9", pid]
+                util.run_cmd(" ".join(kill_aflcov_cmd))
+            util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "done")
         return True
-        #
-        #
-        # p = subprocess.Popen("afl-multikill", shell=True, stdout=subprocess.PIPE)
-        # p.wait()
-        # output = p.communicate()[0]
-        # util.color_print("\t" + "\n".join(output.splitlines()[2:]))
-        #
-        # job_config = ConfigParser.ConfigParser()
-        # job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-        #
-        # if self._args.minimize:
-        #     pass
-        #
-        # util.color_print("\n")
-        #
-        # return True
 
-class OrthrusResume(object):
-    pass
-    
 class OrthrusShow(object):
     
     def __init__(self, args, config):
@@ -638,7 +655,7 @@ class OrthrusShow(object):
         elif self._args.cov:
             for jobId in job_config.sections():
                 cov_web_indexhtml = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/" + \
-                                    "cov/web/lcov-web-final"
+                                    "cov/web/lcov-web-final.html"
                 if os.path.exists(cov_web_indexhtml):
                     webbrowser.open_new_tab(cov_web_indexhtml)
         else:
@@ -777,6 +794,31 @@ class OrthrusTriage(object):
                 util.color_print(util.bcolors.OKBLUE, "\t\t[+] Nothing to do")
                 return True
 
+        return True
+
+class OrthrusCoverage(object):
+
+    def __init__(self, args, config):
+        self._args = args
+        self._config = config
+        self.job_config = ConfigParser.ConfigParser()
+        self.job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
+
+    def run(self):
+        orthrus_root = self._config['orthrus']['directory']
+        jobId = self._args.job_id
+        util.color_print_singleline(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Checking test coverage for job [" \
+                 + jobId + "]... ")
+        if not self.job_config.get(jobId, "target") or not self.job_config.get(jobId, "params"):
+            util.color_print(util.bcolors.FAIL, "Undefined job target or parameters!")
+            return False
+
+        util.run_afl_cov(orthrus_root, jobId, self.job_config.get(jobId, "target"),
+                         self.job_config.get(jobId, "params"))
+
+        util.color_print(util.bcolors.OKGREEN, "done")
+        util.color_print(util.bcolors.OKGREEN, "\t\t[+] Please check {} for coverage info"
+                         .format(orthrus_root+"/jobs/"+jobId+"/afl-out/""cov"))
         return True
 
 class OrthrusDestroy(object):

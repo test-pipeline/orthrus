@@ -13,8 +13,9 @@ START_HELP = """Start the fuzzing jobs"""
 STOP_HELP = """Stop the fuzzing jobs"""
 SHOW_HELP = """Show whats currently going on"""
 TRIAGE_HELP = """Triage crash samples"""
-DATABASE_HELP = """Joern database operations"""
-CLEAN_HELP = """Clean up the workspace"""
+# DATABASE_HELP = """Joern database operations"""
+# CLEAN_HELP = """Clean up the workspace"""
+COVERAGE_HELP = """Run afl-cov on existing AFL corpus"""
 DESTROY_HELP = """Destroy the orthrus workspace"""
 
 class bcolors:
@@ -76,7 +77,7 @@ def copy_binaries(dest):
 
 def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=None,
                   startfunc=None, stopfunc=None, showfunc=None, triagefunc=None,
-                  databasefunc=None, cleanfunc=None, destroyfunc=None):
+                  coveragefunc=None, destroyfunc=None):
     argParser = ArgumentParser(description)
 
     argParser.add_argument('-v', '--verbose',
@@ -151,9 +152,9 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
 
     # Command 'stop'
     stop_parser = subparsers.add_parser('stop', help=STOP_HELP)
-    stop_parser.add_argument('-m', '--minimize',
+    stop_parser.add_argument('-c', '--coverage',
                              action='store_true',
-                             help="""Minimize corpus on stop""",
+                             help="""Stop afl-cov instances on stop""",
                              default=False)
     stop_parser.set_defaults(func=stopfunc)
 
@@ -176,41 +177,12 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
                                help="""Job Id for the job which should be triaged""")
     triage_parser.set_defaults(func=triagefunc)
 
-    # Command 'database'
-    # database_parser = subparsers.add_parser('database', help=DATABASE_HELP)
-    # database_parser.add_argument('-s', '--startup',
-    #                              action='store_true',
-    #                              help="""Start joern neo4j instance for codebase""",
-    #                              default=False)
-    # database_parser.add_argument('-x', '--shutdown',
-    #                              action='store_true',
-    #                              help="""Shutdown joern neo4j instance""",
-    #                              default=False)
-    # database_parser.add_argument('-a', '--all',
-    #                              action='store_true',
-    #                              help="""All configured jobs""",
-    #                              default=False)
-    # database_parser.add_argument('-j', '--job-id', nargs='?',
-    #                              type=str, default="",
-    #                              help="""Job Id for the job""")
-    # database_parser.add_argument('-l', '--load-crashes',
-    #                              action='store_true',
-    #                              help="""Upload crashes to the database""",
-    #                              default=False)
-    # database_parser.add_argument('-u', '--unload-crashes',
-    #                              action='store_true',
-    #                              help="""Remove crashes from database""",
-    #                              default=False)
-    # database_parser.add_argument('-c', '--load-coverage',
-    #                              action='store_true',
-    #                              help="""Upload coverage information""",
-    #                              default=False)
-    # database_parser.set_defaults(func=databasefunc)
-
-    # Command 'clean'
-    # clean_parser = subparsers.add_parser('clean', help=CLEAN_HELP)
-    # create_parser.add_argument('-x', type=int, default=1)
-    # clean_parser.set_defaults(func=cleanfunc)
+    # Command 'coverage'
+    coverage_parser = subparsers.add_parser('coverage', help=COVERAGE_HELP)
+    coverage_parser.add_argument('-j', '--job-id', nargs='?',
+                               type=str, default="",
+                               help="""Job Id for checking coverage""")
+    coverage_parser.set_defaults(func=coveragefunc)
 
     # Command 'destroy'
     destroy_parser = subparsers.add_parser('destroy', help=DESTROY_HELP)
@@ -320,3 +292,19 @@ def getnproc():
 def printfile(filename):
     cmd = 'cat ' + filename
     print subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+
+def run_afl_cov(orthrus_root, jobId, target, params, livemode=False):
+    target = orthrus_root + "/binaries/coverage/bin/" + \
+             target + " " + params.replace("@@", "AFL_FILE")
+
+    if livemode:
+        cmd = ["nohup", "afl-cov", "-d", ".orthrus/jobs/" + jobId + \
+           "/afl-out", "--live", "--lcov-path", "/usr/bin/lcov", "--coverage-cmd", "'" + target + \
+           "'", "--code-dir", "."]
+    else:
+        cmd = ["nohup", "afl-cov", "-d", ".orthrus/jobs/" + jobId + \
+               "/afl-out", "--lcov-path", "/usr/bin/lcov", "--coverage-cmd", "'" + target + \
+               "'", "--code-dir", "."]
+    logfile = orthrus_root + "/logs/afl-coverage.log"
+    p = subprocess.Popen(" ".join(cmd), shell=True, executable="/bin/bash", stdout=open(logfile, 'w'),
+                         stderr=subprocess.STDOUT)

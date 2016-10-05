@@ -51,14 +51,28 @@ class TestOrthrusStart(unittest.TestCase):
         cmd = OrthrusStart(args, self.config)
         self.assertTrue(cmd.run())
 
+    def test_start_coverage(self):
+        self.is_coverage = True
+        args = parse_cmdline(self.description, ['add', '--job=main @@',
+            '-s=./seeds'])
+        cmd = OrthrusAdd(args, self.config)
+        self.assertTrue(cmd.run())
+        args = parse_cmdline(self.description, ['start', '-j', cmd.jobId, '-c'])
+        cmd = OrthrusStart(args, self.config)
+        self.assertTrue(cmd.run())
+
     def setUp(self):
+        self.is_coverage = False
         self.config = {'orthrus' : {'directory': self.orthrusdirname}}
-        args = parse_cmdline(self.description, ['create', '-asan'])
+        args = parse_cmdline(self.description, ['create', '-asan', '-cov'])
         cmd = OrthrusCreate(args, self.config)
         cmd.run()
 
     def tearDown(self):
-        args = parse_cmdline(self.description, ['stop'])
+        if not self.is_coverage:
+            args = parse_cmdline(self.description, ['stop'])
+        else:
+            args = parse_cmdline(self.description, ['stop', '-c'])
         cmd = OrthrusStop(args, self.config)
         self.assertTrue(cmd.run())
         shutil.rmtree(self.orthrusdirname)
