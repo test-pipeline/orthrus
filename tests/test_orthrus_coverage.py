@@ -12,6 +12,7 @@ class TestOrthrusCoverage(unittest.TestCase):
         cmd = OrthrusCoverage(args, self.config)
         self.assertTrue(cmd.run())
         time.sleep(30)
+        util.run_cmd('cat .orthus/logs/afl-coverage.log')
         self.assertTrue(os.path.isfile(self.orthrusdirname + '/jobs/' + self.add_cmd.jobId + \
                                        '/afl-out/cov/web/lcov-web-final.html'))
 
