@@ -254,7 +254,37 @@ dir, reseeds it with the minimized seeds, and resumes fuzzing
 
 ## Step 4: Monitor test coverage (via afl-cov)
 
-WIP
+You can either:
+
+- Monitor test coverage during a live fuzzing session
+```
+$ orthrus start -j 1167520733 -c
+[+] Starting fuzzing jobs
+                [+] Check Orthrus workspace... done
+                [+] Start afl-cov for Job [1167520733]... done
+                [+] Start Fuzzers for Job [1167520733]... Checking core_pattern...okay
+                [+] Starting AFL harden fuzzer job as master...done
+                        [*] Starting master instance...
+
+                                [+]  Master 000 started (PID: 25378)
+                        [*] Starting slave instances...
+
+                                [+]  Slave 001 started (PID: 25379)
+```
+
+- OR check test coverage post testing (when all instances of afl-fuzz are dead)
+```
+$ orthrus coverage -j 1167520733
+[+] Checking test coverage for job [1167520733]... done
+                [+] Please check .orthrus/jobs/1167520733/afl-out/cov for coverage info
+```
+
+You may force stop a live afl-cov instance along with all fuzz sessions, like so
+```
+$ orthrus stop -c
+[+] Stopping fuzzing jobs...done
+[+] Stopping afl-cov for jobs...done
+```
 
 ## Step 5: Triage crashes (via afl-utils/exploitable)
 
@@ -271,6 +301,37 @@ $ orthrus triage -j 1167520733
                 [+] Triaged 15 crashes. See .orthrus/jobs/1167520733/unique/
 ```
 
+## Step 6: User interface for fuzz status and coverage
+
+- You may view configured jobs, like so
+```
+$ orthrus show -j
+Configured jobs found:
+        0) [1167520733] main @@
+```
+
+- You may view the current status of afl-fuzz instances (via afl-whatsup)
+```
+$ orthrus show
+Status of jobs:
+        Job [1167520733] for target 'main':
+               Fuzzers alive : 0
+              Dead or remote : 2 (excluded from stats)
+              Total run time : 0 days, 0 hours
+                 Total execs : 0 million
+            Cumulative speed : 0 execs/sec
+               Pending paths : 0 faves, 0 total
+               Crashes found : 0 locally unique
+
+             Triaged crashes : 0 available
+```
+
+- You may view coverage report (via afl-cov)
+```
+$ orthrus show -c
+Opening coverage html for job 1167520733 in a new browser tab
+```
+
 ## Step 6: Destroy orthrus session
 
 - This permanently deletes all orthrus data (under `.orthrus`)
@@ -285,7 +346,8 @@ $ orthrus destroy
 ```
 $ orthrus -h
 usage: A tool to manage, conduct, and assess security testing of autotools projects.
-       [-h] [-v] {create,add,remove,start,stop,show,triage,destroy} ...
+       [-h] [-v]
+       {create,add,remove,start,stop,show,triage,coverage,destroy} ...
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -294,7 +356,7 @@ optional arguments:
 subcommands:
   Orthrus subcommands
 
-  {create,add,remove,start,stop,show,triage,destroy}
+  {create,add,remove,start,stop,show,triage,coverage,destroy}
     create              Create an orthrus workspace
     add                 Add a fuzzing job
     remove              Remove a fuzzing job
@@ -302,6 +364,7 @@ subcommands:
     stop                Stop the fuzzing jobs
     show                Show whats currently going on
     triage              Triage crash samples
+    coverage            Run afl-cov on existing AFL corpus
     destroy             Destroy the orthrus workspace
 
 # For subcommand help
