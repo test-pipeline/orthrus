@@ -18,7 +18,7 @@ class TestOrthrusStart(unittest.TestCase):
         args = parse_cmdline(self.description, ['start', '-j', self.add_cmd.jobId])
         cmd = OrthrusStart(args, self.config)
         self.assertTrue(cmd.run())
-        time.sleep(10)
+        time.sleep(TEST_SLEEP)
         args = parse_cmdline(self.description, ['stop'])
         cmd = OrthrusStop(args, self.config)
         self.assertTrue(cmd.run())

@@ -19,6 +19,8 @@ COVERAGE_HELP = """Run afl-cov on existing AFL corpus"""
 DESTROY_HELP = """Destroy an orthrus workspace"""
 VALIDATE_HELP = """Check if all Orthrus dependencies are met"""
 
+TEST_SLEEP = 5
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -312,7 +314,7 @@ def which(progname):
         return ''
     return os.path.abspath(path)
 
-def run_afl_cov(orthrus_root, jobId, target, params, livemode=False):
+def run_afl_cov(orthrus_root, jobId, target, params, livemode=False, test=False):
     target = orthrus_root + "/binaries/coverage/bin/" + \
              target + " " + params.replace("@@", "AFL_FILE")
 
@@ -320,6 +322,8 @@ def run_afl_cov(orthrus_root, jobId, target, params, livemode=False):
         cmd = ["nohup", "afl-cov", "-d", ".orthrus/jobs/" + jobId + \
            "/afl-out", "--live", "--lcov-path", which('lcov'), "--genhtml-path", which('genhtml'), "--coverage-cmd", \
                "'" + target + "'", "--code-dir", "."]
+        if test:
+            cmd.extend(['--sleep', '5'])
     else:
         cmd = ["nohup", "afl-cov", "-d", ".orthrus/jobs/" + jobId + \
                "/afl-out", "--lcov-path", which('lcov'), "--genhtml-path", which('genhtml'), "--coverage-cmd", \

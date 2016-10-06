@@ -358,9 +358,10 @@ class OrthrusRemove(object):
 
 class OrthrusStart(object):
     
-    def __init__(self, args, config):
+    def __init__(self, args, config, test=False):
         self._args = args
         self._config = config
+        self.test = test
     
     def _start_fuzzers(self, jobId, available_cores):
         if os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/") == []:
@@ -520,7 +521,7 @@ class OrthrusStart(object):
 
         # Run afl-cov as a nohup process
         util.run_afl_cov(self._config['orthrus']['directory'], jobId, job_config.get(jobId, "target"),
-                         job_config.get(jobId, "params"), True)
+                         job_config.get(jobId, "params"), True, self.test)
         
         # target = self._config['orthrus']['directory'] + "/binaries/coverage/bin/" + \
         #          job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("@@","AFL_FILE")
