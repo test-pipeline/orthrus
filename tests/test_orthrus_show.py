@@ -37,7 +37,7 @@ class TestOrthrusShow(unittest.TestCase):
         stop_cmd = OrthrusStop(args, self.config)
         stop_cmd.run()
         # Sleep again so afl-cov finishes
-        time.sleep(30)
+        time.sleep(60)
         args = parse_cmdline(self.description, ['show', '-cov'])
         cmd = OrthrusShow(args, self.config, True)
         self.assertTrue(cmd.run())
