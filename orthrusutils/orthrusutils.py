@@ -115,12 +115,11 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
 
     # Command 'add'
     add_parser = subparsers.add_parser('add', help=ADD_HELP)
-    add_parser.add_argument('-n', '--job', nargs='?',
-                            type=str, default="",
+    add_parser.add_argument('-n', '--job', required=True, type=str,
                             help='Add a job with executable command line invocation string')
-    add_parser.add_argument('-j', '--job-id', nargs='?',
-                            type=str, default="",
-                            help='Job Id for the job which should be selected')
+    # add_parser.add_argument('-j', '--job-id', nargs='?',
+    #                         type=str, default="",
+    #                         help='Job Id for the job which should be selected')
     add_parser.add_argument('-i', '--import', dest='_import', nargs='?',
                             type=str, default="",
                             help='Import an AFL fuzzing output directory provided as tar.gz')
@@ -131,16 +130,14 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
 
     # Command 'remove'
     remove_parser = subparsers.add_parser('remove', help=REMOVE_HELP)
-    remove_parser.add_argument('-j', '--job-id', nargs='?',
-                               type=str, default="",
-                               help='Job Id for the job which should be removed')
+    remove_parser.add_argument('-j', '--job-id', required=True,
+                               type=str, help='Job Id for the job which should be removed')
     remove_parser.set_defaults(func=removefunc)
 
     # Command 'start'
     start_parser = subparsers.add_parser('start', help=START_HELP)
-    start_parser.add_argument('-j', '--job-id', nargs='?',
-                              type=str, default="",
-                              help='Job Id for the job which should be started')
+    start_parser.add_argument('-j', '--job-id', required=True,
+                              type=str, help='Job Id for the job which should be started')
     start_parser.add_argument('-c', '--coverage',
                               action='store_true',
                               help="""Collect coverage information while fuzzing""",
@@ -181,7 +178,7 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
     # Command 'coverage'
     coverage_parser = subparsers.add_parser('coverage', help=COVERAGE_HELP)
     coverage_parser.add_argument('-j', '--job-id', nargs='?',
-                               type=str, default="",
+                               type=str, default="", required=True,
                                help="""Job Id for checking coverage""")
     coverage_parser.set_defaults(func=coveragefunc)
 
@@ -341,4 +338,16 @@ def validate_inst(config):
             color_print(bcolors.FAIL, "\t\t\t[-] Could not locate {}. Perhaps modifying the PATH variable helps?".
                         format(program))
             return False
+    return True
+
+def validate_job(orthrus_root, jobID):
+
+    # Job config exists
+    if not os.path.exists(orthrus_root + "/jobs/jobs.conf"):
+        return False
+    # Job ID valid
+    job_config = ConfigParser.ConfigParser()
+    job_config.read(orthrus_root + "/jobs/jobs.conf")
+    if jobID not in job_config.sections() or not job_config.get(jobID, "target") or not job_config.get(jobID, "params"):
+        return False
     return True
