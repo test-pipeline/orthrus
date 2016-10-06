@@ -341,10 +341,6 @@ class OrthrusRemove(object):
 
         util.color_print_singleline(util.bcolors.OKGREEN,
                                     "\t\t[+] Archiving data for job [" + self._args.job_id + "]... ")
-        if not os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + self._args.job_id):
-            util.color_print(util.bcolors.FAIL, "failed! Are you sure you specified the right job ID? You can "
-                                                "check valid job IDs by doing orthrus show -j")
-            return False
         shutil.move(self._config['orthrus']['directory'] + "/jobs/" + self._args.job_id,
                     self._config['orthrus']['directory'] + "/archive/" + time.strftime("%Y-%m-%d-%H:%M:%S") + "-"
                     + self._args.job_id)
@@ -563,14 +559,6 @@ class OrthrusStart(object):
                 if not util.minimize_sync_dir(self._config, jobId):
                     return False
 
-        if self._args.coverage:
-            util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Start afl-cov for Job "
-                                                              "[" + jobId +"]... ")
-            if not self._start_afl_coverage(jobId):
-                util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
-                return False
-            util.color_print(util.bcolors.OKGREEN, "done")
-
         util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Start Fuzzers for Job [" + jobId +"]... ")
         if not self._start_fuzzers(jobId, total_cores):
             try:
@@ -578,6 +566,14 @@ class OrthrusStart(object):
             except OSError, subprocess.CalledProcessError:
                 return False
             return False
+
+        if self._args.coverage:
+            util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Start afl-cov for Job "
+                                                              "[" + jobId +"]... ")
+            if not self._start_afl_coverage(jobId):
+                util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
+                return False
+            util.color_print(util.bcolors.OKGREEN, "done")
 
         return True
     
@@ -807,19 +803,19 @@ class OrthrusCoverage(object):
         self._config = config
 
     def run(self):
+
+        util.color_print_singleline(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Checking test coverage for job [" \
+                 + self._args.job_id + "]... ")
         orthrus_root = self._config['orthrus']['directory']
         if not util.validate_job(orthrus_root, self._args.job_id):
             util.color_print(util.bcolors.FAIL, "failed. Are you sure you have done orthrus add --job or passed the "
                                                 "right job ID. orthrus show -j might help")
             return False
 
-        util.color_print(util.bcolors.OKGREEN, "done")
-
+        jobId = self._args.job_id
         self.job_config = ConfigParser.ConfigParser()
         self.job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-        jobId = self._args.job_id
-        util.color_print_singleline(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Checking test coverage for job [" \
-                 + jobId + "]... ")
+
 
         util.run_afl_cov(orthrus_root, jobId, self.job_config.get(jobId, "target"),
                          self.job_config.get(jobId, "params"))

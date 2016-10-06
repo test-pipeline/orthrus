@@ -6,6 +6,7 @@ class TestOrthrusShow(unittest.TestCase):
 
     description = 'Test harness'
     orthrusdirname = '.orthrus'
+    config = {'orthrus': {'directory': orthrusdirname}}
 
     def test_show_jobs(self):
         args = parse_cmdline(self.description, ['show', '-j'])
@@ -13,18 +14,17 @@ class TestOrthrusShow(unittest.TestCase):
         self.assertTrue(cmd.run())
 
     def test_show_status(self):
-        # Start/sleep/stop job
+        # Start/show/stop job
         args = parse_cmdline(self.description, ['start', '-j', self.add_cmd.jobId])
         start_cmd = OrthrusStart(args, self.config)
         start_cmd.run()
-        # Sleep until we discover crashes
-        time.sleep(20)
-        args = parse_cmdline(self.description, ['stop'])
-        stop_cmd = OrthrusStop(args, self.config)
-        stop_cmd.run()
+        time.sleep(10)
         args = parse_cmdline(self.description, ['show'])
         cmd = OrthrusShow(args, self.config)
         self.assertTrue(cmd.run())
+        args = parse_cmdline(self.description, ['stop'])
+        stop_cmd = OrthrusStop(args, self.config)
+        stop_cmd.run()
 
     def test_show_cov(self):
         # Start/sleep/stop job
@@ -42,16 +42,17 @@ class TestOrthrusShow(unittest.TestCase):
         cmd = OrthrusShow(args, self.config, True)
         self.assertTrue(cmd.run())
 
-    def setUp(self):
-        self.config = {'orthrus' : {'directory': self.orthrusdirname}}
+    @classmethod
+    def setUpClass(cls):
         # Create
-        args = parse_cmdline(self.description, ['create', '-fuzz', '-cov'])
-        cmd = OrthrusCreate(args, self.config)
+        args = parse_cmdline(cls.description, ['create', '-fuzz', '-cov'])
+        cmd = OrthrusCreate(args, cls.config)
         cmd.run()
         # Add job
-        args = parse_cmdline(self.description, ['add', '--job=main @@', '-s=./seeds'])
-        self.add_cmd = OrthrusAdd(args, self.config)
-        self.add_cmd.run()
+        args = parse_cmdline(cls.description, ['add', '--job=main @@', '-s=./seeds'])
+        cls.add_cmd = OrthrusAdd(args, cls.config)
+        cls.add_cmd.run()
 
-    def tearDown(self):
-        shutil.rmtree(self.orthrusdirname)
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.orthrusdirname)

@@ -6,6 +6,7 @@ class TestOrthrusCreate(unittest.TestCase):
 
     description = 'Test harness'
     orthrusdirname = '.orthrus'
+    config = {'orthrus': {'directory': orthrusdirname}}
 
     def test_create_asan(self):
         args = parse_cmdline(self.description, ['create', '-asan'])
@@ -21,9 +22,6 @@ class TestOrthrusCreate(unittest.TestCase):
         args = parse_cmdline(self.description, ['create', '-cov'])
         cmd = OrthrusCreate(args, self.config)
         self.assertTrue(cmd.run())
-
-    def setUp(self):
-        self.config = {'orthrus' : {'directory': self.orthrusdirname}}
 
     def tearDown(self):
         shutil.rmtree(self.orthrusdirname)
