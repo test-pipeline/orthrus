@@ -68,7 +68,7 @@ class Builder(object):
             util.color_print(util.bcolors.FAIL, "No Makefile found in work dir")
             return False
 
-        command = ["make clean install"]
+        command = ["make clean; make -j install"]
         if not util.run_cmd(command, self.env, self.logfile):
             util.color_print(util.bcolors.FAIL, "Error running make install. Check the log!")
             return False
