@@ -9,14 +9,15 @@ from argparse import ArgumentParser
 CREATE_HELP = """Create an orthrus workspace"""
 ADD_HELP = """Add a fuzzing job"""
 REMOVE_HELP = """Remove a fuzzing job"""
-START_HELP = """Start the fuzzing jobs"""
-STOP_HELP = """Stop the fuzzing jobs"""
-SHOW_HELP = """Show whats currently going on"""
-TRIAGE_HELP = """Triage crash samples"""
+START_HELP = """Start a fuzzing jobs"""
+STOP_HELP = """Stop a fuzzing jobs"""
+SHOW_HELP = """Show what's currently going on"""
+TRIAGE_HELP = """Triage crash corpus"""
 # DATABASE_HELP = """Joern database operations"""
 # CLEAN_HELP = """Clean up the workspace"""
 COVERAGE_HELP = """Run afl-cov on existing AFL corpus"""
-DESTROY_HELP = """Destroy the orthrus workspace"""
+DESTROY_HELP = """Destroy an orthrus workspace"""
+VALIDATE_HELP = """Check if all Orthrus dependencies are met"""
 
 class bcolors:
     HEADER = '\033[95m'
@@ -77,7 +78,7 @@ def copy_binaries(dest):
 
 def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=None,
                   startfunc=None, stopfunc=None, showfunc=None, triagefunc=None,
-                  coveragefunc=None, destroyfunc=None):
+                  coveragefunc=None, destroyfunc=None, validatefunc=None):
     argParser = ArgumentParser(description)
 
     argParser.add_argument('-v', '--verbose',
@@ -189,6 +190,10 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
     # create_parser.add_argument('-x', type=int, default=1)
     destroy_parser.set_defaults(func=destroyfunc)
 
+    # Command 'validate'
+    validate_parser = subparsers.add_parser('validate', help=VALIDATE_HELP)
+    validate_parser.set_defaults(func=validatefunc)
+
     return argParser.parse_args(args)
 
 def parse_config(configfile=None):
@@ -202,22 +207,24 @@ def parse_config(configfile=None):
     config['orthrus'] = {}
     config['orthrus']['directory'] = configparser.get("orthrus", "directory")
 
+    config['dependencies'] = configparser.items("dependencies")
+
     # config['joern'] = {}
     # config['joern']['joern_path'] = os.path.abspath(os.path.expanduser((configparser.get("joern", "joern_path"))))
     #
     # config['neo4j'] = {}
     # config['neo4j']['neo4j_path'] = os.path.abspath(os.path.expanduser((configparser.get("neo4j", "neo4j_path"))))
 
-    config['afl'] = {}
-    config['afl']['afl_path'] = os.path.abspath(os.path.expanduser((configparser.get("afl", "afl_path"))))
-
-    config['afl-utils'] = {}
-    config['afl-utils']['afl_utils_path'] = os.path.abspath(
-        os.path.expanduser((configparser.get("afl-utils", "afl_utils_path"))))
-
-    config['afl-cov'] = {}
-    config['afl-cov']['afl_cov_path'] = os.path.abspath(
-        os.path.expanduser((configparser.get("afl-cov", "afl_cov_path"))))
+    # config['afl'] = {}
+    # config['afl']['afl_path'] = os.path.abspath(os.path.expanduser((configparser.get("afl", "afl_path"))))
+    #
+    # config['afl-utils'] = {}
+    # config['afl-utils']['afl_utils_path'] = os.path.abspath(
+    #     os.path.expanduser((configparser.get("afl-utils", "afl_utils_path"))))
+    #
+    # config['afl-cov'] = {}
+    # config['afl-cov']['afl_cov_path'] = os.path.abspath(
+    #     os.path.expanduser((configparser.get("afl-cov", "afl_cov_path"))))
 
     return config
 
@@ -280,18 +287,33 @@ def minimize_sync_dir(config, jobId):
 
 def is64bit():
     cmd = 'uname -m'
-    if 'x86_64' in subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT):
-        return True
+    try:
+        if 'x86_64' in subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT):
+            return True
+    except subprocess.CalledProcessError as e:
+        print e.output
     return False
 
 def getnproc():
     cmd = 'nproc'
-    nproc = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+    try:
+        nproc = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError:
+        return 1
     return nproc.rstrip()
 
-def printfile(filename):
-    cmd = 'cat ' + filename
-    print subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+# def printfile(filename):
+#     cmd = 'cat ' + filename
+#     print subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+
+def which(progname):
+    cmd = 'which ' + progname
+    try:
+        path = os.path.expanduser(subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT).rstrip())
+    except subprocess.CalledProcessError as e:
+        print e.output
+        return ''
+    return os.path.abspath(path)
 
 def run_afl_cov(orthrus_root, jobId, target, params, livemode=False):
     target = orthrus_root + "/binaries/coverage/bin/" + \
@@ -299,12 +321,24 @@ def run_afl_cov(orthrus_root, jobId, target, params, livemode=False):
 
     if livemode:
         cmd = ["nohup", "afl-cov", "-d", ".orthrus/jobs/" + jobId + \
-           "/afl-out", "--live", "--lcov-path", "/usr/bin/lcov", "--coverage-cmd", "'" + target + \
-           "'", "--code-dir", "."]
+           "/afl-out", "--live", "--lcov-path", which('lcov'), "--genhtml-path", which('genhtml'), "--coverage-cmd", \
+               "'" + target + "'", "--code-dir", "."]
     else:
         cmd = ["nohup", "afl-cov", "-d", ".orthrus/jobs/" + jobId + \
-               "/afl-out", "--lcov-path", "/usr/bin/lcov", "--coverage-cmd", "'" + target + \
-               "'", "--code-dir", "."]
+               "/afl-out", "--lcov-path", which('lcov'), "--genhtml-path", which('genhtml'), "--coverage-cmd", \
+               "'" + target + "'", "--code-dir", "."]
     logfile = orthrus_root + "/logs/afl-coverage.log"
     p = subprocess.Popen(" ".join(cmd), shell=True, executable="/bin/bash", stdout=open(logfile, 'w'),
                          stderr=subprocess.STDOUT)
+
+def validate_inst(config):
+
+    if not config['dependencies']:
+        return False
+
+    for program, mode in config['dependencies']:
+        if mode == 'on' and not which(program):
+            color_print(bcolors.FAIL, "\t\t\t[-] Could not locate {}. Perhaps modifying the PATH variable helps?".
+                        format(program))
+            return False
+    return True

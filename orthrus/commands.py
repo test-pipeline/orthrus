@@ -393,10 +393,14 @@ class OrthrusStart(object):
 
         cmd = ["cat /proc/sys/kernel/core_pattern"]
         util.color_print_singleline(util.bcolors.OKGREEN, "Checking core_pattern...")
-        if "core" not in subprocess.check_output(" ".join(cmd), shell=True, stderr=subprocess.STDOUT):
-            util.color_print(util.bcolors.FAIL, "failed")
-            util.color_print(util.bcolors.FAIL, "\t\t\t[-] Please do echo core | "
-                                                "sudo tee /proc/sys/kernel/core_pattern")
+        try:
+            if "core" not in subprocess.check_output(" ".join(cmd), shell=True, stderr=subprocess.STDOUT):
+                util.color_print(util.bcolors.FAIL, "failed")
+                util.color_print(util.bcolors.FAIL, "\t\t\t[-] Please do echo core | "
+                                                    "sudo tee /proc/sys/kernel/core_pattern")
+                return False
+        except subprocess.CalledProcessError as e:
+            print e.output
             return False
         util.color_print(util.bcolors.OKGREEN, "okay")
 
@@ -453,7 +457,6 @@ class OrthrusStart(object):
 
             if not util.run_cmd(" ".join(cmd), env, asan_file):
                 util.color_print(util.bcolors.FAIL, "failed")
-                util.printfile(asan_file)
                 return False
 
             util.color_print(util.bcolors.OKGREEN, "done")
@@ -673,7 +676,11 @@ class OrthrusShow(object):
             
             for jobId in job_config.sections():
                 syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/"
-                output = subprocess.check_output(["afl-whatsup", "-s", syncDir])
+                try:
+                    output = subprocess.check_output(["afl-whatsup", "-s", syncDir])
+                except subprocess.CalledProcessError as e:
+                    print e.output
+                    return False
                 output = output[output.find("==\n\n") + 4:]
                 
                 util.color_print(util.bcolors.OKBLUE, "\tJob [" + jobId + "] " + "for target '" + job_config.get(jobId, "target") + "':")
@@ -853,4 +860,26 @@ class OrthrusDestroy(object):
                 else:
                     util.color_print(util.bcolors.FAIL, "failed")
                     return False
+        return True
+
+class OrthrusValidate(object):
+
+    def __init__(self, args, config):
+        self._args = args
+        self._config = config
+
+    def get_on(self):
+        return [item for item in self._config['dependencies'] if item[1] == 'on']
+
+    def run(self):
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Validating Orthrus dependencies")
+        util.color_print(util.bcolors.OKGREEN, "\t\t[+] The following programs have been marked as required in " \
+                                               "~/.orthrus/orthrus.conf")
+        for prog, _ in self.get_on():
+            util.color_print(util.bcolors.OKGREEN, "\t\t\t[+] {}".format(prog))
+
+        util.color_print(util.bcolors.OKGREEN, "\t\t[+] Checking if requirements are met.")
+        if not util.validate_inst(self._config):
+            return False
+        util.color_print(util.bcolors.OKGREEN, "\t\t[+] All requirements met. Orthrus is ready for use!")
         return True
