@@ -90,7 +90,8 @@ class OrthrusCreate(object):
         util.color_print(util.bcolors.OKGREEN, "done")
 
         ## Verify instrumentation
-        sample_binpath = random.choice(glob.glob(install_path + 'bin/*'))
+        # sample_binpath = random.choice(glob.glob(install_path + 'bin/*'))
+        sample_binpath = random.choice(util.return_elf_binaries(install_path + 'bin/'))
 
         util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Verifying instrumentation... ")
         if not self.verify(sample_binpath, BEnv):

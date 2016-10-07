@@ -59,10 +59,17 @@ def run_cmd(command, env=None, logfile=None):
     return True
 
 
-def return_elf_binaries():
-    # Search everywhere in working dir except in .orthrus
-    command = "find -type f -executable -not -path \"./.orthrus/*\"" \
-              " -exec file -i '{}' \; | grep 'x-executable; charset=binary' | cut -d':' -f1"
+def return_elf_binaries(inpath=None):
+
+    if not inpath:
+        # Search everywhere in working dir except in .orthrus
+        command = "find -type f -executable -not -path \"./.orthrus/*\"" \
+                  " -exec file -i '{}' \; | grep 'x-executable; charset=binary' | cut -d':' -f1"
+    else:
+        # Search everywhere in specified path
+        command = "find {} -type f ".format(inpath) + "-executable -exec file -i '{}' \; | " \
+                                                     "grep 'x-executable; charset=binary' | " \
+                                                     "cut -d':' -f1"
     output = subprocess.check_output(command, shell=True)
     return filter(None, output.split("\n"))
 
