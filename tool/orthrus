@@ -1,9 +1,11 @@
 #!/usr/bin/env python2
 
+import orthrus
 from orthrus.commands import *
 from orthrusutils.orthrusutils import *
 
-DESCRIPTION = """A tool to manage, conduct, and assess security testing of autotools projects."""
+DESCRIPTION = bcolors.OKBLUE + "Orthrus {}".format(orthrus.__version__) + bcolors.ENDC + " by {} <{}> " \
+                                                        .format(orthrus.__author_name__, orthrus.__author_email__)
 
 class OrthrusTool():
     def __init__(self, description, args):

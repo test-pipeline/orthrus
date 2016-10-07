@@ -4,6 +4,9 @@ Orthrus is a tool for managing, conducting, and assessing security (fuzz) testin
 
 # Pre-requisites
 
+- python
+  - 2.7 for orthrus
+  - 3.X for afl-utils
 - [afl-fuzz][1]
 - [afl-utils][2] (v1.27a)
 ```bash
@@ -38,10 +41,39 @@ $ sudo apt-get install lcov
 ```
 - An autotools open-source project for fuzzing
 
+# Installation
+
+```
+$ (sudo) python2.7 setup.py install
+```
 
 # Workflow
 
-## Step 1: Create instrumented binaries
+## Step 1: Validate dependencies (One-time only)
+
+Orthrus depends on quite a few packages from Clang/LLVM and the AFL ecosystem. To make sure you don't have to wade through into ugly error messages, 
+it makes sense to validate these dependencies. You do it, like so
+```
+$ orthrus validate
+[+] Validating Orthrus dependencies
+                [+] The following programs have been marked as required in ~/.orthrus/orthrus.conf
+                        [+] clang
+                        [+] gcc
+                        [+] afl-fuzz
+                        [+] afl-clang
+                        [+] afl-clang++
+                        [+] afl-collect
+                        [+] afl-multicore
+                        [+] afl-minimize
+                        [+] gdb
+                        [+] afl-cov
+                        [+] lcov
+                        [+] genhtml
+                [+] Checking if requirements are met.
+                [+] All requirements met. Orthrus is ready for use!
+```
+
+## Step 2: Create instrumented binaries
 
 - Creates the following binaries
   - ASAN+AFL instrumentation (fuzzing)
@@ -77,7 +109,7 @@ $ orthrus create -fuzz -asan -cov
                 [+] Verifying instrumentation... done
 ```
 
-## Step 2: Add/Remove fuzzing job
+## Step 3: Add/Remove fuzzing job
 
 - Sets up config for (local) multi-core job with AFL+HARDEN (master) and 
 ASAN+AFL (slave)
@@ -172,7 +204,7 @@ $ orthrus add --job="main @@" -s=./seeds
 ```
 
 
-## Step 3: Start/Stop afl fuzzers (via afl-utils)
+## Step 4: Start/Stop afl fuzzers (via afl-utils)
 
 - To start fuzzing for a pre-defined job, you do
 ```
@@ -261,7 +293,7 @@ llect.cmin -- /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Temp
 - The `-m` flag minimizes the existing AFL corpus, archives the existing queue
 dir, reseeds it with the minimized seeds, and resumes fuzzing
 
-## Step 4: Monitor test coverage (via afl-cov)
+## Step 5: Monitor test coverage (via afl-cov)
 
 You can either:
 
@@ -295,7 +327,7 @@ $ orthrus stop -c
 [+] Stopping afl-cov for jobs...done
 ```
 
-## Step 5: Triage crashes (via afl-utils/exploitable)
+## Step 6: Triage crashes (via afl-utils/exploitable)
 
 - To triage an existing AFL corpus, do
 ```
@@ -310,7 +342,7 @@ $ orthrus triage -j 1167520733
                 [+] Triaged 15 crashes. See .orthrus/jobs/1167520733/unique/
 ```
 
-## Step 6: User interface for fuzz status and coverage
+## Step 7: User interface for fuzz status and coverage
 
 - You may view configured jobs, like so
 ```
@@ -341,7 +373,7 @@ $ orthrus show -c
 Opening coverage html for job 1167520733 in a new browser tab
 ```
 
-## Step 7: Destroy orthrus session
+## Step 8: Destroy orthrus session
 
 - This permanently deletes all orthrus data (under `.orthrus`)
 ```
