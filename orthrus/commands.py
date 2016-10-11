@@ -13,6 +13,7 @@ import binascii
 import ConfigParser
 import tarfile
 import time
+import json
 import threading
 from Queue import Queue
 # import shlex
@@ -214,45 +215,45 @@ class OrthrusAdd(object):
         util.color_print(util.bcolors.OKGREEN, "done")
         util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Configuring job for [" + self.jobTarget + "]... ")
 
-        ## Create an afl-utils style config for AFL-ASAN fuzzing setting it as slave if AFL-HARDEN target exists
-        asanjob_config = ConfigParser.ConfigParser()
-        asanjob_config.add_section("afl.dirs")
-        asanjob_config.set("afl.dirs", "input", ".orthrus/jobs/" + self.jobId + "/afl-in")
-        asanjob_config.set("afl.dirs", "output", ".orthrus/jobs/" + self.jobId + "/afl-out")
-        asanjob_config.add_section("target")
-        asanjob_config.set("target", "target", ".orthrus/binaries/afl-asan/bin/" + self.jobTarget)
-        asanjob_config.set("target", "cmdline", self.jobParams)
-        asanjob_config.add_section("afl.ctrl")
-        asanjob_config.set("afl.ctrl", "file", ".orthrus/jobs/" + self.jobId + "/afl-out/.cur_input_asan")
-        asanjob_config.set("afl.ctrl", "timeout", "3000+")
+        ## Create an afl-utils JSON config for AFL-ASAN fuzzing setting it as slave if AFL-HARDEN target exists
+        asanjob_config = {}
+        asanjob_config['input'] = ".orthrus/jobs/" + self.jobId + "/afl-in"
+        asanjob_config['output'] = ".orthrus/jobs/" + self.jobId + "/afl-out"
+        asanjob_config['target'] = ".orthrus/binaries/afl-asan/bin/" + self.jobTarget
+        asanjob_config['cmdline'] = self.jobParams
+        asanjob_config['file'] = "@@"
+        # asanjob_config.set("afl.ctrl", "file", ".orthrus/jobs/" + self.jobId + "/afl-out/.cur_input_asan")
+        asanjob_config['timeout'] = "3000+"
+
         # See: https://github.com/mirrorer/afl/blob/master/docs/notes_for_asan.txt
         if util.is64bit():
-            asanjob_config.set("afl.ctrl", "mem_limit", "30000000")
+            asanjob_config['mem_limit'] = "30000000"
         else:
-            asanjob_config.set("afl.ctrl", "mem_limit", "800")
-        asanjob_config.add_section("job")
-        asanjob_config.set("job", "session", "SESSION")
-        if os.path.exists(self._config['orthrus']['directory'] + "binaries/afl-harden"):
-            asanjob_config.set("job", "slave_only", "on")
-        with open(self._config['orthrus']['directory'] + "/jobs/" + self.jobId + "/asan-job.conf", 'wb') as job_file:
-            asanjob_config.write(job_file)
+            asanjob_config['mem_limit'] = "800"
 
-        ## Create an afl-utils style config for AFL-HARDEN
-        hardenjob_config = ConfigParser.ConfigParser()
-        hardenjob_config.add_section("afl.dirs")
-        hardenjob_config.set("afl.dirs", "input", ".orthrus/jobs/" + self.jobId + "/afl-in")
-        hardenjob_config.set("afl.dirs", "output", ".orthrus/jobs/" + self.jobId + "/afl-out")
-        hardenjob_config.add_section("target")
-        hardenjob_config.set("target", "target", ".orthrus/binaries/afl-harden/bin/" + self.jobTarget)
-        hardenjob_config.set("target", "cmdline", self.jobParams)
-        hardenjob_config.add_section("afl.ctrl")
-        hardenjob_config.set("afl.ctrl", "file", ".orthrus/jobs/" + self.jobId + "/afl-out/.cur_input_harden")
-        hardenjob_config.set("afl.ctrl", "timeout", "3000+")
-        hardenjob_config.set("afl.ctrl", "mem_limit", "800")
-        hardenjob_config.add_section("job")
-        hardenjob_config.set("job", "session", "SESSION")
+        asanjob_config['session'] = "SESSION"
+        # https://github.com/rc0r/afl-utils/issues/34
+        asanjob_config['interactive'] = False
+        if os.path.exists(self._config['orthrus']['directory'] + "binaries/afl-harden"):
+            asanjob_config['slave_only'] = True
+        with open(self._config['orthrus']['directory'] + "/jobs/" + self.jobId + "/asan-job.conf", 'wb') as job_file:
+            json.dump(asanjob_config, job_file)
+
+
+        ## Create an afl-utils JSON config for AFL-HARDEN
+        hardenjob_config = {}
+        hardenjob_config['input'] = ".orthrus/jobs/" + self.jobId + "/afl-in"
+        hardenjob_config['output'] = ".orthrus/jobs/" + self.jobId + "/afl-out"
+        hardenjob_config['target'] = ".orthrus/binaries/afl-harden/bin/" + self.jobTarget
+        hardenjob_config['cmdline'] = self.jobParams
+        hardenjob_config['file'] = "@@"
+        hardenjob_config['timeout'] = "3000+"
+        hardenjob_config['mem_limit'] = "800"
+        hardenjob_config['session'] = "SESSION"
+        hardenjob_config['interactive'] = False
         with open(self._config['orthrus']['directory'] + "/jobs/" + self.jobId + "/harden-job.conf", 'wb') as job_file:
-            hardenjob_config.write(job_file)
+            json.dump(hardenjob_config, job_file)
+
         util.color_print(util.bcolors.OKGREEN, "done")
 
         return True
