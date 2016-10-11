@@ -665,12 +665,14 @@ class OrthrusShow(object):
                     return False
                 output = output[output.find("==\n\n") + 4:]
                 
-                util.color_print(util.bcolors.OKBLUE, "\tJob [" + jobId + "] " + "for target '" + job_config.get(jobId, "target") + "':")
+                util.color_print(util.bcolors.OKBLUE, "\tJob [" + jobId + "] " + "for target '" +
+                                 job_config.get(jobId, "target") + "':")
                 for line in output.splitlines():
                     util.color_print(util.bcolors.OKBLUE, "\t" + line)
                 triaged_unique = 0
                 if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/"):
-                    triaged_unique = len(os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/"))
+                    triaged_unique = len(glob.glob(self._config['orthrus']['directory'] + "/jobs/" + jobId +
+                                                   "/unique/*id*sig*"))
                 util.color_print(util.bcolors.OKBLUE, "\t     Triaged crashes : " + str(triaged_unique) + " available")
                 
         return True
