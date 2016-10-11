@@ -641,7 +641,7 @@ class OrthrusShow(object):
         elif self._args.cov:
             for jobId in job_config.sections():
                 cov_web_indexhtml = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/" + \
-                                    "cov/web/lcov-web-final.html"
+                                    "cov/web/index.html"
                 if os.path.exists(cov_web_indexhtml):
                     util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Opening coverage html for job {} "
                                                                               "in a new browser tab".format(jobId))

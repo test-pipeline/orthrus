@@ -8,7 +8,7 @@ Orthrus is a tool for managing, conducting, and assessing security (fuzz) testin
   - 2.7 for orthrus
   - 3.X for afl-utils
 - [afl-fuzz][1]
-- [afl-utils][2] (v1.31a)
+- [afl-utils][2] (latest: v1.31a)
 ```bash
 $ cd $HOME
 $ wget -q https://github.com/rc0r/afl-utils/archive/v1.31a.tar.gz && tar xzf v1.31a.tar.gz
@@ -19,12 +19,12 @@ $ echo "source /usr/lib/python3.4/site-packages/exploitable-1.32_rcor-py3.4.egg/
 $ sudo rm -rf afl-utils-1.31a
 ```
 
-- [afl-cov][3] (v0.5)
+- [afl-cov][3] (latest: v0.6)
 ```bash
-wget -q https://github.com/mrash/afl-cov/archive/0.5.tar.gz && tar xzf 0.5.tar.gz
-rm 0.5.tar.gz && cd afl-cov-0.5
+wget -q https://github.com/mrash/afl-cov/archive/0.6.tar.gz && tar xzf 0.6.tar.gz
+rm 0.6.tar.gz && cd afl-cov-0.6
 sudo cp afl-cov /usr/local/bin/
-cd .. && rm -rf afl-cov-0.5
+cd .. && rm -rf afl-cov-0.6
 ```
 
 - Clang/LLVM toolchain

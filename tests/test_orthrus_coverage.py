@@ -13,7 +13,7 @@ class TestOrthrusCoverage(unittest.TestCase):
         self.assertTrue(cmd.run())
         time.sleep(3*TEST_SLEEP)
         self.assertTrue(os.path.isfile(self.orthrusdirname + '/jobs/' + self.add_cmd.jobId + \
-                                       '/afl-out/cov/web/lcov-web-final.html'))
+                                       '/afl-out/cov/web/index.html'))
 
     def setUp(self):
         self.config = {'orthrus' : {'directory': self.orthrusdirname}}

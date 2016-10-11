@@ -21,7 +21,7 @@ cd ../
 echo -e "\t[+] Setting up exploitable"
 echo "source /usr/lib/python3.4/site-packages/exploitable-1.32_rcor-py3.4.egg/exploitable/exploitable.py" >> ~/.gdbinit
 echo -e "\t[+] Installing afl-cov"
-wget -q https://github.com/mrash/afl-cov/archive/0.5.tar.gz && tar xzf 0.5.tar.gz
-rm 0.5.tar.gz && cd afl-cov-0.5
+wget -q https://github.com/mrash/afl-cov/archive/0.6.tar.gz && tar xzf 0.6.tar.gz
+rm 0.6.tar.gz && cd afl-cov-0.6
 sudo cp afl-cov /usr/local/bin/
 cd ..
