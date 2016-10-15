@@ -259,7 +259,7 @@ class OrthrusAdd(object):
 
     def write_config(self, config_dict, config_file):
         with open(config_file, 'wb') as file:
-            json.dump(config_dict, file)
+            json.dump(config_dict, file, indent=4)
 
     def config_wrapper(self, afl_in, afl_out, jobroot_dir, fuzzer=None, fuzzer_params=None):
         self.write_asan_config(afl_in, afl_out, jobroot_dir, fuzzer, fuzzer_params)
@@ -454,9 +454,10 @@ class OrthrusStart(object):
         self._args = args
         self._config = config
         self.test = test
+        self.orthrusdir = self._config['orthrus']['directory']
     
     def _start_fuzzers(self, jobId, available_cores):
-        if os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/") == []:
+        if os.listdir(self.orthrusdir + "/jobs/" + jobId + "/afl-out/") == []:
             start_cmd = "start"
         else:
             start_cmd = "resume"
@@ -481,10 +482,10 @@ class OrthrusStart(object):
         env = os.environ.copy()
         env.update({'AFL_SKIP_CPUFREQ': '1'})
 
-        if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
+        if os.path.exists(self.orthrusdir + "/binaries/afl-harden"):
             util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Starting AFL harden fuzzer job as master...")
 
-            harden_file = self._config['orthrus']['directory'] + "/logs/afl-harden.log"
+            harden_file = self.orthrusdir + "/logs/afl-harden.log"
             cmd = ["afl-multicore", "--config=.orthrus/jobs/" + jobId + "/harden-job.conf",
                                            start_cmd, str(core_per_subjob), "-v"]
 
@@ -494,7 +495,7 @@ class OrthrusStart(object):
 
             util.color_print(util.bcolors.OKGREEN, "done")
             
-            output = open(self._config['orthrus']['directory'] + "/logs/afl-harden.log", "r")
+            output = open(self.orthrusdir + "/logs/afl-harden.log", "r")
             for line in output:
                 if "Starting master" in line or "Starting slave" in line:
                     util.color_print(util.bcolors.OKGREEN, "\t\t\t" + line)
@@ -502,9 +503,9 @@ class OrthrusStart(object):
                     util.color_print_singleline(util.bcolors.OKGREEN, "\t\t\t\t" + "[+] " + line)
             output.close()
             
-            if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-asan"):
+            if os.path.exists(self.orthrusdir + "/binaries/afl-asan"):
                 util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Starting AFL ASAN fuzzer job as slave...")
-                asan_file = self._config['orthrus']['directory'] + "/logs/afl-asan.log"
+                asan_file = self.orthrusdir + "/logs/afl-asan.log"
                 cmd = ["afl-multicore", "--config=.orthrus/jobs/" + jobId + "/asan-job.conf ", "add", \
                                 str(core_per_subjob), "-v"]
 
@@ -514,7 +515,7 @@ class OrthrusStart(object):
 
                 util.color_print(util.bcolors.OKGREEN, "done")
 
-                output2 = open(self._config['orthrus']['directory'] + "/logs/afl-asan.log", "r")
+                output2 = open(self.orthrusdir + "/logs/afl-asan.log", "r")
                 for line in output2:
                     if "Starting master" in line or "Starting slave" in line:
                         util.color_print(util.bcolors.OKGREEN, "\t\t\t" + line)
@@ -522,10 +523,10 @@ class OrthrusStart(object):
                         util.color_print_singleline(util.bcolors.OKGREEN, "\t\t\t\t" + "[+] " + line)
                 output2.close()
 
-        elif os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-asan"):
+        elif os.path.exists(self.orthrusdir + "/binaries/afl-asan"):
 
             util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Starting AFL ASAN fuzzer job as master...")
-            asan_file = self._config['orthrus']['directory'] + "/logs/afl-asan.log"
+            asan_file = self.orthrusdir + "/logs/afl-asan.log"
             cmd = ["afl-multicore", "-c", ".orthrus/jobs/" + jobId + "/asan-job.conf", start_cmd, \
                    str(available_cores), "-v"]
 
@@ -535,7 +536,7 @@ class OrthrusStart(object):
 
             util.color_print(util.bcolors.OKGREEN, "done")
 
-            output2 = open(self._config['orthrus']['directory'] + "/logs/afl-asan.log", "r")
+            output2 = open(self.orthrusdir + "/logs/afl-asan.log", "r")
             for line in output2:
                 if "Starting master" in line or "Starting slave" in line:
                     util.color_print(util.bcolors.OKGREEN, "\t\t\t" + line)
@@ -546,7 +547,7 @@ class OrthrusStart(object):
         return True
     
     def compact_sync_dir(self, jobId):
-        syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out"
+        syncDir = self.orthrusdir + "/jobs/" + jobId + "/afl-out"
         for session in os.listdir(syncDir):
             if os.path.isfile(syncDir + "/" + session):
                 os.remove(syncDir + "/" + session)
@@ -609,27 +610,19 @@ class OrthrusStart(object):
                 
     def _start_afl_coverage(self, jobId):
         job_config = ConfigParser.ConfigParser()
-        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
+        job_config.read(self.orthrusdir + "/jobs/jobs.conf")
 
         # Run afl-cov as a nohup process
-        util.run_afl_cov(self._config['orthrus']['directory'], jobId, job_config.get(jobId, "target"),
+        util.run_afl_cov(self.orthrusdir, jobId, job_config.get(jobId, "target"),
                          job_config.get(jobId, "params"), True, self.test)
         
-        # target = self._config['orthrus']['directory'] + "/binaries/coverage/bin/" + \
-        #          job_config.get(jobId, "target") + " " + job_config.get(jobId, "params").replace("@@","AFL_FILE")
-        # cmd = ["nohup", "afl-cov", "-d", ".orthrus/jobs/" + jobId + \
-        #        "/afl-out", "--live", "--lcov-path", "/usr/bin/lcov", "--coverage-cmd", "'" + target + \
-        #        "'", "--code-dir", ".", "-v"]
-        # logfile = self._config['orthrus']['directory'] + "/logs/afl-coverage.log"
-        # p = subprocess.Popen(" ".join(cmd), shell=True, executable="/bin/bash")
-
         return True
 
     def run(self):
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Starting fuzzing jobs")
         util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Check Orthrus workspace... ")
 
-        orthrus_root = self._config['orthrus']['directory']
+        orthrus_root = self.orthrusdir
         if not util.validate_job(orthrus_root, self._args.job_id):
             util.color_print(util.bcolors.FAIL, "failed. Are you sure you have done orthrus add --job or passed the "
                                                 "right job ID. orthrus show -j might help")
@@ -640,7 +633,7 @@ class OrthrusStart(object):
         jobId = self._args.job_id
         total_cores = int(util.getnproc())
 
-        if len(os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/")) > 0:
+        if len(os.listdir(self.orthrusdir + "/jobs/" + jobId + "/afl-out/")) > 0:
             util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Tidy fuzzer sync dir... ")
 
             if not self.compact_sync_dir(jobId):
@@ -675,6 +668,7 @@ class OrthrusStop(object):
     def __init__(self, args, config):
         self._args = args
         self._config = config
+        self.orthrusdir = self._config['orthrus']['directory']
 
     def get_afl_cov_pid(self):
         pid_regex = re.compile(r'afl_cov_pid[^\d]+(?P<pid>\d+)')
@@ -699,8 +693,8 @@ class OrthrusStop(object):
                 pids.append(match.groups()[0])
         return pids
 
-    def run(self):
-        util.color_print_singleline(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Stopping fuzzing jobs...")
+    def stop_routine(self):
+        util.color_print_singleline(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Stopping routine fuzzing jobs...")
         kill_fuzz_cmd = ["pkill", "-9", "afl-fuzz"]
         util.run_cmd(" ".join(kill_fuzz_cmd))
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "done")
@@ -711,6 +705,22 @@ class OrthrusStop(object):
                 util.run_cmd(" ".join(kill_aflcov_cmd))
             util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "done")
         return True
+
+    def stop_abtests(self):
+        util.color_print_singleline(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Stopping a/b fuzzing jobs...")
+        job_token = j.jobtoken(self.orthrusdir, self._args.abtest)
+        fuzzers = [job_token.fuzzerA, job_token.fuzzerB]
+        kill_fuzz_cmd = ["pkill", "-9"].extend(fuzzers)
+        util.run_cmd(" ".join(kill_fuzz_cmd))
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "done")
+        return True
+
+    def run(self):
+
+        if self._args.abtest:
+            return self.stop_abtests()
+        else:
+            return self.stop_routine()
 
 class OrthrusShow(object):
     

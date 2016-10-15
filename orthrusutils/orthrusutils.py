@@ -177,8 +177,8 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
                              action='store_true',
                              help="""Stop afl-cov instances on stop""",
                              default=False)
-    stop_parser.add_argument('-abtest', '--abtest', action='store_true',
-                            help=ABTEST_STOP_HELP, default=False)
+    stop_parser.add_argument('-abtest', '--abtest', type=str,
+                            help=ABTEST_STOP_HELP, required=True)
     stop_parser.set_defaults(func=stopfunc)
 
     # Command 'show'

@@ -51,7 +51,6 @@ class Builder(object):
     def configure(self):
 
         if not os.path.isfile("configure"):
-            util.color_print(util.bcolors.FAIL, "No configure script found in work dir")
             return False
 
         # AFL-fuzz likes statically linked binaries
@@ -59,29 +58,24 @@ class Builder(object):
         command = ["./configure " + " ".join(self.configargs)]
 
         if not util.run_cmd(command, self.env, self.logfile):
-            util.color_print(util.bcolors.FAIL, "\t\t[-] Error running configure. Check the log!")
             return False
         return True
 
     def make_install(self):
         if not os.path.isfile("Makefile"):
-            util.color_print(util.bcolors.FAIL, "No Makefile found in work dir")
             return False
 
         command = ["make clean; make -j install"]
         if not util.run_cmd(command, self.env, self.logfile):
-            util.color_print(util.bcolors.FAIL, "Error running make install. Check the log!")
             return False
         return True
 
     # def clean(self):
     #     if not os.path.isfile("Makefile"):
-    #         util.color_print(util.bcolors.WARNING, "No Makefile found in work dir")
     #         return False
     #
     #     command = ["make clean distclean"]
     #
     #     if not util.run_cmd(command, self.env, self.logfile):
-    #         util.color_print(util.bcolors.FAIL, "Error running make clean distclean.")
     #         return False
     #     return True

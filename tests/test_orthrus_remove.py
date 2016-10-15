@@ -8,7 +8,7 @@ class TestOrthrusRemove(unittest.TestCase):
     orthrusdirname = '.orthrus'
 
     def test_remove_job(self):
-        args = parse_cmdline(self.description, ['remove', '-j=' + self.add_cmd.jobId])
+        args = parse_cmdline(self.description, ['remove', '-j=' + self.add_cmd.job.id])
         cmd = OrthrusRemove(args, self.config)
         self.assertTrue(cmd.run())
 

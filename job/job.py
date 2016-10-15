@@ -25,7 +25,7 @@ JOBCONF_DICT = {'routine': [], 'abtests': []}
 
 def bootstrap(jobsconf):
     with open(jobsconf, 'wb') as jobconf_fp:
-        json.dump(JOBCONF_DICT, jobconf_fp)
+        json.dump(JOBCONF_DICT, jobconf_fp, indent=4)
 
 
 def does_id_exist(jobsconf, id):
@@ -58,7 +58,7 @@ def remove_id_from_conf(jobsconf, id, type):
 
     # Update jobs.conf
     with open(jobsconf, 'w') as jobconf_fp:
-        json.dump(jobsconf_dict, jobconf_fp)
+        json.dump(jobsconf_dict, jobconf_fp, indent=4)
 
 class job(object):
 
@@ -106,7 +106,7 @@ class job(object):
 
         # Overwrites JSON file
         with open(self.jobsconf, 'w') as jobconf_fp:
-            json.dump(jobsconf_dict, jobconf_fp)
+            json.dump(jobsconf_dict, jobconf_fp, indent=4)
 
     def create_dirs(self):
 
@@ -186,4 +186,6 @@ class jobtoken(object):
         if self.type == 'abtests':
             self.joba_id = self._jobdesc['jobA_id']
             self.jobb_id = self._jobdesc['jobB_id']
+            self.fuzzerA = self._jobdesc['fuzzerA']
+            self.fuzzerB = self._jobdesc['fuzzerB']
         return True

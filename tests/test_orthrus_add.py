@@ -75,7 +75,7 @@ class TestOrthrusAdd(unittest.TestCase):
         cmd.run()
         abconf_dict = {'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast', 'fuzzerB_args': ''}
         with open(cls.abconf_file, 'w') as abconf_fp:
-            json.dump(abconf_dict, abconf_fp)
+            json.dump(abconf_dict, abconf_fp, indent=4)
 
     @classmethod
     def tearDownClass(cls):
