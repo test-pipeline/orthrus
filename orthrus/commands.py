@@ -9,24 +9,20 @@ import subprocess
 import random
 import glob
 import webbrowser
-import binascii
 import ConfigParser
 import tarfile
 import time
 import json
-import threading
-from Queue import Queue
-# import shlex
-# import pty
 from orthrusutils import orthrusutils as util
 from builder import builder as b
-
+from job import job as j
 
 class OrthrusCreate(object):
 
     def __init__(self, args, config):
         self.args = args
         self.config = config
+        self.orthrusdirs = ['binaries', 'conf', 'logs', 'jobs', 'archive']
 
     def verifycmd(self, cmd):
         try:
@@ -65,8 +61,6 @@ class OrthrusCreate(object):
         os.mkdir(install_path)
 
         ### Configure
-        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Configure... ")
-
         config_flags = ['--prefix=' + os.path.abspath(install_path)] + \
                        self.args.configure_flags.split(" ")
 
@@ -74,47 +68,37 @@ class OrthrusCreate(object):
                             config_flags,
                             self.config['orthrus']['directory'] + "/logs/" + logfn)
 
-        if not builder.configure():
-            util.color_print(util.bcolors.FAIL, "failed")
+        if not util.pprint_decorator(builder.configure, 'Configuring', 2):
             return False
 
-        util.color_print(util.bcolors.OKGREEN, "done")
 
         ### Make install
-        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Compile and install... ")
-
-        if not builder.make_install():
-            util.color_print(util.bcolors.FAIL, "failed")
+        if not util.pprint_decorator(builder.make_install, 'Compiling', 2):
             return False
 
         util.copy_binaries(install_path + "bin/")
-        util.color_print(util.bcolors.OKGREEN, "done")
 
         ## Verify instrumentation
         # sample_binpath = random.choice(glob.glob(install_path + 'bin/*'))
         sample_binpath = random.choice(util.return_elf_binaries(install_path + 'bin/'))
 
-        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Verifying instrumentation... ")
-        if not self.verify(sample_binpath, BEnv):
-            util.color_print(util.bcolors.FAIL, "failed")
+        if not util.pprint_decorator_fargs(util.func_wrapper(self.verify, sample_binpath, BEnv),
+                                     'Verifying instrumentation', 2):
             return False
 
-        util.color_print(util.bcolors.OKGREEN, "done")
         return True
 
     def run(self):
-        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Create Orthrus workspace")
-        
-        if not os.path.exists(self.config['orthrus']['directory']):
-            os.mkdir(self.config['orthrus']['directory'])
-            os.mkdir(self.config['orthrus']['directory'] + "/binaries/")
-            os.mkdir(self.config['orthrus']['directory'] + "/conf/")
-            os.mkdir(self.config['orthrus']['directory'] + "/logs/")
-            os.mkdir(self.config['orthrus']['directory'] + "/jobs/")
-            os.mkdir(self.config['orthrus']['directory'] + "/archive/")
-        else:
+
+        if os.path.exists(self.config['orthrus']['directory']):
             util.color_print(util.bcolors.ERROR, "Error: Orthrus workspace already exists!")
             return False
+
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Create Orthrus workspace")
+        
+        os.mkdir(self.config['orthrus']['directory'])
+        dirs = ['/{}/'.format(x) for x in self.orthrusdirs]
+        map(lambda x: os.mkdir(self.config['orthrus']['directory'] + x), dirs)
 
         # AFL-ASAN
         if self.args.afl_asan:
@@ -122,7 +106,6 @@ class OrthrusCreate(object):
             ### Prepare
             util.color_print(util.bcolors.HEADER,
                              "\t[+] Installing binaries for afl-fuzz with AddressSanitizer")
-              
             install_path = self.config['orthrus']['directory'] + "/binaries/afl-asan/"
             if not self.create(install_path, b.BuildEnv.BEnv_afl_asan, 'afl-asan_inst.log'):
                 return False
@@ -167,60 +150,69 @@ class OrthrusAdd(object):
     def __init__(self, args, config):
         self._args = args
         self._config = config
+        self.orthrusdir = self._config['orthrus']['directory']
 
-    def seedjob(self):
-        util.color_print_singleline(util.bcolors.OKGREEN,
-                                    "\t\t[+] Adding initial samples for job [" + self.jobTarget + "]... ")
+    def copy_samples(self, jobroot_dir):
         samplevalid = False
 
         if os.path.isdir(self._args.sample):
-            samplevalid = True
             for dirpath, dirnames, filenames in os.walk(self._args.sample):
                 for fn in filenames:
                     fpath = os.path.join(dirpath, fn)
                     if os.path.isfile(fpath):
-                        shutil.copy(fpath, self._config['orthrus']['directory'] + "/jobs/" + self.jobId + "/afl-in/")
+                        shutil.copy(fpath, jobroot_dir + "/afl-in/")
+            if filenames:
+                samplevalid = True
         elif os.path.isfile(self._args.sample):
             samplevalid = True
-            shutil.copy(self._args.sample, self._config['orthrus']['directory'] + "/jobs/" + self.jobId + "/afl-in/")
+            shutil.copy(self._args.sample, jobroot_dir + "/afl-in/")
 
         if not samplevalid:
-            util.color_print(util.bcolors.WARNING, 'seed dir or file invalid. No seeds copied!')
-        else:
-            util.color_print(util.bcolors.OKGREEN, "done")
+            return False
+
         return True
 
-    def processjob(self):
+    def seedjob_routine(self):
 
-        self.jobId = str(binascii.crc32(self._args.job) & 0xffffffff)
-        self.jobTarget = self._args.job.split(" ")[0]
-        self.jobParams = " ".join(self._args.job.split(" ")[1:])
-        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Adding job for [" + self.jobTarget + "]... ")
-
-        if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + self.jobId):
-            util.color_print(util.bcolors.FAIL, "already exists!")
+        if not util.pprint_decorator_fargs(util.func_wrapper(self.copy_samples, self.job.rootdir),
+                                          'Adding initial samples for job ID [{}]'.format(self.job.id), 2,
+                                          'seed dir or file invalid. No seeds copied'):
             return False
-        os.mkdir(self._config['orthrus']['directory'] + "/jobs/" + self.jobId)
-        os.mkdir(self._config['orthrus']['directory'] + "/jobs/" + self.jobId + "/afl-in")
-        os.mkdir(self._config['orthrus']['directory'] + "/jobs/" + self.jobId + "/afl-out")
 
-        job_config = ConfigParser.ConfigParser()
-        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-        job_config.add_section(self.jobId)
-        job_config.set(self.jobId, "target", self.jobTarget)
-        job_config.set(self.jobId, "params", self.jobParams)
-        with open(self._config['orthrus']['directory'] + "/jobs/jobs.conf", 'wb') as job_file:
-            job_config.write(job_file)
+        return True
 
-        util.color_print(util.bcolors.OKGREEN, "done")
-        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Configuring job for [" + self.jobTarget + "]... ")
+    def seedjob_abtests(self):
+
+        if not util.pprint_decorator_fargs(util.func_wrapper(self.copy_samples, self.job.rootdir + '/{}'.format(self.job.joba_id)),
+                                          'Adding initial samples for job ID [{}]'.format(self.job.joba_id), 2,
+                                          'seed dir or file invalid. No seeds copied'):
+            return False
+
+        if not util.pprint_decorator_fargs(util.func_wrapper(self.copy_samples, self.job.rootdir + '/{}'.format(self.job.jobb_id)),
+                                          'Adding initial samples for job ID [{}]'.format(self.job.jobb_id), 2,
+                                          'seed dir or file invalid. No seeds copied'):
+            return False
+
+        return True
+
+    def seedjob(self):
+        if self.jobtype == 'routine':
+            return self.seedjob_routine()
+        else:
+            return self.seedjob_abtests()
+
+    def write_config(self, config_dict, config_file):
+        with open(config_file, 'wb') as file:
+            json.dump(config_dict, file)
+
+    def write_asan_config(self, afl_in, afl_out, jobroot_dir, fuzzer=None, fuzzer_params=None):
 
         ## Create an afl-utils JSON config for AFL-ASAN fuzzing setting it as slave if AFL-HARDEN target exists
         asanjob_config = {}
-        asanjob_config['input'] = ".orthrus/jobs/" + self.jobId + "/afl-in"
-        asanjob_config['output'] = ".orthrus/jobs/" + self.jobId + "/afl-out"
-        asanjob_config['target'] = ".orthrus/binaries/afl-asan/bin/" + self.jobTarget
-        asanjob_config['cmdline'] = self.jobParams
+        asanjob_config['input'] = afl_in
+        asanjob_config['output'] = afl_out
+        asanjob_config['target'] = ".orthrus/binaries/afl-asan/bin/{}".format(self.job.target)
+        asanjob_config['cmdline'] = self.job.params
         asanjob_config['file'] = "@@"
         # asanjob_config.set("afl.ctrl", "file", ".orthrus/jobs/" + self.jobId + "/afl-out/.cur_input_asan")
         asanjob_config['timeout'] = "3000+"
@@ -234,32 +226,132 @@ class OrthrusAdd(object):
         asanjob_config['session'] = "SESSION"
         # https://github.com/rc0r/afl-utils/issues/34
         asanjob_config['interactive'] = False
+
         if os.path.exists(self._config['orthrus']['directory'] + "binaries/afl-harden"):
             asanjob_config['slave_only'] = True
-        with open(self._config['orthrus']['directory'] + "/jobs/" + self.jobId + "/asan-job.conf", 'wb') as job_file:
-            json.dump(asanjob_config, job_file)
 
+        if fuzzer:
+            asanjob_config['fuzzer'] = fuzzer
 
+        if fuzzer_params:
+            asanjob_config['afl_margs'] = fuzzer_params
+
+        self.write_config(asanjob_config, "{}/asan-job.conf".format(jobroot_dir))
+
+    def write_harden_config(self, afl_in, afl_out, jobroot_dir, fuzzer=None, fuzzer_params=None):
         ## Create an afl-utils JSON config for AFL-HARDEN
         hardenjob_config = {}
-        hardenjob_config['input'] = ".orthrus/jobs/" + self.jobId + "/afl-in"
-        hardenjob_config['output'] = ".orthrus/jobs/" + self.jobId + "/afl-out"
-        hardenjob_config['target'] = ".orthrus/binaries/afl-harden/bin/" + self.jobTarget
-        hardenjob_config['cmdline'] = self.jobParams
+        hardenjob_config['input'] = afl_in
+        hardenjob_config['output'] = afl_out
+        hardenjob_config['target'] = ".orthrus/binaries/afl-harden/bin/{}".format(self.job.target)
+        hardenjob_config['cmdline'] = self.job.params
         hardenjob_config['file'] = "@@"
         hardenjob_config['timeout'] = "3000+"
         hardenjob_config['mem_limit'] = "800"
         hardenjob_config['session'] = "SESSION"
         hardenjob_config['interactive'] = False
-        with open(self._config['orthrus']['directory'] + "/jobs/" + self.jobId + "/harden-job.conf", 'wb') as job_file:
-            json.dump(hardenjob_config, job_file)
 
-        util.color_print(util.bcolors.OKGREEN, "done")
+        if fuzzer:
+            hardenjob_config['fuzzer'] = fuzzer
+
+        if fuzzer_params:
+            hardenjob_config['afl_margs'] = fuzzer_params
+
+        self.write_config(hardenjob_config, "{}/harden-job.conf".format(jobroot_dir))
+
+    def config_wrapper(self, afl_in, afl_out, jobroot_dir, fuzzer=None, fuzzer_params=None):
+        self.write_asan_config(afl_in, afl_out, jobroot_dir, fuzzer, fuzzer_params)
+        self.write_harden_config(afl_in, afl_out, jobroot_dir, fuzzer, fuzzer_params)
+        return True
+
+    def process_routine(self):
+
+        afl_dirs = [self.job.rootdir + '/{}'.format(dirname) for dirname in ['afl-in', 'afl-out']]
+
+        for dir in afl_dirs:
+            os.mkdir(dir)
+
+        # afl_in = self.job.rootdir + "/afl-in"
+        # afl_out = self.job.rootdir + "/afl-out"
+        #
+        # os.mkdir(afl_in)
+        # os.mkdir(afl_out)
+
+        # HT: http://stackoverflow.com/a/13694053/4712439
+        if not util.pprint_decorator_fargs(util.func_wrapper(self.config_wrapper, afl_dirs[0], afl_dirs[1],
+                                                             self.job.rootdir), 'Configuring routine job for ID [{}]'.format(self.job.id), 2):
+            return False
 
         return True
 
-    def importjob(self):
-        jobId = self.jobId
+        # util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Configuring routine job for [" \
+        #                                                     + self.job.target + "]... ")
+        # self.write_asan_config(afl_in, afl_out, self.job.rootdir)
+        # self.write_harden_config(afl_in, afl_out, self.job.rootdir)
+        # util.color_print(util.bcolors.OKGREEN, "done")
+
+    def process_abtests(self):
+
+        jobs = [self.job.joba_id, self.job.jobb_id]
+        afl_in = [self.job.rootdir + '/{}/afl-in'.format(job) for job in jobs]
+        afl_out = [self.job.rootdir + '/{}/afl-out'.format(job) for job in jobs]
+
+        for entry in afl_in:
+            os.mkdir(entry)
+        for entry in afl_out:
+            os.mkdir(entry)
+
+
+        if not util.pprint_decorator_fargs(util.func_wrapper(self.config_wrapper, afl_in[0], afl_out[0],
+                                                             self.job.rootdir + '/{}'.format(self.job.joba_id),
+                                                             self.job.abconf_data['fuzzerA'],
+                                                             self.job.abconf_data['fuzzerA_args']),
+                                          'Configuring a/b test job for ID [{}]'.format(self.job.joba_id), 2):
+            return False
+
+
+        if not util.pprint_decorator_fargs(util.func_wrapper(self.config_wrapper, afl_in[1], afl_out[1],
+                                                             self.job.rootdir + '/{}'.format(self.job.jobb_id),
+                                                             self.job.abconf_data['fuzzerB'],
+                                                             self.job.abconf_data['fuzzerB_args']),
+                                          'Configuring a/b test job for ID [{}]'.format(self.job.jobb_id), 2):
+            return False
+
+        return True
+
+        # util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Configuring a/b test job for [" \
+        #                                                     + self.job.target + "]... ")
+        # self.write_asan_config(afl_in[0], afl_out[0], self.job.rootdir + '/{}'.format(self.job.joba_id),
+        #                        self.job.abconf_data['fuzzerA'], self.job.abconf_data['fuzzerA_args'])
+        # self.write_harden_config(afl_in[0], afl_out[0], self.job.rootdir + '/{}'.format(self.job.joba_id),
+        #                        self.job.abconf_data['fuzzerA'], self.job.abconf_data['fuzzerA_args'])
+        # self.write_asan_config(afl_in[1], afl_out[1], self.job.rootdir + '/{}'.format(self.job.jobb_id),
+        #                        self.job.abconf_data['fuzzerB'], self.job.abconf_data['fuzzerB_args'])
+        # self.write_harden_config(afl_in[1], afl_out[1], self.job.rootdir + '/{}'.format(self.job.jobb_id),
+        #                        self.job.abconf_data['fuzzerB'], self.job.abconf_data['fuzzerB_args'])
+        #
+        # util.color_print(util.bcolors.OKGREEN, "done")
+
+
+    def processjob(self):
+
+        try:
+            self.job = j.job(self._args.job, self.jobtype, self.orthrusdir, self._args.abconf)
+        except ValueError:
+            util.color_print(util.bcolors.FAIL, "\t\t[+] Are you sure you passed a valid a/b test configuration")
+            return False
+
+        if not util.pprint_decorator(self.job.materialize, 'Adding job', 2, 'existing job found!'):
+            return False
+
+        if self.jobtype == 'routine':
+            return self.process_routine()
+        else:
+            return self.process_abtests()
+
+
+    def importjob_routine(self):
+        jobId = self.job.id
         next_session = 0
 
         util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Import afl sync dir for job [" + jobId + "]... ")
@@ -268,11 +360,11 @@ class OrthrusAdd(object):
             util.color_print(util.bcolors.FAIL, "failed!")
             return False
 
-        if not os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/"):
+        if not os.path.exists(self.job.rootdir + "/afl-out/"):
             util.color_print(util.bcolors.FAIL, "failed!")
             return False
 
-        syncDir = os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/")
+        syncDir = os.listdir(self.job.rootdir + "/afl-out/")
         for directory in syncDir:
             if "SESSION" in directory:
                 next_session += 1
@@ -285,77 +377,91 @@ class OrthrusAdd(object):
                 is_single = False
 
             if is_single:
-                outDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/SESSION" + "{:03d}".format(
-                    next_session)
+                outDir = self.job.rootdir + "/afl-out/SESSION" + "{:03d}".format(next_session)
                 os.mkdir(outDir)
                 tar.extractall(outDir)
             else:
-                tmpDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/tmp/"
+                tmpDir = self.job.rootdir + "/tmp/"
                 os.mkdir(tmpDir)
                 tar.extractall(tmpDir)
-                for directory in os.listdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/tmp/"):
-                    outDir = self._config['orthrus']['directory'] + '/jobs/' + jobId + '/afl-out/'
+                for directory in os.listdir(self.job.rootdir + "/tmp/"):
+                    outDir = self.job.rootdir + '/afl-out/'
                     shutil.move(tmpDir + directory, outDir)
                 shutil.rmtree(tmpDir)
         util.color_print(util.bcolors.OKGREEN, "done")
 
-        util.minimize_sync_dir(self._config, jobId)
-
+        util.minimize_sync_dir(self.job)
         return True
-    
+
+    def importjob(self):
+
+        if self.jobtype == 'routine':
+            return self.importjob_routine()
+        else:
+            return self.importjob_abtests()
+
     def run(self):
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Adding fuzzing job to Orthrus workspace")
-        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Check Orthrus workspace... ")
 
-        if not os.path.exists(self._config['orthrus']['directory'] + "/binaries/"):
-            util.color_print(util.bcolors.FAIL, "failed. Are you sure you did orthrus create -asan or -fuzz")
+
+        if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir + "/binaries/"),
+                                          "Checking Orthrus workspace", 2,
+                                          'failed. Are you sure you did orthrus create -asan or -fuzz'):
             return False
 
-        util.color_print(util.bcolors.OKGREEN, "done")
-        
+        # util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Check Orthrus workspace... ")
+        #
+        # if not os.path.exists(self._config['orthrus']['directory'] + "/binaries/"):
+        #     util.color_print(util.bcolors.FAIL, "failed. Are you sure you did orthrus create -asan or -fuzz")
+        #     return False
+        #
+        # util.color_print(util.bcolors.OKGREEN, "done")
+
+        if self._args.abconf:
+            self.jobtype = 'abtests'
+        else:
+            self.jobtype = 'routine'
+
+
         if not self.processjob():
             return False
-        if self._args._import:
-            if not self.importjob():
-                return False
-        if self._args.sample:
-            return self.seedjob()
+        if self._args._import and not self.importjob():
+            return False
+        if self._args.sample and not self.seedjob():
+            return False
 
         return True
 
 class OrthrusRemove(object):
+
+    fail_msg = "failed. Are you sure you have done orthrus add --job or passed the " \
+               "right job ID. orthrus show -j might help"
     
     def __init__(self, args, config):
         self._args = args
         self._config = config
+        self.orthrusdir = self._config['orthrus']['directory']
     
     def run(self):
-        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Removing fuzzing job from Orthrus workspace")
-        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Check Orthrus workspace... ")
 
-        orthrus_root = self._config['orthrus']['directory']
-        if not util.validate_job(orthrus_root, self._args.job_id):
-            util.color_print(util.bcolors.FAIL, "failed. Are you sure you have done orthrus add --job or passed the "
-                                                "right job ID. orthrus show -j might help")
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Removing fuzzing job from Orthrus workspace")
+
+        job_token = j.jobtoken(self.orthrusdir, self._args.job_id)
+        if not util.pprint_decorator(job_token.materialize, 'Retrieving job', indent=2,
+                                     fail_msg=self.fail_msg):
             return False
 
-        util.color_print(util.bcolors.OKGREEN, "done")
+        if not util.pprint_decorator_fargs(util.func_wrapper(shutil.move,
+                                                             self.orthrusdir + "/jobs/{}/{}".format(job_token.type,
+                                                                                                   job_token.id),
+                                                             self.orthrusdir + "/archive/" +
+                                                                    time.strftime("%Y-%m-%d-%H:%M:%S") + "-"
+                                                                    + job_token.id),
+                                           'Archiving data for job [{}]'.format(job_token.id),
+                                           indent=2):
+            return False
 
-        util.color_print_singleline(util.bcolors.OKGREEN,
-                                    "\t\t[+] Archiving data for job [" + self._args.job_id + "]... ")
-        shutil.move(self._config['orthrus']['directory'] + "/jobs/" + self._args.job_id,
-                    self._config['orthrus']['directory'] + "/archive/" + time.strftime("%Y-%m-%d-%H:%M:%S") + "-"
-                    + self._args.job_id)
-        util.color_print(util.bcolors.OKGREEN, "done")
-
-        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Removing job for [" + self._args.job_id + "]... ")
-        job_config = ConfigParser.ConfigParser()
-        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-        job_config.remove_section(self._args.job_id)
-        with open(self._config['orthrus']['directory'] + "/jobs/jobs.conf", 'wb') as job_file:
-            job_config.write(job_file)
-        util.color_print(util.bcolors.OKGREEN, "done")
-            
+        j.remove_id_from_conf(job_token.jobsconf, job_token.id, job_token.type)
         return True
 
 class OrthrusStart(object):

@@ -8,6 +8,7 @@ class TestOrthrusAdd(unittest.TestCase):
     orthrusdirname = '.orthrus'
     config = {'orthrus': {'directory': orthrusdirname}}
     archive_dir = orthrusdirname + '/archive'
+    abconf_file = orthrusdirname + '/conf/abconf.conf'
 
     def test_add_job(self):
         args = parse_cmdline(self.description, ['add', '--job=main @@'])
@@ -38,17 +39,25 @@ class TestOrthrusAdd(unittest.TestCase):
         self.cmd = OrthrusAdd(args, self.config)
         self.assertTrue(self.cmd.run())
 
+    def test_add_abtest_job(self):
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--abconf={}'.format(self.abconf_file)])
+        self.cmd = OrthrusAdd(args, self.config)
+        self.assertTrue(self.cmd.run())
+
     @classmethod
     def setUpClass(cls):
         args = parse_cmdline(cls.description, ['create', '-asan'])
         cmd = OrthrusCreate(args, cls.config)
         cmd.run()
+        abconf_dict = {'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast', 'fuzzerB_args': ''}
+        with open(cls.abconf_file, 'w') as abconf_fp:
+            json.dump(abconf_dict, abconf_fp)
 
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.orthrusdirname)
 
     def tearDown(self):
-        OrthrusRemove(parse_cmdline(self.description, ['remove', '-j', self.cmd.jobId]), self.config).run()
+        OrthrusRemove(parse_cmdline(self.description, ['remove', '-j', self.cmd.job.id]), self.config).run()
         shutil.rmtree(self.archive_dir)
         os.makedirs(self.archive_dir)

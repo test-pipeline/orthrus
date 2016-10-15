@@ -5,6 +5,7 @@ import os
 import shutil
 import ConfigParser
 from argparse import ArgumentParser
+from job import job as j
 
 CREATE_HELP = """Create an orthrus workspace"""
 ADD_HELP = """Add a fuzzing job"""
@@ -13,11 +14,18 @@ START_HELP = """Start a fuzzing jobs"""
 STOP_HELP = """Stop a fuzzing jobs"""
 SHOW_HELP = """Show what's currently going on"""
 TRIAGE_HELP = """Triage crash corpus"""
-# DATABASE_HELP = """Joern database operations"""
-# CLEAN_HELP = """Clean up the workspace"""
 COVERAGE_HELP = """Run afl-cov on existing AFL corpus"""
 DESTROY_HELP = """Destroy an orthrus workspace"""
 VALIDATE_HELP = """Check if all Orthrus dependencies are met"""
+## A/B Tests
+ABTEST_ADD_HELP = """Add an A/B test job based on supplied config"""
+ABTEST_REMOVE_HELP = """Remove an A/B test job"""
+ABTEST_START_HELP = """Start an A/B test job"""
+ABTEST_STOP_HELP = """Stop an A/B test job"""
+ABTEST_SHOW_HELP = """Display A/B test info"""
+ABTEST_TRIAGE_HELP = """Triage an A/B test job"""
+ABTEST_COVERAGE_HELP = """Run afl-cov for an A/B test job"""
+ABTEST_DESTROY_HELP = """Destroy an A/B test job"""
 
 TEST_SLEEP = 5
 
@@ -135,12 +143,16 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
     add_parser.add_argument('-s', '--sample', nargs='?',
                             type=str, default="",
                             help='A single file or directory of afl testcases for fuzzing')
+    add_parser.add_argument('-abtest-conf', '--abconf', nargs='?', type=str,
+                            default="", help=ABTEST_ADD_HELP)
     add_parser.set_defaults(func=addfunc)
 
     # Command 'remove'
     remove_parser = subparsers.add_parser('remove', help=REMOVE_HELP)
     remove_parser.add_argument('-j', '--job-id', required=True,
                                type=str, help='Job Id for the job which should be removed')
+    remove_parser.add_argument('-abtest', '--abtest', action='store_true',
+                            help=ABTEST_REMOVE_HELP, default=False)
     remove_parser.set_defaults(func=removefunc)
 
     # Command 'start'
@@ -155,6 +167,8 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
                               action='store_true',
                               help="""Minimize corpus before start""",
                               default=False)
+    start_parser.add_argument('-abtest', '--abtest', action='store_true',
+                            help=ABTEST_START_HELP, default=False)
     start_parser.set_defaults(func=startfunc)
 
     # Command 'stop'
@@ -163,6 +177,8 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
                              action='store_true',
                              help="""Stop afl-cov instances on stop""",
                              default=False)
+    stop_parser.add_argument('-abtest', '--abtest', action='store_true',
+                            help=ABTEST_STOP_HELP, default=False)
     stop_parser.set_defaults(func=stopfunc)
 
     # Command 'show'
@@ -175,6 +191,8 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
                              action='store_true',
                              help="""Show coverage of job""",
                              default=False)
+    show_parser.add_argument('-abtest', '--abtest', action='store_true',
+                            help=ABTEST_SHOW_HELP, default=False)
     show_parser.set_defaults(func=showfunc)
 
     # Command 'triage'
@@ -182,6 +200,8 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
     triage_parser.add_argument('-j', '--job-id', nargs='?',
                                type=str, default="",
                                help="""Job Id for the job which should be triaged""")
+    triage_parser.add_argument('-abtest', '--abtest', action='store_true',
+                            help=ABTEST_TRIAGE_HELP, default=False)
     triage_parser.set_defaults(func=triagefunc)
 
     # Command 'coverage'
@@ -189,11 +209,15 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
     coverage_parser.add_argument('-j', '--job-id', nargs='?',
                                type=str, default="", required=True,
                                help="""Job Id for checking coverage""")
+    coverage_parser.add_argument('-abtest', '--abtest', action='store_true',
+                            help=ABTEST_COVERAGE_HELP, default=False)
     coverage_parser.set_defaults(func=coveragefunc)
 
     # Command 'destroy'
     destroy_parser = subparsers.add_parser('destroy', help=DESTROY_HELP)
     # create_parser.add_argument('-x', type=int, default=1)
+    destroy_parser.add_argument('-abtest', '--abtest', action='store_true',
+                            help=ABTEST_DESTROY_HELP, default=False)
     destroy_parser.set_defaults(func=destroyfunc)
 
     # Command 'validate'
@@ -234,7 +258,61 @@ def parse_config(configfile=None):
 
     return config
 
-def minimize_sync_dir(config, jobId):
+def minimize_sync_dir(job_object):
+    color_print(bcolors.OKGREEN, "\t\t[+] Minimizing corpus for job [" + job_object.id + "]...")
+
+    export = {}
+    export['PYTHONUNBUFFERED'] = "1"
+    env = os.environ.copy()
+    env.update(export)
+    isasan = False
+
+    if os.path.exists(job_object.orthrusdir + "/binaries/afl-harden"):
+        launch = job_object.orthrusdir + "/binaries/afl-harden/bin/" + job_object.target + " " + \
+                 job_object.params.replace("&", "\&")
+    else:
+        isasan = True
+        launch = job_object.orthrusdir + "/binaries/afl-asan/bin/" + job_object.target + " " + \
+                 job_object.params
+
+    if isasan and is64bit():
+        mem_limit = 30000000
+    else:
+        mem_limit = 800
+    cmin = " ".join(
+        ["afl-minimize", "-c", job_object.rootdir + "/collect", "--cmin",
+         "--cmin-mem-limit={}".format(mem_limit), "--cmin-timeout=5000", "--dry-run",
+         job_object.rootdir + "/afl-out", "--", "'" + launch + "'"])
+    p = subprocess.Popen(cmin, bufsize=0, shell=True, executable='/bin/bash', env=env, stdout=subprocess.PIPE)
+    for line in p.stdout:
+        if "[*]" in line or "[!]" in line:
+            color_print(bcolors.OKGREEN, "\t\t\t" + line)
+
+    # Sleep for a short bit so that archived queue time stamps differ
+    time.sleep(2)
+
+    reseed_cmd = " ".join(
+        ["afl-minimize", "-c", job_object.rootdir + "/collect.cmin",
+         "--reseed", job_object.rootdir + "/afl-out", "--",
+         "'" + launch + "'"])
+    p = subprocess.Popen(reseed_cmd, bufsize=0, shell=True, executable='/bin/bash', env=env, stdout=subprocess.PIPE)
+    for line in p.stdout:
+        if "[*]" in line or "[!]" in line:
+            color_print(bcolors.OKGREEN, "\t\t\t" + line)
+
+    if os.path.exists(job_object.rootdir + "/collect"):
+        shutil.rmtree(job_object.rootdir + "/collect")
+    if os.path.exists(job_object.rootdir + "/collect.cmin"):
+        shutil.rmtree(job_object.rootdir + "/collect.cmin")
+    if os.path.exists(job_object.rootdir + "/collect.cmin.crashes"):
+        shutil.rmtree(job_object.rootdir + "/collect.cmin.crashes")
+    if os.path.exists(job_object.rootdir + "/collect.cmin.hangs"):
+        shutil.rmtree(job_object.rootdir + "/collect.cmin.hangs")
+
+    return True
+
+
+def minimize_sync_dir_(config, jobId):
     color_print(bcolors.OKGREEN, "\t\t[+] Minimizing corpus for job [" + jobId + "]...")
 
     job_config = ConfigParser.ConfigParser()
@@ -330,7 +408,7 @@ def run_afl_cov(orthrus_root, jobId, target, params, livemode=False, test=False)
            "/afl-out", "--live", "--lcov-path", which('lcov'), "--genhtml-path", which('genhtml'), "--coverage-cmd", \
                "'" + target + "'", "--code-dir", "."]
         if test:
-            cmd.extend(['--sleep', '5'])
+            cmd.extend(['--sleep', str(TEST_SLEEP)])
     else:
         cmd = ["nohup", "afl-cov", "-d", ".orthrus/jobs/" + jobId + \
                "/afl-out", "--lcov-path", which('lcov'), "--genhtml-path", which('genhtml'), "--coverage-cmd", \
@@ -353,12 +431,46 @@ def validate_inst(config):
 
 def validate_job(orthrus_root, jobID):
 
-    # Job config exists
-    if not os.path.exists(orthrus_root + "/jobs/jobs.conf"):
+    try:
+        job_token = j.jobtoken(orthrus_root, jobID)
+    except ValueError:
         return False
-    # Job ID valid
-    job_config = ConfigParser.ConfigParser()
-    job_config.read(orthrus_root + "/jobs/jobs.conf")
-    if jobID not in job_config.sections() or not job_config.get(jobID, "target") or not job_config.get(jobID, "params"):
-        return False
+
     return True
+
+def func_wrapper(function, *args):
+    try:
+        rv = function(*args)
+        if rv is None or rv:
+            return True
+        else:
+            return False
+    except:
+        return False
+
+def pprint_decorator_fargs(predicate, prologue, indent=0, fail_msg='failed', success_msg='done'):
+
+    color_print_singleline(bcolors.OKGREEN, '\t'*indent + '[+] {}... '.format(prologue))
+
+    if not predicate:
+        color_print(bcolors.FAIL, fail_msg)
+        return False
+    else:
+        color_print(bcolors.OKGREEN, success_msg)
+        return True
+
+def pprint_decorator(function, prologue, indent=0, fail_msg='failed', success_msg='done'):
+
+    color_print_singleline(bcolors.OKGREEN, '\t'*indent + '[+] {}... '.format(prologue))
+
+    try:
+        rv = function()
+        if rv is None or rv:
+            color_print(bcolors.OKGREEN, success_msg)
+            return True
+        else:
+            color_print(bcolors.FAIL, fail_msg)
+            return False
+    except:
+        color_print(bcolors.FAIL, fail_msg)
+        return False

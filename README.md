@@ -4,15 +4,19 @@ Orthrus is a tool for managing, conducting, and assessing security (fuzz) testin
 
 # Installation
 
-See [docs/Getting_started.md](docs/Getting_started.md)
+Please read [docs/Getting_started.md](docs/Getting_started.md).
 
 # Workflow
 
-See [docs/Workflow.md](docs/Workflow.md)
+Orthrus currently supports two workflows. In a routine workflow, you work with a single fuzzing job end-to-end i.e., from source code instrumentation, until crash triage. In a A/B test workflow, you work with a single A/B test end-to-end.
+
+## Routine
+
+Please read [docs/Workflow.md](docs/Workflow.md).
 
 ## A/B testing
 
-See [docs/Workflow_abtests.md](docs/Workflow_abtests.md)
+Please read [docs/Workflow_abtests.md](docs/Workflow_abtests.md).
 
 # Full usage
 ```
