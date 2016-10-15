@@ -44,6 +44,30 @@ class TestOrthrusAdd(unittest.TestCase):
         self.cmd = OrthrusAdd(args, self.config)
         self.assertTrue(self.cmd.run())
 
+    def test_add_abtest_and_seed(self):
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--abconf={}'.format(self.abconf_file),
+                                                '-s=./seeds'])
+        self.cmd = OrthrusAdd(args, self.config)
+        self.assertTrue(self.cmd.run())
+
+    def test_add_abtest_and_import(self):
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--abconf={}'.format(self.abconf_file),
+                                                '-i=./afl-out.tar.gz'])
+        self.cmd = OrthrusAdd(args, self.config)
+        self.assertTrue(self.cmd.run())
+
+    def test_add_abtest_and_import_crashes(self):
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--abconf={}'.format(self.abconf_file),
+                                                '-i=./afl-crash-out.tar.gz'])
+        self.cmd = OrthrusAdd(args, self.config)
+        self.assertTrue(self.cmd.run())
+
+    def test_add_abtest_and_import_archive(self):
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--abconf={}'.format(self.abconf_file),
+                                                '-i=./afl-arch-out.tar.gz'])
+        self.cmd = OrthrusAdd(args, self.config)
+        self.assertTrue(self.cmd.run())
+
     @classmethod
     def setUpClass(cls):
         args = parse_cmdline(cls.description, ['create', '-asan'])

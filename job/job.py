@@ -64,18 +64,7 @@ class job(object):
 
     def __init__(self, fuzz_cmd, type, orthrusdir, abconf=None):
 
-        if not (type == 'routine' or type == 'abtests'):
-            raise ValueError
-
-        if type == 'abtests' and not abconf:
-            raise ValueError
-
-        if type == 'abtests':
-            self.abconf = abconf
-            if not self.parse_and_validate_abtest_conf():
-                raise ValueError
-
-        ## All sane, processing can begin
+        self.abconf = abconf
         self.type = type
         self.orthrusdir = orthrusdir
         self.jobsconf = self.orthrusdir + JOBCONF
@@ -137,6 +126,17 @@ class job(object):
 
 
     def materialize(self):
+
+        if not (self.type == 'routine' or self.type == 'abtests'):
+            raise ValueError
+
+        if self.type == 'abtests' and not self.abconf:
+            raise ValueError
+
+        if self.type == 'abtests':
+            if not self.parse_and_validate_abtest_conf():
+                raise ValueError
+
         ## Break down fuzz_cmd
         self.target = self.fuzz_cmd.split(" ")[0]
         self.params = " ".join(self.fuzz_cmd.split(" ")[1:])
