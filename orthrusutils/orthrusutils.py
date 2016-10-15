@@ -177,8 +177,8 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
                              action='store_true',
                              help="""Stop afl-cov instances on stop""",
                              default=False)
-    stop_parser.add_argument('-abtest', '--abtest', type=str,
-                            help=ABTEST_STOP_HELP, required=True)
+    stop_parser.add_argument('-abtest', '--abtest', nargs='?', type=str,
+                            help=ABTEST_STOP_HELP)
     stop_parser.set_defaults(func=stopfunc)
 
     # Command 'show'
@@ -352,23 +352,29 @@ def which(progname):
         return ''
     return os.path.abspath(path)
 
-def run_afl_cov(orthrus_root, jobId, target, params, livemode=False, test=False):
-    target = orthrus_root + "/binaries/coverage/bin/" + \
-             target + " " + params.replace("@@", "AFL_FILE")
+def run_afl_cov_wrapper(job_object, livemode=False, test=False):
+    if job_object.type == 'abtests':
+        pass
+    else:
+        return run_afl_cov(job_object.orthrusdir, job_object.rootdir, job_object.target, job_object.params, livemode,
+                           test)
+
+def run_afl_cov(orthrus_dir, jobroot_dir, target_arg, params, livemode=False, test=False):
+    target = orthrus_dir + "/binaries/coverage/bin/" + \
+             target_arg + " " + params.replace("@@", "AFL_FILE")
 
     if livemode:
-        cmd = ["nohup", "afl-cov", "-d", ".orthrus/jobs/" + jobId + \
-           "/afl-out", "--live", "--lcov-path", which('lcov'), "--genhtml-path", which('genhtml'), "--coverage-cmd", \
-               "'" + target + "'", "--code-dir", "."]
+        cmd = ["nohup", "afl-cov", "-d", jobroot_dir + "/afl-out", "--live", "--lcov-path", which('lcov'),
+               "--genhtml-path", which('genhtml'), "--coverage-cmd", "'" + target + "'", "--code-dir", "."]
         if test:
             cmd.extend(['--sleep', str(TEST_SLEEP)])
     else:
-        cmd = ["nohup", "afl-cov", "-d", ".orthrus/jobs/" + jobId + \
-               "/afl-out", "--lcov-path", which('lcov'), "--genhtml-path", which('genhtml'), "--coverage-cmd", \
-               "'" + target + "'", "--code-dir", "."]
-    logfile = orthrus_root + "/logs/afl-coverage.log"
+        cmd = ["nohup", "afl-cov", "-d", jobroot_dir + "/afl-out", "--lcov-path", which('lcov'), "--genhtml-path",
+               which('genhtml'), "--coverage-cmd", "'" + target + "'", "--code-dir", "."]
+    logfile = orthrus_dir + "/logs/afl-coverage.log"
     p = subprocess.Popen(" ".join(cmd), shell=True, executable="/bin/bash", stdout=open(logfile, 'w'),
                          stderr=subprocess.STDOUT)
+    return True
 
 def validate_inst(config):
 

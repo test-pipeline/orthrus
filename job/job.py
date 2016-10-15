@@ -168,6 +168,7 @@ class jobtoken(object):
     def __init__(self, orthrusdir, jobid):
         self.jobsconf = orthrusdir + JOBCONF
         self.id = jobid
+        self.orthrusdir = orthrusdir
 
     def materialize(self):
         ## Bootstap jobs.conf if necessary
@@ -184,8 +185,11 @@ class jobtoken(object):
         self.target = self._jobdesc['target']
         self.type = self._jobdesc['type']
         if self.type == 'abtests':
+            self.rootdir = self.orthrusdir + ABTESTSDIR + '/{}'.format(self.id)
             self.joba_id = self._jobdesc['jobA_id']
             self.jobb_id = self._jobdesc['jobB_id']
             self.fuzzerA = self._jobdesc['fuzzerA']
             self.fuzzerB = self._jobdesc['fuzzerB']
+        else:
+            self.rootdir = self.orthrusdir + ROUTINEDIR + '/{}'.format(self.id)
         return True

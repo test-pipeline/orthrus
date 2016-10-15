@@ -10,25 +10,25 @@ class TestOrthrusStart(unittest.TestCase):
     config = {'orthrus': {'directory': orthrusdirname}}
 
     def test_start(self):
-        args = parse_cmdline(self.description, ['start', '-j', self.add_cmd.jobId])
+        args = parse_cmdline(self.description, ['start', '-j', self.add_cmd.job.id])
         cmd = OrthrusStart(args, self.config)
         self.assertTrue(cmd.run())
 
     def test_resume_and_minimize(self):
-        args = parse_cmdline(self.description, ['start', '-j', self.add_cmd.jobId])
+        args = parse_cmdline(self.description, ['start', '-j', self.add_cmd.job.id])
         cmd = OrthrusStart(args, self.config)
         self.assertTrue(cmd.run())
         time.sleep(TEST_SLEEP)
         args = parse_cmdline(self.description, ['stop'])
         cmd = OrthrusStop(args, self.config)
         self.assertTrue(cmd.run())
-        args = parse_cmdline(self.description, ['start', '-j', self.add_cmd.jobId, '-m'])
+        args = parse_cmdline(self.description, ['start', '-j', self.add_cmd.job.id, '-m'])
         cmd = OrthrusStart(args, self.config)
         self.assertTrue(cmd.run())
 
     def test_start_coverage(self):
         self.is_coverage = True
-        args = parse_cmdline(self.description, ['start', '-j', self.add_cmd.jobId, '-c'])
+        args = parse_cmdline(self.description, ['start', '-j', self.add_cmd.job.id, '-c'])
         cmd = OrthrusStart(args, self.config)
         self.assertTrue(cmd.run())
 
