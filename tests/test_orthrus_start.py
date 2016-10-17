@@ -73,7 +73,7 @@ class TestOrthrusStart(unittest.TestCase):
         cmd = OrthrusCreate(args, cls.config)
         cmd.run()
         args = parse_cmdline(cls.description, ['add', '--job=main @@',
-                                               '-i=./afl-arch-out.tar.gz'])
+                                               '-i=./afl-out.tar.gz'])
         cls.add_cmd = OrthrusAdd(args, cls.config)
         cls.add_cmd.run()
 
@@ -82,7 +82,7 @@ class TestOrthrusStart(unittest.TestCase):
         with open(cls.abconf_file, 'w') as abconf_fp:
             json.dump(abconf_dict, abconf_fp, indent=4)
         args = parse_cmdline(cls.description, ['add', '--job=main @@',
-                                           '-i=./afl-arch-out.tar.gz', '--abconf={}'.format(cls.abconf_file)])
+                                           '-i=./afl-out.tar.gz', '--abconf={}'.format(cls.abconf_file)])
         cls.add_cmd_abtest = OrthrusAdd(args, cls.config)
         cls.add_cmd_abtest.run()
 

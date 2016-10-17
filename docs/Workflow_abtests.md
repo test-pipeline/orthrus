@@ -80,20 +80,136 @@ Note that there are three IDs involved. You can ID the configured a/b test via t
 
 - To start fuzzing for a pre-defined a/b test job, you do
 ```
-$ orthrus start -j 1167520733
+$ orthrus start -j 1271685425
+[+] Starting fuzzing jobs
+		[+] Retrieving job ID [1271685425]... done
+		[+] Tidying afl sync dir for abtests job ID [1178951622]... done
+		[+] Checking core_pattern... done
+		[+] Starting AFL ASAN fuzzer as master... done
+			[*] Starting master instance...
 
+				[+]  Master 000 started (PID: 4725)
+			[*] Starting slave instances...
+
+				[+]  Slave 001 started (PID: 4726)
+		[+] Starting fuzzer for abtests job ID [1178951622]... done
+		[+] Tidying afl sync dir for abtests job ID [3911664828]... done
+		[+] Checking core_pattern... done
+		[+] Starting AFL ASAN fuzzer as master... done
+			[*] Starting master instance...
+
+				[+]  Master 000 started (PID: 4730)
+			[*] Starting slave instances...
+
+				[+]  Slave 001 started (PID: 4731)
+		[+] Starting fuzzer for abtests job ID [3911664828]... done
 ```
 
 - To stop fuzzing, you do
 ```
-$ orthrus stop -j 
-[+] Stopping fuzzing jobs...done
+$ orthrus stop -j 1271685425
+[+] Stopping fuzzing jobs
+		[+] Retrieving job ID [1271685425]... done
+		[+] Stopping abtests job for ID [1271685425]... done
 ```
 
 - To resume an earlier session, do
 ```
-$ orthrus start -j 1167520733 -m
+$ orthrus start -j 1271685425 -m
+[+] Starting fuzzing jobs
+		[+] Retrieving job ID [1271685425]... done
+		[+] Tidying afl sync dir for abtests job ID [1178951622]... done
+		[+] Minimizing corpus for job [1178951622]...
+			[*] Looking for fuzzing queues in '/home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/jobs/abtests/1271685425/1178951622/afl-out'.
 
+			[*] Found 1 fuzzers, collecting samples.
+
+			[*] Successfully indexed 5 samples.
+
+			[*] Copying 5 samples into collection directory...
+
+			[*] Executing: afl-cmin -i /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/jobs/abtests/1271685425/1178951622/collect -o /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/jobs/abtests/1271685425/1178951622/collect.cmin -- /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/binaries/afl-asan/bin/main @@
+
+			[*] Testing the target binary...
+
+			[*] Obtaining traces for input files in '/home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/jobs/abtests/1271685425/1178951622/collect'...
+
+			[*] Sorting trace sets (this may take a while)...
+
+			[*] Finding best candidates for each tuple...
+
+			[*] Sorting candidate list (be patient)...
+
+			[*] Processing candidates and writing output files...
+
+			[!] WARNING: All test cases had the same traces, check syntax!
+
+			[*] Performing dry-run in /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/jobs/abtests/1271685425/1178951622/collect.cmin...
+
+			[!] Be patient! Depending on the corpus size this step can take hours...
+
+			[!] Collection directory exists and is not empty!
+
+			[!] Skipping collection step...
+
+			[*] Reseeding collect.cmin into queue /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/jobs/abtests/1271685425/1178951622/afl-out/SESSION000/queue
+
+		[+] Minimizing afl sync dir for abtests job ID [1178951622]... done
+		[+] Checking core_pattern... done
+		[+] Starting AFL ASAN fuzzer as master... done
+			[*] Starting master instance...
+
+				[+]  Master 000 started (PID: 8251)
+			[*] Starting slave instances...
+
+				[+]  Slave 001 started (PID: 8253)
+		[+] Starting fuzzer for abtests job ID [1178951622]... done
+		[+] Tidying afl sync dir for abtests job ID [3911664828]... done
+		[+] Minimizing corpus for job [3911664828]...
+			[*] Looking for fuzzing queues in '/home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/jobs/abtests/1271685425/3911664828/afl-out'.
+
+			[*] Found 1 fuzzers, collecting samples.
+
+			[*] Successfully indexed 4 samples.
+
+			[*] Copying 4 samples into collection directory...
+
+			[*] Executing: afl-cmin -i /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/jobs/abtests/1271685425/3911664828/collect -o /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/jobs/abtests/1271685425/3911664828/collect.cmin -- /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/binaries/afl-asan/bin/main @@
+
+			[*] Testing the target binary...
+
+			[*] Obtaining traces for input files in '/home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/jobs/abtests/1271685425/3911664828/collect'...
+
+			[*] Sorting trace sets (this may take a while)...
+
+			[*] Finding best candidates for each tuple...
+
+			[*] Sorting candidate list (be patient)...
+
+			[*] Processing candidates and writing output files...
+
+			[!] WARNING: All test cases had the same traces, check syntax!
+
+			[*] Performing dry-run in /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/jobs/abtests/1271685425/3911664828/collect.cmin...
+
+			[!] Be patient! Depending on the corpus size this step can take hours...
+
+			[!] Collection directory exists and is not empty!
+
+			[!] Skipping collection step...
+
+			[*] Reseeding collect.cmin into queue /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/jobs/abtests/1271685425/3911664828/afl-out/SESSION000/queue
+
+		[+] Minimizing afl sync dir for abtests job ID [3911664828]... done
+		[+] Checking core_pattern... done
+		[+] Starting AFL ASAN fuzzer as master... done
+			[*] Starting master instance...
+
+				[+]  Master 000 started (PID: 9597)
+			[*] Starting slave instances...
+
+				[+]  Slave 001 started (PID: 9598)
+		[+] Starting fuzzer for abtests job ID [3911664828]... done
 ```
 
 
@@ -160,12 +276,6 @@ Opening coverage html for job 1167520733 in a new browser tab
 
 ## Step 8: Destroy orthrus session
 
-- This permanently deletes all orthrus data (under `.orthrus`)
-```
-$ orthrus destroy
-[+] Destroy Orthrus workspace
-[?] Delete complete workspace? [y/n]...: y
-                [+] Deleting all files... done
-```
+See [Step 8 of Workflow]()
 
 [1]: 

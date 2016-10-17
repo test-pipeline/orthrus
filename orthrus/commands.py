@@ -189,7 +189,7 @@ class OrthrusAdd(object):
         asanjob_config['output'] = afl_out
         asanjob_config['target'] = ".orthrus/binaries/afl-asan/bin/{}".format(self.job.target)
         asanjob_config['cmdline'] = self.job.params
-        asanjob_config['file'] = "@@"
+        # asanjob_config['file'] = "@@"
         # asanjob_config.set("afl.ctrl", "file", ".orthrus/jobs/" + self.jobId + "/afl-out/.cur_input_asan")
         asanjob_config['timeout'] = "3000+"
 
@@ -201,7 +201,7 @@ class OrthrusAdd(object):
 
         asanjob_config['session'] = "SESSION"
         # https://github.com/rc0r/afl-utils/issues/34
-        asanjob_config['interactive'] = False
+        # asanjob_config['interactive'] = False
 
         if os.path.exists(self._config['orthrus']['directory'] + "binaries/afl-harden"):
             asanjob_config['slave_only'] = True
@@ -221,11 +221,11 @@ class OrthrusAdd(object):
         hardenjob_config['output'] = afl_out
         hardenjob_config['target'] = ".orthrus/binaries/afl-harden/bin/{}".format(self.job.target)
         hardenjob_config['cmdline'] = self.job.params
-        hardenjob_config['file'] = "@@"
+        # hardenjob_config['file'] = "@@"
         hardenjob_config['timeout'] = "3000+"
         hardenjob_config['mem_limit'] = "800"
         hardenjob_config['session'] = "SESSION"
-        hardenjob_config['interactive'] = False
+        # hardenjob_config['interactive'] = False
 
         if fuzzer:
             hardenjob_config['fuzzer'] = fuzzer
@@ -565,10 +565,10 @@ class OrthrusStart(object):
     def run_helper(self, rootdir, id):
         if len(os.listdir(rootdir + "/afl-out/")) > 0:
 
-            if not util.pprint_decorator_fargs(util.func_wrapper(self.compact_sync_dir, rootdir),
-                                               'Tidying afl sync dir for {} job ID [{}]'.format(self.job_token.type,id),
-                                               indent=2):
-                return False
+            # if not util.pprint_decorator_fargs(util.func_wrapper(self.compact_sync_dir, rootdir),
+            #                                    'Tidying afl sync dir for {} job ID [{}]'.format(self.job_token.type,id),
+            #                                    indent=2):
+            #     return False
 
             if self._args.minimize:
                 if not util.pprint_decorator_fargs(util.func_wrapper(util.minimize_sync_dir, self.orthrusdir, rootdir,
@@ -676,7 +676,7 @@ class OrthrusStop(object):
                 util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Stopping afl-cov for {} job... ".
                                             format(self.job_token.type))
                 for pid in self.get_afl_cov_pid():
-                    kill_aflcov_cmd = ["pkill", "-9", pid]
+                    kill_aflcov_cmd = ["kill", "-9", pid]
                     util.run_cmd(" ".join(kill_aflcov_cmd))
                 util.color_print(util.bcolors.OKGREEN, "done")
         except:
