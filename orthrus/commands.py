@@ -496,87 +496,15 @@ class OrthrusStart(object):
 
         return True
     
-    def compact_sync_dir(self, jobroot_dir):
-        syncDir = jobroot_dir + "/afl-out"
-        for session in os.listdir(syncDir):
-            if os.path.isfile(syncDir + "/" + session):
-                os.remove(syncDir + "/" + session)
-            if os.path.isdir(syncDir + "/" + session):
-                for directory in os.listdir(syncDir + "/" + session):
-                    if "crashes." in directory:
-                        for num, filename in enumerate(os.listdir(syncDir + "/" + session + "/" + directory)):
-                            src_path = syncDir + "/" + session + "/" + directory + "/" + filename
-                            dst_path = syncDir + "/" + session + "/" + "crashes" + "/" + filename
-                            if not os.path.isfile(dst_path):
-                                #dst_path += "," + str(num)
-                                shutil.move(src_path, dst_path)
-                        shutil.rmtree(syncDir + "/" + session + "/" + directory + "/")
-                    if "hangs." in directory:
-                        for num, filename in enumerate(os.listdir(syncDir + "/" + session + "/" + directory)):
-                            src_path = syncDir + "/" + session + "/" + directory + "/" + filename
-                            dst_path = syncDir + "/" + session + "/" + "hangs" + "/" + filename
-                            if not os.path.isfile(dst_path):
-                                #dst_path += "," + str(num)
-                                shutil.move(src_path, dst_path)
-                        shutil.rmtree(syncDir + "/" + session + "/" + directory + "/")
-    #                 if "queue." in directory:
-    #                     for num, filename in enumerate(os.listdir(syncDir + "/" + session + "/" + directory)):
-    #                         src_path = syncDir + "/" + session + "/" + directory + "/" + filename
-    #                         dst_path = syncDir + "/" + session + "/" + "queue" + "/" + filename
-    #                         if os.path.isfile(dst_path):
-    #                             dst_path += "," + str(num)
-    #                         shutil.move(src_path, dst_path)
-    #                     shutil.rmtree(syncDir + "/" + session + "/" + directory + "/")
-        
-        for session in os.listdir(syncDir):
-            if "SESSION000" != session and os.path.isdir(syncDir + "/" + session):
-                for directory in os.listdir(syncDir + "/" + session):
-                    if "crashes" == directory:
-                        for num, filename in enumerate(os.listdir(syncDir + "/" + session + "/" + directory)):
-                            src_path = syncDir + "/" + session + "/" + directory + "/" + filename
-                            dst_path = syncDir + "/" + "SESSION000" + "/" + "crashes" + "/" + filename
-                            if not os.path.isfile(dst_path):
-                                #dst_path += "," + str(num)
-                                shutil.move(src_path, dst_path)
-                    if "hangs" == directory:
-                        for num, filename in enumerate(os.listdir(syncDir + "/" + session + "/" + directory)):
-                            src_path = syncDir + "/" + session + "/" + directory + "/" + filename
-                            dst_path = syncDir + "/" + "SESSION000" + "/" + "hangs" + "/" + filename
-                            if not os.path.isfile(dst_path):
-                                #dst_path += "," + str(num)
-                                shutil.move(src_path, dst_path)
-                    if "queue" == directory:
-                        for num, filename in enumerate(os.listdir(syncDir + "/" + session + "/" + directory)):
-                            src_path = syncDir + "/" + session + "/" + directory + "/" + filename
-                            dst_path = syncDir + "/" + "SESSION000" + "/" + "queue" + "/" + filename
-                            if os.path.isdir(src_path):
-                                continue
-                            if not os.path.isfile(dst_path):
-                                #dst_path += "," + str(num)
-                                shutil.move(src_path, dst_path)
-                shutil.rmtree(syncDir + "/" + session)
-                
-        return True
-                
-    # def _start_afl_coverage(self):
-    #     # Run afl-cov as a nohup process
-    #     return util.run_afl_cov_wrapper(self.job_token, True, self.test)
-
     def run_helper(self, rootdir, id):
-        if len(os.listdir(rootdir + "/afl-out/")) > 0:
+        if len(os.listdir(rootdir + "/afl-out/")) > 0 and self._args.minimize:
 
-            # if not util.pprint_decorator_fargs(util.func_wrapper(self.compact_sync_dir, rootdir),
-            #                                    'Tidying afl sync dir for {} job ID [{}]'.format(self.job_token.type,id),
-            #                                    indent=2):
-            #     return False
-
-            if self._args.minimize:
-                if not util.pprint_decorator_fargs(util.func_wrapper(util.minimize_sync_dir, self.orthrusdir, rootdir,
-                                                                     id, self.job_token.target, self.job_token.params),
-                                                   'Minimizing afl sync dir for {} job ID [{}]'.
-                                                           format(self.job_token.type,id),
-                                                   indent=2):
-                    return False
+            if not util.pprint_decorator_fargs(util.func_wrapper(util.minimize_sync_dir, self.orthrusdir, rootdir,
+                                                                 id, self.job_token.target, self.job_token.params),
+                                               'Minimizing afl sync dir for {} job ID [{}]'.
+                                                       format(self.job_token.type,id),
+                                               indent=2):
+                return False
 
         if not util.pprint_decorator_fargs(util.func_wrapper(self._start_fuzzers, rootdir, self.job_token.type),
                                            'Starting fuzzer for {} job ID [{}]'.format(self.job_token.type,id),

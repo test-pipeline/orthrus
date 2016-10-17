@@ -253,17 +253,6 @@ def parse_config(configfile=None):
 
     return config
 
-def minimize_sync_dir_wrapper(job_object):
-    if job_object.type == 'routine':
-        minimize_sync_dir(job_object.orthrusdir, job_object.rootdir, job_object.id, job_object.target,
-                                  job_object.params)
-    else:
-        minimize_sync_dir(job_object.orthrusdir, job_object.rootdir + '/{}'.format(job_object.joba_id),
-                                  job_object.joba_id, job_object.target, job_object.params)
-        minimize_sync_dir(job_object.orthrusdir, job_object.rootdir + '/{}'.format(job_object.jobb_id),
-                                  job_object.jobb_id, job_object.target, job_object.params)
-    return True
-
 def minimize_sync_dir(orthrus_dir, jobroot_dir, job_id, target, params):
     color_print(bcolors.OKGREEN, "\t\t[+] Minimizing corpus for job [" + job_id + "]...")
 
@@ -346,13 +335,6 @@ def which(progname):
         print e.output
         return ''
     return os.path.abspath(path)
-
-# def run_afl_cov_wrapper(job_object, livemode=False, test=False):
-#     if job_object.type == 'abtests':
-#         pass
-#     else:
-#         return run_afl_cov(job_object.orthrusdir, job_object.rootdir, job_object.target, job_object.params, livemode,
-#                            test)
 
 def run_afl_cov(orthrus_dir, jobroot_dir, target_arg, params, livemode=False, test=False):
     target = orthrus_dir + "/binaries/coverage/bin/" + \
