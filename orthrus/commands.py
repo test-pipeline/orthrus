@@ -335,7 +335,7 @@ class OrthrusAdd(object):
         self.fuzzers = []
         self.fuzzer_param = []
 
-        if not util.pprint_decorator(self.job.materialize, 'Adding job', 2,
+        if not util.pprint_decorator(self.job.materialize, 'Adding {} job'.format(self.jobtype), 2,
                                      'Invalid a/b test configuration or existing job found!'):
             return False
 
@@ -371,7 +371,7 @@ class OrthrusRemove(object):
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Removing fuzzing job from Orthrus workspace")
 
         job_token = j.jobtoken(self.orthrusdir, self._args.job_id)
-        if not util.pprint_decorator(job_token.materialize, 'Retrieving job', indent=2,
+        if not util.pprint_decorator(job_token.materialize, 'Retrieving job [{}]'.format(job_token.id), indent=2,
                                      fail_msg=self.fail_msg):
             return False
 
@@ -381,7 +381,7 @@ class OrthrusRemove(object):
                                                              self.orthrusdir + "/archive/" +
                                                                     time.strftime("%Y-%m-%d-%H:%M:%S") + "-"
                                                                     + job_token.id),
-                                           'Archiving data for job [{}]'.format(job_token.id),
+                                           'Archiving data for {} job [{}]'.format(job_token.type,job_token.id),
                                            indent=2):
             return False
 
@@ -566,19 +566,21 @@ class OrthrusStart(object):
         if len(os.listdir(rootdir + "/afl-out/")) > 0:
 
             if not util.pprint_decorator_fargs(util.func_wrapper(self.compact_sync_dir, rootdir),
-                                               'Tidying afl sync dir for job ID [{}]'.format(id),
+                                               'Tidying afl sync dir for {} job ID [{}]'.format(self.job_token.type,id),
                                                indent=2):
                 return False
 
             if self._args.minimize:
                 if not util.pprint_decorator_fargs(util.func_wrapper(util.minimize_sync_dir, self.orthrusdir, rootdir,
                                                                      id, self.job_token.target, self.job_token.params),
-                                                   'Minimizing afl sync dir for job ID [{}]'.format(id),
+                                                   'Minimizing afl sync dir for {} job ID [{}]'.
+                                                           format(self.job_token.type,id),
                                                    indent=2):
                     return False
 
         if not util.pprint_decorator_fargs(util.func_wrapper(self._start_fuzzers, rootdir, self.job_token.type),
-                                           'Starting fuzzer for job ID [{}]'.format(id), indent=2):
+                                           'Starting fuzzer for {} job ID [{}]'.format(self.job_token.type,id),
+                                           indent=2):
             try:
                 subprocess.call("pkill -9 afl-fuzz", shell=True, stderr=subprocess.STDOUT)
             except OSError, subprocess.CalledProcessError:
@@ -588,11 +590,12 @@ class OrthrusStart(object):
         # Live coverage is only supported for routine jobs
         # To support live coverage for abtests jobs, we would need to create two code base dir each with a gcno file
         # set due to the way gcov works.
-        if self._args.coverage and not self._args.abtest:
+        if self._args.coverage and self.job_token.type == 'routine':
             if not util.pprint_decorator_fargs(util.func_wrapper(util.run_afl_cov, self.orthrusdir, rootdir,
                                                                 self.job_token.target, self.job_token.params, True,
                                                                 self.test),
-                                               'Starting afl-cov for job ID [{}]'.format(id), indent=2):
+                                               'Starting afl-cov for {} job ID [{}]'.format(self.job_token.type, id),
+                                               indent=2):
                 return False
         return True
         
@@ -600,8 +603,9 @@ class OrthrusStart(object):
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Starting fuzzing jobs")
 
         self.job_token = j.jobtoken(self.orthrusdir, self._args.job_id)
-        if not util.pprint_decorator(self.job_token.materialize, 'Retrieving job', indent=2,
-                                     fail_msg=self.fail_msg):
+
+        if not util.pprint_decorator(self.job_token.materialize, 'Retrieving job ID [{}]'.format(self.job_token.id),
+                                     indent=2, fail_msg=self.fail_msg):
             return False
 
         self.total_cores = int(util.getnproc())
@@ -652,38 +656,42 @@ class OrthrusStop(object):
                 pids.append(match.groups()[0])
         return pids
 
-    def stop_routine(self):
-        util.color_print_singleline(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Stopping routine fuzzing jobs...")
-        kill_fuzz_cmd = ["pkill", "-9", "afl-fuzz"]
-        util.run_cmd(" ".join(kill_fuzz_cmd))
-        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "done")
-        if self._args.coverage:
-            util.color_print_singleline(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Stopping afl-cov for jobs...")
-            for pid in self.get_afl_cov_pid():
-                kill_aflcov_cmd = ["pkill", "-9", pid]
-                util.run_cmd(" ".join(kill_aflcov_cmd))
-            util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "done")
-        return True
+    def run_helper(self):
+        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Stopping {} job for ID [{}]... ".
+                         format(self.job_token.type, self.job_token.id))
 
-    def stop_abtests(self):
-        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Stopping a/b fuzzing jobs")
-        job_token = j.jobtoken(self.orthrusdir, self._args.abtest)
+        try:
+            ## Kill all fuzzers
+            kill_fuzz_cmd = ["pkill", "-9"]
+            if self.job_token.type == 'routine':
+                kill_fuzz_cmd.append("afl-fuzz")
+            else:
+                fuzzers = [self.job_token.fuzzerA, self.job_token.fuzzerB]
+                kill_fuzz_cmd.extend(fuzzers)
+            util.run_cmd(" ".join(kill_fuzz_cmd))
+            util.color_print(util.bcolors.OKGREEN, "done")
 
-        if not util.pprint_decorator(job_token.materialize, 'Retrieving job', indent=2):
+            ## Kill afl-cov only for routine jobs
+            if self._args.coverage and self.job_token.type == 'routine':
+                util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Stopping afl-cov for {} job... ".
+                                            format(self.job_token.type))
+                for pid in self.get_afl_cov_pid():
+                    kill_aflcov_cmd = ["pkill", "-9", pid]
+                    util.run_cmd(" ".join(kill_aflcov_cmd))
+                util.color_print(util.bcolors.OKGREEN, "done")
+        except:
             return False
-
-        kill_fuzz_cmd = ["pkill", "-9"]
-        fuzzers = [job_token.fuzzerA, job_token.fuzzerB]
-        kill_fuzz_cmd.extend(fuzzers)
-        util.run_cmd(" ".join(kill_fuzz_cmd))
         return True
 
     def run(self):
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Stopping fuzzing jobs")
+        self.job_token = j.jobtoken(self.orthrusdir, self._args.job_id)
 
-        if self._args.abtest:
-            return self.stop_abtests()
-        else:
-            return self.stop_routine()
+        if not util.pprint_decorator(self.job_token.materialize, 'Retrieving job ID [{}]'.format(self.job_token.id),
+                                     indent=2):
+            return False
+
+        return self.run_helper()
 
 class OrthrusShow(object):
     

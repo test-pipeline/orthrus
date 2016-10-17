@@ -48,7 +48,7 @@ Creating binaries is no different for A/B testing. Please read step 2 of [docs/W
 
 ## Step 3: Add/Remove fuzzing job
 
-Adding/removing a/b test jobs is identical to their routine counterparts, except for the `--abtest=PATH_TO_CONFIG` argument. For instance, you can do
+Adding/removing a/b test jobs is identical to their routine counterparts, except for the `--abtest=PATH_TO_CONFIG` argument that is appended to the `orthrus add` command. For instance, you can do
 ```
 $ cat abtest.conf
 [test1]
@@ -58,95 +58,42 @@ fuzzerA_args = ""
 fuzzerB = "afl-fuzz-fast"
 fuzzerB_args = ""
 $ orthrus add --job="main @@" -s=./seeds --abtest=./abtest.conf
-
+[+] Adding fuzzing job to Orthrus workspace
+		[+] Checking Orthrus workspace... done
+		[+] Adding job... done
+		[+] Configuring abtests job for ID [1178951622]... done
+		[+] Adding initial samples for job ID [1178951622]... done
+		[+] Configuring abtests job for ID [3911664828]... done
+		[+] Adding initial samples for job ID [3911664828]... done
+$ orthrus remove -j 1271685425
+[+] Removing fuzzing job from Orthrus workspace
+		[+] Retrieving job [1271685425]... done
+		[+] Archiving data for abtests job [1271685425]... done
 ```
 
-This sets up an A/B testing job in which identical fuzzing jobs will be created for both control and experiment groups.
+This sets up an A/B testing job in which identical fuzzing jobs will be created for both control (e.g. `afl-fuzz`) and experiment (e.g. `afl-fuzz-fast`) groups. **It is strongly recommended that you have at least 4 processor cores for a/b testing**. This ensures that each job has at least 1 master and 1 slave instance. This is particularly relevant for gauging the efficiency of deterministic fuzzing. See [1].
+
+Note that there are three IDs involved. You can ID the configured a/b test via the top-level ID `1271685425`, the control group via ID `1178951622` and the experiment group via ID `3911664828`. For subsequent a/b test subcommands, you always pass the top-level (a/b test) ID e.g., `1271685425`.
 
 
 ## Step 4: Start/Stop afl fuzzers (via afl-utils)
 
-- To start fuzzing for a pre-defined job, you do
+- To start fuzzing for a pre-defined a/b test job, you do
 ```
 $ orthrus start -j 1167520733
-[+] Starting fuzzing jobs
-                [+] Check Orthrus workspace... done
-                [+] Start Fuzzers for Job [1167520733]... Checking core_pattern...okay
-                [+] Starting AFL harden fuzzer job as master...done
-                        [*] Starting master instance...
 
-                                [+]  Master 000 started (PID: 15969)
-                        [*] Starting slave instances...
-
-                                [+]  Slave 001 started (PID: 15970)
-                [+] Starting AFL ASAN fuzzer job as slave...done
-                        [*] Starting slave instances...
-
-                                [+]  Slave 001 started (PID: 16151)
-                                [+]  Slave 002 started (PID: 16155)
 ```
 
 - To stop fuzzing, you do
 ```
-$ orthrus stop
+$ orthrus stop -j 
 [+] Stopping fuzzing jobs...done
 ```
 
 - To resume an earlier session, do
 ```
 $ orthrus start -j 1167520733 -m
-[+] Starting fuzzing jobs
-                [+] Check Orthrus workspace... done
-                [+] Tidy fuzzer sync dir... done
-                [+] Minimizing corpus for job [1167520733]...
-                        [*] Looking for fuzzing queues in '/home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Projec
-t/.orthrus/jobs/1167520733/afl-out'.
 
-                        [*] Found 1 fuzzers, collecting samples.
-
-                        [*] Successfully indexed 3 samples.
-
-                        [*] Copying 3 samples into collection directory...
-
-                        [*] Executing: afl-cmin -i /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthr
-us/jobs/1167520733/collect -o /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/jobs/1167520733/co
-llect.cmin -- /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/binaries/afl-harden/bin/main @@
-
-                        [*] Testing the target binary...
-
-                        [*] Obtaining traces for input files in '/home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/jobs/1167520733/collect'...
-
-                        [*] Sorting trace sets (this may take a while)...
-
-                        [*] Finding best candidates for each tuple...
-
-                        [*] Sorting candidate list (be patient)...
-
-                        [*] Processing candidates and writing output files...
-
-                        [*] Performing dry-run in /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/jobs/1167520733/collect.cmin...
-
-                        [!] Be patient! Depending on the corpus size this step can take hours...
-
-                        [!] Collection directory exists and is not empty!
-
-                        [!] Skipping collection step...
-
-                        [*] Reseeding collect.cmin into queue /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Template-Project/.orthrus/jobs/1167520733/afl-out/SESSION000/queue
-
-                [+] Start Fuzzers for Job [1167520733]... Checking core_pattern...okay
-                [+] Starting AFL harden fuzzer job as master...done
-                        [*] Starting master instance...
-
-                                [+]  Master 000 started (PID: 28501)
-                        [*] Starting slave instances...
-
-                                [+]  Slave 001 started (PID: 28502)
-                [+] Starting AFL ASAN fuzzer job as slave...done
-                        [*] Starting slave instances...
-
-                                [+]  Slave 001 started (PID: 28809)
-                                [+]  Slave 002 started (PID: 28813)
 ```
 
 
@@ -155,37 +102,15 @@ dir, reseeds it with the minimized seeds, and resumes fuzzing
 
 ## Step 5: Monitor test coverage (via afl-cov)
 
-You can either:
+You can monitor the coverage of your a/b test jobs offline. To do so, type:
 
-- Monitor test coverage during a live fuzzing session
-```
-$ orthrus start -j 1167520733 -c
-[+] Starting fuzzing jobs
-                [+] Check Orthrus workspace... done
-                [+] Start afl-cov for Job [1167520733]... done
-                [+] Start Fuzzers for Job [1167520733]... Checking core_pattern...okay
-                [+] Starting AFL harden fuzzer job as master...done
-                        [*] Starting master instance...
-
-                                [+]  Master 000 started (PID: 25378)
-                        [*] Starting slave instances...
-
-                                [+]  Slave 001 started (PID: 25379)
-```
-
-- OR check test coverage post testing (when all instances of afl-fuzz are dead)
 ```
 $ orthrus coverage -j 1167520733
 [+] Checking test coverage for job [1167520733]... done
                 [+] Please check .orthrus/jobs/1167520733/afl-out/cov for coverage info
 ```
 
-You may force stop a live afl-cov instance along with all fuzz sessions, like so
-```
-$ orthrus stop -c
-[+] Stopping fuzzing jobs...done
-[+] Stopping afl-cov for jobs...done
-```
+Note that live AFL coverage via afl-cov is unsupported for a/b test jobs.
 
 ## Step 6: Triage crashes (via afl-utils/exploitable)
 
@@ -242,3 +167,5 @@ $ orthrus destroy
 [?] Delete complete workspace? [y/n]...: y
                 [+] Deleting all files... done
 ```
+
+[1]: 

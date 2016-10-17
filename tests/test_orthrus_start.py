@@ -20,7 +20,7 @@ class TestOrthrusStart(unittest.TestCase):
         cmd = OrthrusStart(args, self.config)
         self.assertTrue(cmd.run())
         time.sleep(TEST_SLEEP)
-        args = parse_cmdline(self.description, ['stop'])
+        args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd.job.id])
         cmd = OrthrusStop(args, self.config)
         self.assertTrue(cmd.run())
         args = parse_cmdline(self.description, ['start', '-j', self.add_cmd.job.id, '-m'])
@@ -35,20 +35,20 @@ class TestOrthrusStart(unittest.TestCase):
 
     def test_start_abtest(self):
         self.is_abtest = True
-        args = parse_cmdline(self.description, ['start', '-j', self.add_cmd_abtest.job.id, '--abtest'])
+        args = parse_cmdline(self.description, ['start', '-j', self.add_cmd_abtest.job.id])
         cmd = OrthrusStart(args, self.config)
         self.assertTrue(cmd.run())
 
     def test_resume_and_minimize_abtest(self):
         self.is_abtest = True
-        args = parse_cmdline(self.description, ['start', '-j', self.add_cmd_abtest.job.id, '--abtest'])
+        args = parse_cmdline(self.description, ['start', '-j', self.add_cmd_abtest.job.id])
         cmd = OrthrusStart(args, self.config)
         self.assertTrue(cmd.run())
         time.sleep(TEST_SLEEP)
-        args = parse_cmdline(self.description, ['stop', '--abtest={}'.format(self.add_cmd_abtest.job.id)])
+        args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd_abtest.job.id])
         cmd = OrthrusStop(args, self.config)
         self.assertTrue(cmd.run())
-        args = parse_cmdline(self.description, ['start', '-j', self.add_cmd.job.id, '-m', '--abtest'])
+        args = parse_cmdline(self.description, ['start', '-j', self.add_cmd_abtest.job.id, '-m'])
         cmd = OrthrusStart(args, self.config)
         self.assertTrue(cmd.run())
 
@@ -59,11 +59,11 @@ class TestOrthrusStart(unittest.TestCase):
     def tearDown(self):
         if not self.is_coverage:
             if self.is_abtest:
-                args = parse_cmdline(self.description, ['stop', '--abtest={}'.format(self.add_cmd_abtest.job.id)])
+                args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd_abtest.job.id])
             else:
-                args = parse_cmdline(self.description, ['stop'])
+                args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd.job.id])
         else:
-            args = parse_cmdline(self.description, ['stop', '-c'])
+            args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd.job.id, '-c'])
         cmd = OrthrusStop(args, self.config)
         self.assertTrue(cmd.run())
 

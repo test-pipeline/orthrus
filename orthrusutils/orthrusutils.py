@@ -19,13 +19,6 @@ DESTROY_HELP = """Destroy an orthrus workspace"""
 VALIDATE_HELP = """Check if all Orthrus dependencies are met"""
 ## A/B Tests
 ABTEST_ADD_HELP = """Add an A/B test job based on supplied config"""
-ABTEST_REMOVE_HELP = """Remove an A/B test job"""
-ABTEST_START_HELP = """Start an A/B test job"""
-ABTEST_STOP_HELP = """Stop an A/B test job"""
-ABTEST_SHOW_HELP = """Display A/B test info"""
-ABTEST_TRIAGE_HELP = """Triage an A/B test job"""
-ABTEST_COVERAGE_HELP = """Run afl-cov for an A/B test job"""
-ABTEST_DESTROY_HELP = """Destroy an A/B test job"""
 
 TEST_SLEEP = 5
 
@@ -151,8 +144,8 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
     remove_parser = subparsers.add_parser('remove', help=REMOVE_HELP)
     remove_parser.add_argument('-j', '--job-id', required=True,
                                type=str, help='Job Id for the job which should be removed')
-    remove_parser.add_argument('-abtest', '--abtest', action='store_true',
-                            help=ABTEST_REMOVE_HELP, default=False)
+    # remove_parser.add_argument('-abtest', '--abtest', action='store_true',
+    #                         help=ABTEST_REMOVE_HELP, default=False)
     remove_parser.set_defaults(func=removefunc)
 
     # Command 'start'
@@ -167,8 +160,8 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
                               action='store_true',
                               help="""Minimize corpus before start""",
                               default=False)
-    start_parser.add_argument('-abtest', '--abtest', action='store_true',
-                            help=ABTEST_START_HELP, default=False)
+    # start_parser.add_argument('-abtest', '--abtest', action='store_true',
+    #                         help=ABTEST_START_HELP, default=False)
     start_parser.set_defaults(func=startfunc)
 
     # Command 'stop'
@@ -177,8 +170,10 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
                              action='store_true',
                              help="""Stop afl-cov instances on stop""",
                              default=False)
-    stop_parser.add_argument('-abtest', '--abtest', nargs='?', type=str,
-                            help=ABTEST_STOP_HELP)
+    stop_parser.add_argument('-j', '--job-id', required=True,
+                              type=str, help='Job Id for the job which should be stopped')
+    # stop_parser.add_argument('-abtest', '--abtest', type=str,
+    #                         help=ABTEST_STOP_HELP)
     stop_parser.set_defaults(func=stopfunc)
 
     # Command 'show'
@@ -191,8 +186,8 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
                              action='store_true',
                              help="""Show coverage of job""",
                              default=False)
-    show_parser.add_argument('-abtest', '--abtest', action='store_true',
-                            help=ABTEST_SHOW_HELP, default=False)
+    # show_parser.add_argument('-abtest', '--abtest', action='store_true',
+    #                         help=ABTEST_SHOW_HELP, default=False)
     show_parser.set_defaults(func=showfunc)
 
     # Command 'triage'
@@ -200,8 +195,8 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
     triage_parser.add_argument('-j', '--job-id', nargs='?',
                                type=str, default="",
                                help="""Job Id for the job which should be triaged""")
-    triage_parser.add_argument('-abtest', '--abtest', action='store_true',
-                            help=ABTEST_TRIAGE_HELP, default=False)
+    # triage_parser.add_argument('-abtest', '--abtest', action='store_true',
+    #                         help=ABTEST_TRIAGE_HELP, default=False)
     triage_parser.set_defaults(func=triagefunc)
 
     # Command 'coverage'
@@ -209,15 +204,15 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
     coverage_parser.add_argument('-j', '--job-id', nargs='?',
                                type=str, default="", required=True,
                                help="""Job Id for checking coverage""")
-    coverage_parser.add_argument('-abtest', '--abtest', action='store_true',
-                            help=ABTEST_COVERAGE_HELP, default=False)
+    # coverage_parser.add_argument('-abtest', '--abtest', action='store_true',
+    #                         help=ABTEST_COVERAGE_HELP, default=False)
     coverage_parser.set_defaults(func=coveragefunc)
 
     # Command 'destroy'
     destroy_parser = subparsers.add_parser('destroy', help=DESTROY_HELP)
     # create_parser.add_argument('-x', type=int, default=1)
-    destroy_parser.add_argument('-abtest', '--abtest', action='store_true',
-                            help=ABTEST_DESTROY_HELP, default=False)
+    # destroy_parser.add_argument('-abtest', '--abtest', action='store_true',
+    #                         help=ABTEST_DESTROY_HELP, default=False)
     destroy_parser.set_defaults(func=destroyfunc)
 
     # Command 'validate'
