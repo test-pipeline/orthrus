@@ -6,22 +6,43 @@ class TestOrthrusRemove(unittest.TestCase):
 
     description = 'Test harness'
     orthrusdirname = '.orthrus'
+    config = {'orthrus': {'directory': orthrusdirname}}
+    abconf_file = orthrusdirname + '/conf/abconf.conf'
 
     def test_remove_job(self):
-        args = parse_cmdline(self.description, ['remove', '-j=' + self.add_cmd.job.id])
+        # Add job
+        args = parse_cmdline(self.description, ['add', '--job=main @@'])
+        add_cmd = OrthrusAdd(args, self.config)
+        add_cmd.run()
+
+        # Remove job
+        args = parse_cmdline(self.description, ['remove', '-j=' + add_cmd.job.id])
         cmd = OrthrusRemove(args, self.config)
         self.assertTrue(cmd.run())
 
-    def setUp(self):
-        self.config = {'orthrus' : {'directory': self.orthrusdirname}}
-        # Create
-        args = parse_cmdline(self.description, ['create', '-asan'])
-        cmd = OrthrusCreate(args, self.config)
-        cmd.run()
-        # Add job
-        args = parse_cmdline(self.description, ['add', '--job=main @@'])
-        self.add_cmd = OrthrusAdd(args, self.config)
-        self.add_cmd.run()
+    def test_remove_job_abtest(self):
+        # Add abtest job
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--abconf={}'.format(self.abconf_file)])
+        add_cmd = OrthrusAdd(args, self.config)
+        add_cmd.run()
 
-    def tearDown(self):
-        shutil.rmtree(self.orthrusdirname)
+        # Remove abtest job
+        args = parse_cmdline(self.description, ['remove', '-j=' + add_cmd.job.id, '--abtest'])
+        cmd = OrthrusRemove(args, self.config)
+        self.assertTrue(cmd.run())
+
+    @classmethod
+    def setUpClass(cls):
+        # Create
+        args = parse_cmdline(cls.description, ['create', '-asan'])
+        cmd = OrthrusCreate(args, cls.config)
+        cmd.run()
+
+        # abtests set up
+        abconf_dict = {'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast', 'fuzzerB_args': ''}
+        with open(cls.abconf_file, 'w') as abconf_fp:
+            json.dump(abconf_dict, abconf_fp, indent=4)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.orthrusdirname)

@@ -172,36 +172,14 @@ class OrthrusAdd(object):
 
         return True
 
-    def seedjob_routine(self):
+    def seed_job(self, rootdir, id):
 
-        if not util.pprint_decorator_fargs(util.func_wrapper(self.copy_samples, self.job.rootdir),
-                                          'Adding initial samples for job ID [{}]'.format(self.job.id), 2,
+        if not util.pprint_decorator_fargs(util.func_wrapper(self.copy_samples, rootdir),
+                                          'Adding initial samples for job ID [{}]'.format(id), 2,
                                           'seed dir or file invalid. No seeds copied'):
             return False
 
         return True
-
-    def seedjob_abtests(self):
-
-        if not util.pprint_decorator_fargs(util.func_wrapper(self.copy_samples,
-                                                             self.job.rootdir + '/{}'.format(self.job.joba_id)),
-                                          'Adding initial samples for job ID [{}]'.format(self.job.joba_id), 2,
-                                          'seed dir or file invalid. No seeds copied'):
-            return False
-
-        if not util.pprint_decorator_fargs(util.func_wrapper(self.copy_samples,
-                                                             self.job.rootdir + '/{}'.format(self.job.jobb_id)),
-                                          'Adding initial samples for job ID [{}]'.format(self.job.jobb_id), 2,
-                                          'seed dir or file invalid. No seeds copied'):
-            return False
-
-        return True
-
-    def seedjob(self):
-        if self.jobtype == 'routine':
-            return self.seedjob_routine()
-        else:
-            return self.seedjob_abtests()
 
     def write_asan_config(self, afl_in, afl_out, jobroot_dir, fuzzer=None, fuzzer_params=None):
 
@@ -266,63 +244,21 @@ class OrthrusAdd(object):
         self.write_harden_config(afl_in, afl_out, jobroot_dir, fuzzer, fuzzer_params)
         return True
 
-    def process_routine(self):
-
-        afl_dirs = [self.job.rootdir + '/{}'.format(dirname) for dirname in ['afl-in', 'afl-out']]
+    def config_job(self, rootdir, id, fuzzer=None, fuzzer_params=None):
+        afl_dirs = [rootdir + '/{}'.format(dirname) for dirname in ['afl-in', 'afl-out']]
 
         for dir in afl_dirs:
             os.mkdir(dir)
 
         # HT: http://stackoverflow.com/a/13694053/4712439
         if not util.pprint_decorator_fargs(util.func_wrapper(self.config_wrapper, afl_dirs[0], afl_dirs[1],
-                                                             self.job.rootdir),
-                                           'Configuring routine job for ID [{}]'.format(self.job.id), 2):
+                                                             rootdir, fuzzer, fuzzer_params),
+                                           'Configuring {} job for ID [{}]'.format(self.jobtype, id), 2):
             return False
 
         return True
-
-    def process_abtests(self):
-
-        jobs = [self.job.joba_id, self.job.jobb_id]
-        afl_in = [self.job.rootdir + '/{}/afl-in'.format(job) for job in jobs]
-        afl_out = [self.job.rootdir + '/{}/afl-out'.format(job) for job in jobs]
-
-        for entry in afl_in:
-            os.mkdir(entry)
-        for entry in afl_out:
-            os.mkdir(entry)
-
-
-        if not util.pprint_decorator_fargs(util.func_wrapper(self.config_wrapper, afl_in[0], afl_out[0],
-                                                             self.job.rootdir + '/{}'.format(self.job.joba_id),
-                                                             self.job.abconf_data['fuzzerA'],
-                                                             self.job.abconf_data['fuzzerA_args']),
-                                          'Configuring a/b test job for ID [{}]'.format(self.job.joba_id), 2):
-            return False
-
-
-        if not util.pprint_decorator_fargs(util.func_wrapper(self.config_wrapper, afl_in[1], afl_out[1],
-                                                             self.job.rootdir + '/{}'.format(self.job.jobb_id),
-                                                             self.job.abconf_data['fuzzerB'],
-                                                             self.job.abconf_data['fuzzerB_args']),
-                                          'Configuring a/b test job for ID [{}]'.format(self.job.jobb_id), 2):
-            return False
-
-        return True
-
-    def processjob(self):
-
-        if not util.pprint_decorator(self.job.materialize, 'Adding job', 2,
-                                     'Invalid a/b test configuration or existing job found!'):
-            return False
-
-        if self.jobtype == 'routine':
-            return self.process_routine()
-        else:
-            return self.process_abtests()
 
     def extract_job(self, jobroot_dir):
-
         next_session = 0
 
         if not tarfile.is_tarfile(self._args._import):
@@ -358,38 +294,25 @@ class OrthrusAdd(object):
 
         return True
 
-    def importjob_routine(self):
+    def import_job(self, rootdir, id, target, params):
 
-        if not util.pprint_decorator_fargs(util.func_wrapper(self.extract_job, self.job.rootdir),
-                                           'Importing afl sync dir for job ID [{}]'.format(self.job.id),
+        if not util.pprint_decorator_fargs(util.func_wrapper(self.extract_job, rootdir),
+                                           'Importing afl sync dir for job ID [{}]'.format(id),
                                            indent=2):
             return False
-        util.minimize_sync_dir_wrapper(self.job)
+
+        util.minimize_sync_dir(self.orthrusdir, rootdir, id, target, params)
         return True
 
-    def importjob_abtests(self):
-
-        if not util.pprint_decorator_fargs(util.func_wrapper(self.extract_job,
-                                                             self.job.rootdir + '/{}'.format(self.job.joba_id)),
-                                           'Importing afl sync dir for a/b test job ID [{}]'.format(self.job.joba_id),
-                                           indent=2):
+    def run_helper(self, rootdir, id, fuzzer, fuzzer_param):
+        if not self.config_job(rootdir, id, fuzzer, fuzzer_param):
+            return False
+        if self._args._import and not self.import_job(rootdir, id, self.job.target, self.job.params):
+            return False
+        if self._args.sample and not self.seed_job(rootdir, id):
             return False
 
-        if not util.pprint_decorator_fargs(util.func_wrapper(self.extract_job,
-                                                             self.job.rootdir + '/{}'.format(self.job.jobb_id)),
-                                           'Importing afl sync dir for a/b test job ID [{}]'.format(self.job.jobb_id),
-                                           indent=2):
-            return False
-
-        util.minimize_sync_dir_wrapper(self.job)
         return True
-
-    def importjob(self):
-
-        if self.jobtype == 'routine':
-            return self.importjob_routine()
-        else:
-            return self.importjob_abtests()
 
     def run(self):
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Adding fuzzing job to Orthrus workspace")
@@ -407,13 +330,30 @@ class OrthrusAdd(object):
 
         self.job = j.job(self._args.job, self.jobtype, self.orthrusdir, self._args.abconf)
 
-        if not self.processjob():
-            return False
-        if self._args._import and not self.importjob():
-            return False
-        if self._args.sample and not self.seedjob():
+        self.rootdirs = []
+        self.ids = []
+        self.fuzzers = []
+        self.fuzzer_param = []
+
+        if not util.pprint_decorator(self.job.materialize, 'Adding job', 2,
+                                     'Invalid a/b test configuration or existing job found!'):
             return False
 
+        if self.jobtype == 'routine':
+            self.rootdirs.append(self.job.rootdir)
+            self.ids.append(self.job.id)
+            self.fuzzers.append(None)
+            self.fuzzer_param.append(None)
+        else:
+            self.rootdirs.extend((self.job.rootdir + '/{}'.format(self.job.joba_id),
+                                  self.job.rootdir + '/{}'.format(self.job.jobb_id)))
+            self.ids.extend((self.job.joba_id, self.job.jobb_id))
+            self.fuzzers.extend((self.job.fuzzerA, self.job.fuzzerB))
+            self.fuzzer_param.extend((self.job.fuzzerA_args, self.job.fuzzerB_args))
+
+        for rootdir, id, fuzzer, fuzzer_param in zip(self.rootdirs, self.ids, self.fuzzers, self.fuzzer_param):
+            if not self.run_helper(rootdir, id, fuzzer, fuzzer_param):
+                return False
         return True
 
 class OrthrusRemove(object):
@@ -457,19 +397,10 @@ class OrthrusStart(object):
         self.orthrusdir = self._config['orthrus']['directory']
         self.fail_msg = "failed. Are you sure you have done orthrus add --job or passed the " \
                         "right job ID. orthrus show -j might help"
-    
-    def _start_fuzzers(self, jobroot_dir, available_cores):
-        if os.listdir(jobroot_dir + "/afl-out/") == []:
-            start_cmd = "start"
-        else:
-            start_cmd = "resume"
 
-        core_per_subjob = available_cores / 2
-        if core_per_subjob == 0:
-            core_per_subjob = 1
-
+    def check_core_pattern(self):
         cmd = ["cat /proc/sys/kernel/core_pattern"]
-        util.color_print_singleline(util.bcolors.OKGREEN, "Checking core_pattern...")
+        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Checking core_pattern... ")
         try:
             if "core" not in subprocess.check_output(" ".join(cmd), shell=True, stderr=subprocess.STDOUT):
                 util.color_print(util.bcolors.FAIL, "failed")
@@ -479,73 +410,90 @@ class OrthrusStart(object):
         except subprocess.CalledProcessError as e:
             print e.output
             return False
-        util.color_print(util.bcolors.OKGREEN, "okay")
+        util.color_print(util.bcolors.OKGREEN, "done")
+
+    def print_cmd_diag(self, file):
+        output = open(self.orthrusdir + file, "r")
+        for line in output:
+            if "Starting master" in line or "Starting slave" in line:
+                util.color_print(util.bcolors.OKGREEN, "\t\t\t" + line)
+            if " Master " in line or " Slave " in line:
+                util.color_print_singleline(util.bcolors.OKGREEN, "\t\t\t\t" + "[+] " + line)
+        output.close()
+    
+    def _start_fuzzers(self, jobroot_dir, job_type):
+        if os.listdir(jobroot_dir + "/afl-out/") == []:
+            start_cmd = "start"
+        else:
+            start_cmd = "resume"
+
+        '''
+        n = number of cores
+        Half the cores for AFL Harden (1 Master: n/2 - 1 slave)
+        Half the cores for AFL ASAN (n/2 slaves)
+        OR if asan only present
+        1 AFL ASAN Master, n-1 AFL ASAN slaves
+
+        In a/b test mode, each group has
+        Half the cores for AFL Harden (1 Master: n/4 - 1 slave)
+        Half the cores for AFL ASAN (n/4 slaves)
+        OR if asan only present
+        1 AFL ASAN Master, n/2 - 1 AFL ASAN slaves
+        '''
+
+        if job_type == 'routine':
+            core_per_subjob = self.total_cores / 2
+            core_for_asan_only = self.total_cores
+        else:
+            core_per_subjob = self.total_cores / 4
+            core_for_asan_only = self.total_cores / 2
+
+        if core_per_subjob == 0:
+            core_per_subjob = 1
+            if job_type != 'routine':
+                util.color_print(util.bcolors.WARNING, "\t\t\t[-] You do not have sufficient processor cores to carry"
+                                                       " out a scientific a/b test. Consider a routine job instead.")
+
+        self.check_core_pattern()
 
         env = os.environ.copy()
         env.update({'AFL_SKIP_CPUFREQ': '1'})
 
         if os.path.exists(self.orthrusdir + "/binaries/afl-harden"):
-            util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Starting AFL harden fuzzer job as master...")
 
             harden_file = self.orthrusdir + "/logs/afl-harden.log"
             cmd = ["afl-multicore", "--config={}".format(jobroot_dir) + "/harden-job.conf",
                                            start_cmd, str(core_per_subjob), "-v"]
 
-            if not util.run_cmd(" ".join(cmd), env, harden_file):
-                util.color_print(util.bcolors.FAIL, "failed")
+            if not util.pprint_decorator_fargs(util.func_wrapper(util.run_cmd, " ".join(cmd), env, harden_file),
+                                               'Starting AFL harden fuzzer as master', indent=2):
                 return False
 
-            util.color_print(util.bcolors.OKGREEN, "done")
-            
-            output = open(self.orthrusdir + "/logs/afl-harden.log", "r")
-            for line in output:
-                if "Starting master" in line or "Starting slave" in line:
-                    util.color_print(util.bcolors.OKGREEN, "\t\t\t" + line)
-                if " Master " in line or " Slave " in line:
-                    util.color_print_singleline(util.bcolors.OKGREEN, "\t\t\t\t" + "[+] " + line)
-            output.close()
+            self.print_cmd_diag("/logs/afl-harden.log")
             
             if os.path.exists(self.orthrusdir + "/binaries/afl-asan"):
-                util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Starting AFL ASAN fuzzer job as slave...")
                 asan_file = self.orthrusdir + "/logs/afl-asan.log"
                 cmd = ["afl-multicore", "--config={}".format(jobroot_dir) + "/asan-job.conf ", "add", \
                                 str(core_per_subjob), "-v"]
 
-                if not util.run_cmd(" ".join(cmd), env, asan_file):
-                    util.color_print(util.bcolors.FAIL, "failed")
+                if not util.pprint_decorator_fargs(util.func_wrapper(util.run_cmd, " ".join(cmd), env, asan_file),
+                                                   'Starting AFL ASAN fuzzer as slave', indent=2):
                     return False
 
-                util.color_print(util.bcolors.OKGREEN, "done")
-
-                output2 = open(self.orthrusdir + "/logs/afl-asan.log", "r")
-                for line in output2:
-                    if "Starting master" in line or "Starting slave" in line:
-                        util.color_print(util.bcolors.OKGREEN, "\t\t\t" + line)
-                    if " Master " in line or " Slave " in line:
-                        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t\t\t" + "[+] " + line)
-                output2.close()
+                self.print_cmd_diag("/logs/afl-asan.log")
 
         elif os.path.exists(self.orthrusdir + "/binaries/afl-asan"):
 
-            util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Starting AFL ASAN fuzzer job as master...")
             asan_file = self.orthrusdir + "/logs/afl-asan.log"
             cmd = ["afl-multicore", "--config={}".format(jobroot_dir) + "/asan-job.conf", start_cmd, \
-                   str(available_cores), "-v"]
+                   str(core_for_asan_only), "-v"]
 
-            if not util.run_cmd(" ".join(cmd), env, asan_file):
-                util.color_print(util.bcolors.FAIL, "failed")
+            if not util.pprint_decorator_fargs(util.func_wrapper(util.run_cmd, " ".join(cmd), env, asan_file),
+                                               'Starting AFL ASAN fuzzer as master', indent=2):
                 return False
 
-            util.color_print(util.bcolors.OKGREEN, "done")
+            self.print_cmd_diag("/logs/afl-asan.log")
 
-            output2 = open(self.orthrusdir + "/logs/afl-asan.log", "r")
-            for line in output2:
-                if "Starting master" in line or "Starting slave" in line:
-                    util.color_print(util.bcolors.OKGREEN, "\t\t\t" + line)
-                if " Master " in line or " Slave " in line:
-                    util.color_print_singleline(util.bcolors.OKGREEN, "\t\t\t\t" + "[+] " + line)
-            output2.close()
-                
         return True
     
     def compact_sync_dir(self, jobroot_dir):
@@ -610,9 +558,43 @@ class OrthrusStart(object):
                 
         return True
                 
-    def _start_afl_coverage(self):
-        # Run afl-cov as a nohup process
-        return util.run_afl_cov_wrapper(self.job_token, True, self.test)
+    # def _start_afl_coverage(self):
+    #     # Run afl-cov as a nohup process
+    #     return util.run_afl_cov_wrapper(self.job_token, True, self.test)
+
+    def run_helper(self, rootdir, id):
+        if len(os.listdir(rootdir + "/afl-out/")) > 0:
+
+            if not util.pprint_decorator_fargs(util.func_wrapper(self.compact_sync_dir, rootdir),
+                                               'Tidying afl sync dir for job ID [{}]'.format(id),
+                                               indent=2):
+                return False
+
+            if self._args.minimize:
+                if not util.pprint_decorator_fargs(util.func_wrapper(util.minimize_sync_dir, self.orthrusdir, rootdir,
+                                                                     id, self.job_token.target, self.job_token.params),
+                                                   'Minimizing afl sync dir for job ID [{}]'.format(id),
+                                                   indent=2):
+                    return False
+
+        if not util.pprint_decorator_fargs(util.func_wrapper(self._start_fuzzers, rootdir, self.job_token.type),
+                                           'Starting fuzzer for job ID [{}]'.format(id), indent=2):
+            try:
+                subprocess.call("pkill -9 afl-fuzz", shell=True, stderr=subprocess.STDOUT)
+            except OSError, subprocess.CalledProcessError:
+                return False
+            return False
+
+        # Live coverage is only supported for routine jobs
+        # To support live coverage for abtests jobs, we would need to create two code base dir each with a gcno file
+        # set due to the way gcov works.
+        if self._args.coverage and not self._args.abtest:
+            if not util.pprint_decorator_fargs(util.func_wrapper(util.run_afl_cov, self.orthrusdir, rootdir,
+                                                                self.job_token.target, self.job_token.params, True,
+                                                                self.test),
+                                               'Starting afl-cov for job ID [{}]'.format(id), indent=2):
+                return False
+        return True
         
     def run(self):
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Starting fuzzing jobs")
@@ -622,70 +604,21 @@ class OrthrusStart(object):
                                      fail_msg=self.fail_msg):
             return False
 
-
-        # util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Check Orthrus workspace... ")
-        #
-        # orthrus_root = self.orthrusdir
-        # if not util.validate_job(orthrus_root, self._args.job_id):
-        #     util.color_print(util.bcolors.FAIL, "failed. Are you sure you have done orthrus add --job or passed the "
-        #                                         "right job ID. orthrus show -j might help")
-        #     return False
-        #
-        # util.color_print(util.bcolors.OKGREEN, "done")
+        self.total_cores = int(util.getnproc())
+        self.rootdirs = []
+        self.ids = []
 
         if self.job_token.type == 'routine':
-            total_cores = int(util.getnproc())
-
-            if len(os.listdir(self.job_token.rootdir + "/afl-out/")) > 0:
-
-                if not util.pprint_decorator_fargs(util.func_wrapper(self.compact_sync_dir, self.job_token.rootdir),
-                                                   'Tidying afl sync dir for job ID [{}]'.format(self.job_token.id),
-                                                   indent=2):
-                    return False
-
-                # util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Tidy fuzzer sync dir... ")
-                #
-                # if not self.compact_sync_dir(jobId):
-                #     util.color_print(util.bcolors.FAIL, "failed")
-                #     return False
-                # util.color_print(util.bcolors.OKGREEN, "done")
-
-                if self._args.minimize:
-                    if not util.pprint_decorator_fargs(util.func_wrapper(util.minimize_sync_dir_wrapper, self.job_token),
-                                                       'Minimizing afl sync dir for job ID [{}]'.format(self.job_token.id),
-                                                       indent=2):
-                        return False
-
-            if not util.pprint_decorator_fargs(util.func_wrapper(self._start_fuzzers, self.job_token.rootdir, total_cores),
-                                                'Starting fuzzer for job ID [{}]'.format(self.job_token.id), indent=2):
-                try:
-                    subprocess.call("pkill -9 afl-fuzz", shell=True, stderr=subprocess.STDOUT)
-                except OSError, subprocess.CalledProcessError:
-                    return False
-                return False
-
-            # util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Start Fuzzers for Job [" + jobId + "]... ")
-            # if not self._start_fuzzers(jobId, total_cores):
-            #     try:
-            #         subprocess.call("pkill -9 afl-fuzz", shell=True, stderr=subprocess.STDOUT)
-            #     except OSError, subprocess.CalledProcessError:
-            #         return False
-            #     return False
-
-            if self._args.coverage:
-                if not util.pprint_decorator(self._start_afl_coverage,
-                                                'Starting afl-cov for job ID [{}]'.format(self.job_token.id), indent=2):
-                    return False
-
-                # util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Start afl-cov for Job "
-                #                                                   "[" + jobId + "]... ")
-                # if not self._start_afl_coverage(jobId):
-                #     util.color_print(util.bcolors.FAIL + "failed" + util.bcolors.ENDC + "\n")
-                #     return False
-                # util.color_print(util.bcolors.OKGREEN, "done")
-
+            self.rootdirs.append(self.job_token.rootdir)
+            self.ids.append(self.job_token.id)
         else:
-            pass
+            self.rootdirs.extend((self.job_token.rootdir + '/{}'.format(self.job_token.joba_id),
+                                 self.job_token.rootdir + '/{}'.format(self.job_token.jobb_id)))
+            self.ids.extend((self.job_token.joba_id, self.job_token.jobb_id))
+
+        for rootdir, id in zip(self.rootdirs, self.ids):
+            if not self.run_helper(rootdir, id):
+                return False
 
         return True
     
@@ -733,12 +666,16 @@ class OrthrusStop(object):
         return True
 
     def stop_abtests(self):
-        util.color_print_singleline(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Stopping a/b fuzzing jobs...")
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Stopping a/b fuzzing jobs")
         job_token = j.jobtoken(self.orthrusdir, self._args.abtest)
+
+        if not util.pprint_decorator(job_token.materialize, 'Retrieving job', indent=2):
+            return False
+
+        kill_fuzz_cmd = ["pkill", "-9"]
         fuzzers = [job_token.fuzzerA, job_token.fuzzerB]
-        kill_fuzz_cmd = ["pkill", "-9"].extend(fuzzers)
+        kill_fuzz_cmd.extend(fuzzers)
         util.run_cmd(" ".join(kill_fuzz_cmd))
-        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "done")
         return True
 
     def run(self):

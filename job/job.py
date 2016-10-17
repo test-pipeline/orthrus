@@ -153,6 +153,10 @@ class job(object):
             self.joba_id = str(binascii.crc32(self.fuzz_cmd+'control') & 0xffffffff)
             self.jobb_id = str(binascii.crc32(self.fuzz_cmd + 'experiment') & 0xffffffff)
             self.rootdir = self.orthrusdir + ABTESTSDIR + '/{}'.format(self.id)
+            self.fuzzerA = self.abconf_data['fuzzerA']
+            self.fuzzerA_args = self.abconf_data['fuzzerA_args']
+            self.fuzzerB = self.abconf_data['fuzzerB']
+            self.fuzzerB_args = self.abconf_data['fuzzerB_args']
 
         # Check if ID exists in jobs.conf
         if does_id_exist(self.jobsconf, self.id):
@@ -189,7 +193,9 @@ class jobtoken(object):
             self.joba_id = self._jobdesc['jobA_id']
             self.jobb_id = self._jobdesc['jobB_id']
             self.fuzzerA = self._jobdesc['fuzzerA']
+            self.fuzzerA_args = self._jobdesc['fuzzerA_args']
             self.fuzzerB = self._jobdesc['fuzzerB']
+            self.fuzzerB_args = self._jobdesc['fuzzerB_args']
         else:
             self.rootdir = self.orthrusdir + ROUTINEDIR + '/{}'.format(self.id)
         return True

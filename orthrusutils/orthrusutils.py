@@ -352,12 +352,12 @@ def which(progname):
         return ''
     return os.path.abspath(path)
 
-def run_afl_cov_wrapper(job_object, livemode=False, test=False):
-    if job_object.type == 'abtests':
-        pass
-    else:
-        return run_afl_cov(job_object.orthrusdir, job_object.rootdir, job_object.target, job_object.params, livemode,
-                           test)
+# def run_afl_cov_wrapper(job_object, livemode=False, test=False):
+#     if job_object.type == 'abtests':
+#         pass
+#     else:
+#         return run_afl_cov(job_object.orthrusdir, job_object.rootdir, job_object.target, job_object.params, livemode,
+#                            test)
 
 def run_afl_cov(orthrus_dir, jobroot_dir, target_arg, params, livemode=False, test=False):
     target = orthrus_dir + "/binaries/coverage/bin/" + \
