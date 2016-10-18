@@ -21,6 +21,8 @@ gcc = on
 afl-fuzz-fast = on
 
 ```
+
+```
 $ orthrus validate
 [+] Validating Orthrus dependencies
                 [+] The following programs have been marked as required in ~/.orthrus/orthrus.conf
