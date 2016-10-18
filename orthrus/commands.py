@@ -9,7 +9,6 @@ import subprocess
 import random
 import glob
 import webbrowser
-import ConfigParser
 import tarfile
 import time
 import json
@@ -23,7 +22,8 @@ class OrthrusCreate(object):
         self.args = args
         self.config = config
         self.orthrusdirs = ['binaries', 'conf', 'logs', 'jobs', 'archive']
-        self.fail_msg_bin = "failed. Looks like make install did not build any ELF binaries that we can fuzz"
+        self.fail_msg_bin = "Could not find ELF binaries. While we cannot guarantee " \
+                            "that all libraries were instrumented correctly, they most likely were."
 
     def verifycmd(self, cmd):
         try:
@@ -79,13 +79,11 @@ class OrthrusCreate(object):
 
         util.copy_binaries(install_path + "bin/")
 
-        ## Verify instrumentation
-        # sample_binpath = random.choice(glob.glob(install_path + 'bin/*'))
-
         # Fixes https://github.com/test-pipeline/orthrus/issues/1
+        # Soft fail when no ELF binaries found.
         binary_paths = util.return_elf_binaries(install_path + 'bin/')
         if not util.pprint_decorator_fargs(binary_paths, 'Looking for ELF binaries', 2, fail_msg=self.fail_msg_bin):
-            return False
+            return True
 
         sample_binpath = random.choice(binary_paths)
 
