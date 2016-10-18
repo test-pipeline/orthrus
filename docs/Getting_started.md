@@ -42,3 +42,8 @@ $ sudo apt-get install lcov
 ```
 $ (sudo) python2.7 setup.py install
 ```
+
+[1]: http://lcamtuf.coredump.cx/afl/
+[2]: https://github.com/rc0r/afl-utils/tree/v1.27a
+[3]: https://github.com/mrash/afl-cov/
+

@@ -43,7 +43,7 @@ $ orthrus validate
 
 ## Step 2: Create instrumented binaries
 
-Creating binaries is no different for A/B testing. Please read step 2 of [docs/Workflow.md](Workflow.md) if you haven't already. Please note that fuzzed binaries are identical for both the control (A) and experiment (B) groups.
+Creating binaries is no different for A/B testing. Please read step 2 of [docs/Workflow.md](https://github.com/test-pipeline/orthrus/blob/dev/docs/Workflow.md#step-2-create-instrumented-binaries) if you haven't already. Please note that fuzzed binaries are identical for both the control (A) and experiment (B) groups.
 
 
 ## Step 3: Add/Remove fuzzing job
@@ -267,6 +267,6 @@ Experiment group
 
 ## Step 8: Destroy orthrus session
 
-See [Step 8 of Workflow]()
+See [Step 8 of Workflow](https://github.com/test-pipeline/orthrus/blob/dev/docs/Workflow.md#step-8-destroy-orthrus-session)
 
 [1]: https://groups.google.com/d/msg/afl-users/fOPeb62FZUg/LYxgPYheDwAJ
