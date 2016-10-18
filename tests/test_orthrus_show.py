@@ -56,6 +56,22 @@ class TestOrthrusShow(unittest.TestCase):
         cmd = OrthrusShow(args, self.config, True)
         self.assertTrue(cmd.run())
 
+    def test_show_cov_abtest(self):
+        # Start/sleep/stop job
+        args = parse_cmdline(self.description, ['start', '-j', self.add_cmd_abtest.job.id, '-c'])
+        start_cmd = OrthrusStart(args, self.config, True)
+        start_cmd.run()
+        # Long sleep so that afl-cov catches up
+        time.sleep(2*TEST_SLEEP)
+        args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd_abtest.job.id])
+        stop_cmd = OrthrusStop(args, self.config)
+        stop_cmd.run()
+        # Sleep again so afl-cov finishes
+        time.sleep(TEST_SLEEP)
+        args = parse_cmdline(self.description, ['show', '-j', self.add_cmd_abtest.job.id, '-cov'])
+        cmd = OrthrusShow(args, self.config, True)
+        self.assertTrue(cmd.run())
+
     @classmethod
     def setUpClass(cls):
         # Create

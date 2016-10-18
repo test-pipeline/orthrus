@@ -218,64 +218,55 @@ dir, reseeds it with the minimized seeds, and resumes fuzzing
 
 ## Step 5: Monitor test coverage (via afl-cov)
 
-You can monitor the coverage of your a/b test jobs offline. To do so, type:
-
-```
-$ orthrus coverage -j 1167520733
-[+] Checking test coverage for job [1167520733]... done
-                [+] Please check .orthrus/jobs/1167520733/afl-out/cov for coverage info
-```
-
-Note that live AFL coverage via afl-cov is unsupported for a/b test jobs.
+Monitoring test coverage for a/b tests is WIP
 
 ## Step 6: Triage crashes (via afl-utils/exploitable)
 
-- To triage an existing AFL corpus, do
-```
-$ orthrus triage -j 1167520733
-[+] Triaging crashes for job [1167520733]
-                [+] Collect and verify 'harden' mode crashes... done
-                [+] Tidying crash dir...done!
-                [+] Collect and verify 'asan' mode crashes... done
-                [+] Tidying crash dir...done!
-                [+] Collect and verify 'all' mode crashes... done
-                [+] Tidying crash dir...done!
-                [+] Triaged 15 crashes. See .orthrus/jobs/1167520733/unique/
-```
+Triaging crashes for A/B tests is WIP
 
 ## Step 7: User interface for fuzz status and coverage
 
 - You may view configured jobs, like so
 ```
-$ orthrus show -j
-Configured jobs found:
-        0) [1167520733] main @@
+$ orthrus show -conf
+Configured a/b tests:
+	0) [1271685425] main @@
+	Control group
+	Fuzzer A: afl-fuzz	 Fuzzer A args: 
+	Experiment group
+	Fuzzer B: afl-fuzz-fast	 Fuzzer B args: 
 ```
 
 - You may view the current status of afl-fuzz instances (via afl-whatsup)
 ```
-$ orthrus show
-Status of jobs:
-        Job [1167520733] for target 'main':
-               Fuzzers alive : 0
-              Dead or remote : 2 (excluded from stats)
-              Total run time : 0 days, 0 hours
-                 Total execs : 0 million
-            Cumulative speed : 0 execs/sec
-               Pending paths : 0 faves, 0 total
-               Crashes found : 0 locally unique
-
-             Triaged crashes : 0 available
+$ orthrus show -j 1271685425
+A/B test status
+Control group
+	       Fuzzers alive : 2
+	      Total run time : 0 days, 0 hours
+	         Total execs : 0 million
+	    Cumulative speed : 0 execs/sec
+	       Pending paths : 2 faves, 2 total
+	  Pending per fuzzer : 1 faves, 1 total (on average)
+	       Crashes found : 0 locally unique
+	
+	     Triaged crashes : 0
+Experiment group
+	       Fuzzers alive : 2
+	      Total run time : 0 days, 0 hours
+	         Total execs : 0 million
+	    Cumulative speed : 0 execs/sec
+	       Pending paths : 2 faves, 2 total
+	  Pending per fuzzer : 1 faves, 1 total (on average)
+	       Crashes found : 0 locally unique
+	
+	     Triaged crashes : 0
 ```
 
-- You may view coverage report (via afl-cov)
-```
-$ orthrus show -c
-Opening coverage html for job 1167520733 in a new browser tab
-```
+- Coverage measurement for A/B tests is WIP.
 
 ## Step 8: Destroy orthrus session
 
 See [Step 8 of Workflow]()
 
-[1]: 
+[1]: https://groups.google.com/d/msg/afl-users/fOPeb62FZUg/LYxgPYheDwAJ

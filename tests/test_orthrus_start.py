@@ -52,6 +52,13 @@ class TestOrthrusStart(unittest.TestCase):
         cmd = OrthrusStart(args, self.config)
         self.assertTrue(cmd.run())
 
+    def test_start_coverage_abtest(self):
+        self.is_coverage = True
+        self.is_abtest = True
+        args = parse_cmdline(self.description, ['start', '-j', self.add_cmd_abtest.job.id, '-c'])
+        cmd = OrthrusStart(args, self.config)
+        self.assertTrue(cmd.run())
+
     def setUp(self):
         self.is_coverage = False
         self.is_abtest = False

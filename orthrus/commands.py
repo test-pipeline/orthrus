@@ -515,13 +515,18 @@ class OrthrusStart(object):
         # Live coverage is only supported for routine jobs
         # To support live coverage for abtests jobs, we would need to create two code base dir each with a gcno file
         # set due to the way gcov works.
-        if self._args.coverage and self.job_token.type == 'routine':
-            if not util.pprint_decorator_fargs(util.func_wrapper(util.run_afl_cov, self.orthrusdir, rootdir,
-                                                                self.job_token.target, self.job_token.params, True,
-                                                                self.test),
-                                               'Starting afl-cov for {} job ID [{}]'.format(self.job_token.type, id),
-                                               indent=2):
-                return False
+        if self._args.coverage:
+            if self.job_token.type == 'routine':
+                if not util.pprint_decorator_fargs(util.func_wrapper(util.run_afl_cov, self.orthrusdir, rootdir,
+                                                                    self.job_token.target, self.job_token.params, True,
+                                                                    self.test),
+                                                   'Starting afl-cov for {} job ID [{}]'.format(self.job_token.type, id),
+                                                   indent=2):
+                    return False
+            else:
+                util.color_print(util.bcolors.WARNING, "\t\t[+] Live coverage for a/b tests is not supported at the"
+                                                       " moment")
+                return True
         return True
         
     def run(self):
@@ -698,17 +703,6 @@ class OrthrusShow(object):
         util.color_print(util.bcolors.OKBLUE, "\t     Triaged crashes : " + str(triaged_unique))
         return True
 
-    # def whatsup_routine(self):
-    #     for routine_job in self.routine_list:
-    #         id = routine_job['id']
-    #         target = routine_job['target']
-    #         # params = routine_job['params']
-    #         syncdir = '{}/{}/afl-out'.format(self.routinedir, id)
-    #         util.color_print(util.bcolors.OKBLUE, "\tJob [" + id + "] " + "for target '" + target + "':")
-    #         if not self.whatsup(syncdir):
-    #             return False
-    #     return True
-
     def whatsup_abtests(self, control_sync, exp_sync):
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "A/B test status")
         util.color_print(util.bcolors.OKBLUE, "Control group")
@@ -764,8 +758,11 @@ class OrthrusShow(object):
             util.color_print(util.bcolors.OKGREEN, "\t[+] Opening coverage in new browser tabs")
             return self.opencov('{}/afl-out'.format(self.job_token.rootdir), self.job_token.type, self.job_token.id)
         else:
-            util.color_print(util.bcolors.OKGREEN, "\t[+] Opening A/B test coverage in new browser tabs")
-            return self.opencov_abtests()
+            util.color_print(util.bcolors.WARNING, "\t[+] Coverage interface for A/B tests is not supported at the "
+                                                   "moment")
+            return True
+            # util.color_print(util.bcolors.OKGREEN, "\t[+] Opening A/B test coverage in new browser tabs")
+            # return self.opencov_abtests()
 
     def run(self):
         if self._args.job_id:
@@ -777,59 +774,12 @@ class OrthrusShow(object):
             return self.show_conf()
         return True
 
-    # def run(self):
-    #     job_config = ConfigParser.ConfigParser()
-    #     job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-    #     if self._args.jobs:
-    #         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Configured jobs found:")
-    #         for num, section in enumerate(job_config.sections()):
-    #             t = job_config.get(section, "target")
-    #             p = job_config.get(section, "params")
-    #             util.color_print(util.bcolors.OKGREEN, "\t" + str(num) + ") [" + section + "] " + t + " " + p)
-    #     elif self._args.cov:
-    #         for jobId in job_config.sections():
-    #             cov_web_indexhtml = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/" + \
-    #                                 "cov/web/index.html"
-    #             if os.path.exists(cov_web_indexhtml):
-    #                 util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Opening coverage html for job {} "
-    #                                                                           "in a new browser tab".format(jobId))
-    #                 # Early return for tests
-    #                 if self.test:
-    #                     return True
-    #                 webbrowser.open_new_tab(cov_web_indexhtml)
-    #             else:
-    #                 util.color_print(util.bcolors.INFO, "No coverage info at {}. Have you run orthrus coverage or"
-    #                                                     " orthrus start -c already?".format(cov_web_indexhtml))
-    #                 return False
-    #     else:
-    #         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Status of jobs:")
-    #
-    #         for jobId in job_config.sections():
-    #             syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/"
-    #             try:
-    #                 output = subprocess.check_output(["afl-whatsup", "-s", syncDir])
-    #             except subprocess.CalledProcessError as e:
-    #                 print e.output
-    #                 return False
-    #             output = output[output.find("==\n\n") + 4:]
-    #
-    #             util.color_print(util.bcolors.OKBLUE, "\tJob [" + jobId + "] " + "for target '" +
-    #                              job_config.get(jobId, "target") + "':")
-    #             for line in output.splitlines():
-    #                 util.color_print(util.bcolors.OKBLUE, "\t" + line)
-    #             triaged_unique = 0
-    #             if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/"):
-    #                 triaged_unique = len(glob.glob(self._config['orthrus']['directory'] + "/jobs/" + jobId +
-    #                                                "/unique/*id*sig*"))
-    #             util.color_print(util.bcolors.OKBLUE, "\t     Triaged crashes : " + str(triaged_unique) + " available")
-    #
-    #     return True
-
 class OrthrusTriage(object):
     
     def __init__(self, args, config):
         self._args = args
         self._config = config
+        self.orthrusdir = self._config['orthrus']['directory']
 
     def tidy(self, crash_dir):
 
