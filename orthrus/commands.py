@@ -783,14 +783,20 @@ class OrthrusShow(object):
 
 class OrthrusTriage(object):
     
-    def __init__(self, args, config):
+    def __init__(self, args, config, test=False):
         self._args = args
         self._config = config
         self.orthrusdir = self._config['orthrus']['directory']
+        self.fail_msg = "failed. Are you sure you have done orthrus add --job or passed the " \
+                         "right job ID? orthrus show -j might help."
+        self.is_harden = os.path.exists(self.orthrusdir + "/binaries/afl-harden")
+        self.is_asan = os.path.exists(self.orthrusdir + "/binaries/afl-asan")
+        self.jobsconf = self.orthrusdir + j.JOBCONF
+        self.routinedir = self.orthrusdir + j.ROUTINEDIR
+        self.abtestsdir = self.orthrusdir + j.ABTESTSDIR
+        self.test = test
 
     def tidy(self, crash_dir):
-
-        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Tidying crash dir...")
 
         dest = crash_dir + "/.scripts"
         if not os.path.exists(dest):
@@ -799,13 +805,9 @@ class OrthrusTriage(object):
         for script in glob.glob(crash_dir + "/gdb_script*"):
             shutil.move(script, dest)
 
-        util.color_print(util.bcolors.OKGREEN, "done!")
         return True
 
-    def triage(self, jobId, inst, indir=None, outdir=None):
-        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Collect and verify '{}' mode crashes... "
-                                    .format(inst))
-
+    def triage(self, jobroot_dir, inst, indir=None, outdir=None):
         env = os.environ.copy()
         asan_flag = {}
         asan_flag['ASAN_OPTIONS'] = "abort_on_error=1:disable_coredump=1:symbolize=1"
@@ -821,83 +823,82 @@ class OrthrusTriage(object):
             return False
 
         if not indir:
-            syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/"
+            syncDir = jobroot_dir + "/afl-out/"
         else:
             syncDir = indir
 
         if not outdir:
-            dirname = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/exploitable/" + \
-                      "{}/".format(prefix) + "crashes"
+            dirname = jobroot_dir + "/exploitable/" + "{}/".format(prefix) + "crashes"
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
             triage_outDir = dirname
         else:
             triage_outDir = outdir
 
-        logfile = self._config['orthrus']['directory'] + "/logs/" + "afl-{}_dbg.log".format(inst)
-        launch = self._config['orthrus']['directory'] + "/binaries/{}-dbg/bin/".format(inst) + \
-                 self.job_config.get(jobId, "target") + " " + \
-                 self.job_config.get(jobId, "params").replace("&", "\&")
+        logfile = self.orthrusdir + "/logs/" + "afl-{}_dbg.log".format(inst)
+        launch = self.orthrusdir + "/binaries/{}-dbg/bin/".format(inst) + \
+                 self.job_token.target + " " + \
+                 self.job_token.params.replace("&", "\&")
         cmd = " ".join(["afl-collect", "-r", "-j", util.getnproc(), "-e gdb_script",
                         syncDir, triage_outDir, "--", launch])
-        rv = util.run_cmd("ulimit -c 0; " + cmd, env, logfile)
-        if not rv:
-            util.color_print(util.bcolors.FAIL, "failed")
-            return rv
 
-        util.color_print(util.bcolors.OKGREEN, "done")
+        if not util.pprint_decorator_fargs(util.func_wrapper(util.run_cmd, "ulimit -c 0; " + cmd, env, logfile),
+                                           'Triaging {} job ID [{}]'.format(self.job_token.type, self.job_token.id),
+                                           indent=2):
+            return False
 
-        if not self.tidy(triage_outDir):
+        if not util.pprint_decorator_fargs(util.func_wrapper(self.tidy, triage_outDir), 'Tidying crash dir',
+                                           indent=2):
             return False
 
         return True
 
-    def run(self):
+    def prepare_for_rerun(self, jobroot_dir):
+        util.color_print(util.bcolors.OKGREEN, "[?] Rerun triaging? [y/n]...: ")
 
-        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Check Orthrus workspace... ")
-
-        orthrus_root = self._config['orthrus']['directory']
-        if not util.validate_job(orthrus_root, self._args.job_id):
-            util.color_print(util.bcolors.FAIL, "failed. Are you sure you have done orthrus add --job or passed the "
-                                                "right job ID. orthrus show -j might help")
+        if not self.test and 'y' not in sys.stdin.readline()[0]:
             return False
 
-        util.color_print(util.bcolors.OKGREEN, "done")
-        self.job_config = ConfigParser.ConfigParser()
-        self.job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-        jobId = self._args.job_id
+        shutil.move(jobroot_dir + "/unique/", jobroot_dir + "/unique." + time.strftime("%Y-%m-%d-%H:%M:%S"))
+        os.mkdir(jobroot_dir + "/unique/")
+        return True
 
-        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Triaging crashes for job [" \
-                         + jobId + "]")
-
-        if not os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/"):
-            os.mkdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
+    def make_unique_dirs(self, jobroot_dir):
+        unique_dir = '{}/unique'.format(jobroot_dir)
+        if not os.path.exists(unique_dir):
+            os.mkdir(unique_dir)
+            return True
         else:
-            util.color_print(util.bcolors.OKGREEN, "[?] Rerun triaging? [y/n]...: ")
+            return False
 
-            if 'y' not in sys.stdin.readline()[0]:
-                return True
+    def triage_wrapper(self, jobroot_dir, job_id):
+        if not self.make_unique_dirs(jobroot_dir) and not self.prepare_for_rerun(jobroot_dir):
+            return False
 
-            shutil.move(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/",
-                        self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique." \
-                        + time.strftime("%Y-%m-%d-%H:%M:%S"))
-            os.mkdir(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/")
 
-        if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
-            if not self.triage(jobId, 'harden'):
+        if self.is_harden:
+            if not util.pprint_decorator_fargs(util.func_wrapper(self.triage, jobroot_dir, 'harden'),
+                                               'Triaging harden mode crashes for {} job ID [{}]'.format(
+                                                   self.job_token.type, job_id), indent=2):
                 return False
-        if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-asan"):
-            if not self.triage(jobId, 'asan'):
+
+        if self.is_asan:
+            if not util.pprint_decorator_fargs(util.func_wrapper(self.triage, jobroot_dir, 'asan'),
+                                               'Triaging asan mode crashes for {} job ID [{}]'.format(
+                                                   self.job_token.type, job_id), indent=2):
                 return False
 
         #Second pass over all exploitable crashes
-        exp_path = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/exploitable/"
-        uniq_path = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/"
+        exp_path = jobroot_dir + "/exploitable/"
+        uniq_path = jobroot_dir + "/unique/"
         if os.path.exists(exp_path):
-            if not self.triage(jobId, 'all', exp_path, uniq_path):
+            if not util.pprint_decorator_fargs(util.func_wrapper(self.triage, jobroot_dir, 'all', exp_path,
+                                                                 uniq_path),
+                                               'Triaging all mode crashes for {} job ID [{}]'.format(
+                                                   self.job_token.type, job_id), indent=2):
                 return False
 
-        triaged_crashes = os.listdir(uniq_path)
+        triaged_crashes = glob.glob(uniq_path + "*id*sig*")
         util.color_print(util.bcolors.OKGREEN, "\t\t[+] Triaged " + str(len(triaged_crashes)) + \
                          " crashes. See {}".format(uniq_path))
         if not triaged_crashes:
@@ -906,33 +907,68 @@ class OrthrusTriage(object):
 
         return True
 
+    def triage_abtests(self):
+        for rootdir,id in [('{}/{}'.format(self.job_token.rootdir, jobId), jobId) for jobId in [self.job_token.joba_id,
+                                                                                    self.job_token.jobb_id]]:
+            if id == self.job_token.joba_id:
+                group = 'control'
+            else:
+                group = 'experiment'
+
+            if not util.pprint_decorator_fargs(util.func_wrapper(self.triage_wrapper, rootdir, id),
+                                               'Triaging crashes in {} group'.format(group), indent=2):
+                return False
+
+        return True
+
+    def run(self):
+        self.job_token = j.jobtoken(self.orthrusdir, self._args.job_id)
+
+        if not util.pprint_decorator(self.job_token.materialize, 'Retrieving job ID [{}]'.format(self.job_token.id),
+                                     indent=2, fail_msg=self.fail_msg):
+            return False
+
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Triaging crashes for {} job ID [{}]".format(
+            self.job_token.type, self.job_token.id))
+
+        if self.job_token.type == 'routine':
+            return self.triage_wrapper(self.job_token.rootdir, self.job_token.id)
+            # return self.triage_routine()
+        else:
+            return self.triage_abtests()
+
 class OrthrusCoverage(object):
 
     def __init__(self, args, config):
         self._args = args
         self._config = config
+        self.orthrusdir = self._config['orthrus']['directory']
+        self.fail_msg = "failed. Are you sure you have done orthrus add --job or passed the " \
+                         "right job ID? orthrus show -j might help."
 
     def run(self):
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Checking coverage for job ID [{}]".format(
+            self._args.job_id))
 
-        util.color_print_singleline(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Checking test coverage for job [" \
-                 + self._args.job_id + "]... ")
-        orthrus_root = self._config['orthrus']['directory']
-        if not util.validate_job(orthrus_root, self._args.job_id):
-            util.color_print(util.bcolors.FAIL, "failed. Are you sure you have done orthrus add --job or passed the "
-                                                "right job ID. orthrus show -j might help")
+        self.job_token = j.jobtoken(self.orthrusdir, self._args.job_id)
+
+        if not util.pprint_decorator(self.job_token.materialize, 'Retrieving job ID [{}]'.format(self.job_token.id),
+                                     indent=2, fail_msg=self.fail_msg):
             return False
 
-        jobId = self._args.job_id
-        self.job_config = ConfigParser.ConfigParser()
-        self.job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
+        if self.job_token.type == 'abtests':
+            util.color_print(util.bcolors.WARNING, "\t[+] Coverage interface for A/B tests is not supported at the "
+                                                   "moment")
+            return True
 
+        util.color_print(util.bcolors.OKGREEN, "\t\t[+] Checking test coverage for {} job ID [{}]".format(
+            self.job_token.type, self.job_token.id))
 
-        util.run_afl_cov(orthrus_root, jobId, self.job_config.get(jobId, "target"),
-                         self.job_config.get(jobId, "params"))
+        #run_afl_cov(orthrus_dir, jobroot_dir, target_arg, params, livemode=False, test=False):
+        util.run_afl_cov(self.orthrusdir, self.job_token.rootdir, self.job_token.target, self.job_token.params)
 
-        util.color_print(util.bcolors.OKGREEN, "done")
-        util.color_print(util.bcolors.OKGREEN, "\t\t[+] Please check {} for coverage info"
-                         .format(orthrus_root+"/jobs/"+jobId+"/afl-out/""cov"))
+        util.color_print(util.bcolors.OKGREEN, "\t\t[+] This might take a while. Please check {} for progress."
+                         .format(self.job_token.rootdir + "/afl-out/cov/afl-cov.log"))
         return True
 
 class OrthrusDestroy(object):

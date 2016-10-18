@@ -1,4 +1,3 @@
-import time
 import unittest
 from orthrus.commands import *
 from orthrusutils.orthrusutils import *
@@ -7,28 +6,57 @@ class TestOrthrusTriage(unittest.TestCase):
 
     description = 'Test harness'
     orthrusdirname = '.orthrus'
+    config = {'orthrus': {'directory': orthrusdirname}}
+    abconf_file = orthrusdirname + '/conf/abconf.conf'
 
     def test_triage(self):
-        args = parse_cmdline(self.description, ['triage', '-j', self.cmd.jobId])
+        args = parse_cmdline(self.description, ['triage', '-j', self.add_cmd.job.id])
         cmd = OrthrusTriage(args, self.config)
         self.assertTrue(cmd.run())
 
-    def setUp(self):
-        self.config = {'orthrus' : {'directory': self.orthrusdirname}}
-        args = parse_cmdline(self.description, ['create', '-asan', '-fuzz'])
-        cmd = OrthrusCreate(args, self.config)
-        cmd.run()
-        args = parse_cmdline(self.description, ['add', '--job=main @@',
-                                                '-s=./seeds'])
-        self.cmd = OrthrusAdd(args, self.config)
-        self.assertTrue(self.cmd.run())
-        args = parse_cmdline(self.description, ['start', '-j', self.cmd.jobId])
-        cmd = OrthrusStart(args, self.config)
-        self.assertTrue(cmd.run())
-        time.sleep(2*TEST_SLEEP)
-        args = parse_cmdline(self.description, ['stop'])
-        cmd = OrthrusStop(args, self.config)
+    def test_triage_abtest(self):
+        args = parse_cmdline(self.description, ['triage', '-j', self.add_cmd_abtest.job.id])
+        cmd = OrthrusTriage(args, self.config)
         self.assertTrue(cmd.run())
 
-    def tearDown(self):
-        shutil.rmtree(self.orthrusdirname)
+    @classmethod
+    def setUpClass(cls):
+        # Create
+        args = parse_cmdline(cls.description, ['create', '-asan', '-fuzz'])
+        cmd = OrthrusCreate(args, cls.config)
+        cmd.run()
+        # Add routine job
+        args = parse_cmdline(cls.description, ['add', '--job=main @@',
+                                                '-s=./seeds'])
+        cls.add_cmd = OrthrusAdd(args, cls.config)
+        cls.add_cmd.run()
+        # Start routine job fuzzing
+        args = parse_cmdline(cls.description, ['start', '-j', cls.add_cmd.job.id])
+        cmd = OrthrusStart(args, cls.config)
+        cmd.run()
+        time.sleep(2*TEST_SLEEP)
+        # Stop routine job fuzzing
+        args = parse_cmdline(cls.description, ['stop', '-j', cls.add_cmd.job.id])
+        cmd = OrthrusStop(args, cls.config)
+        cmd.run()
+        # Add a/b test job
+        abconf_dict = {'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast', 'fuzzerB_args': ''}
+        with open(cls.abconf_file, 'w') as abconf_fp:
+            json.dump(abconf_dict, abconf_fp, indent=4)
+        args = parse_cmdline(cls.description, ['add', '--job=main @@', '-s=./seeds', '--abconf={}'.
+                             format(cls.abconf_file)])
+        cls.add_cmd_abtest = OrthrusAdd(args, cls.config)
+        cls.add_cmd_abtest.run()
+        # Start a/b test job
+        args = parse_cmdline(cls.description, ['start', '-j', cls.add_cmd_abtest.job.id])
+        cmd = OrthrusStart(args, cls.config)
+        cmd.run()
+        time.sleep(2 * TEST_SLEEP)
+        # Stop a/b test job
+        args = parse_cmdline(cls.description, ['stop', '-j', cls.add_cmd_abtest.job.id])
+        cmd = OrthrusStop(args, cls.config)
+        cmd.run()
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.orthrusdirname)

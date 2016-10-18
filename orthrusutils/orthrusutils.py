@@ -187,7 +187,7 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
 
     # Command 'triage'
     triage_parser = subparsers.add_parser('triage', help=TRIAGE_HELP)
-    triage_parser.add_argument('-j', '--job-id', nargs='?',
+    triage_parser.add_argument('-j', '--job-id', required=True,
                                type=str, default="",
                                help="""Job Id for the job which should be triaged""")
     # triage_parser.add_argument('-abtest', '--abtest', action='store_true',
@@ -196,8 +196,7 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
 
     # Command 'coverage'
     coverage_parser = subparsers.add_parser('coverage', help=COVERAGE_HELP)
-    coverage_parser.add_argument('-j', '--job-id', nargs='?',
-                               type=str, default="", required=True,
+    coverage_parser.add_argument('-j', '--job-id', type=str, default="", required=True,
                                help="""Job Id for checking coverage""")
     # coverage_parser.add_argument('-abtest', '--abtest', action='store_true',
     #                         help=ABTEST_COVERAGE_HELP, default=False)
