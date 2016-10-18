@@ -178,14 +178,9 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
 
     # Command 'show'
     show_parser = subparsers.add_parser('show', help=SHOW_HELP)
-    show_parser.add_argument('-j', '--jobs',
-                             action='store_true',
-                             help="""Show configured jobs""",
-                             default=False)
-    show_parser.add_argument('-cov', '--cov',
-                             action='store_true',
-                             help="""Show coverage of job""",
-                             default=False)
+    show_parser.add_argument('-j', '--job-id', type=str, help='Job Id for the job which should be stopped')
+    show_parser.add_argument('-conf', '--conf', action='store_true', help="""Show configured jobs""", default=False)
+    show_parser.add_argument('-cov', '--cov', action='store_true', help="""Show coverage of job""", default=False)
     # show_parser.add_argument('-abtest', '--abtest', action='store_true',
     #                         help=ABTEST_SHOW_HELP, default=False)
     show_parser.set_defaults(func=showfunc)

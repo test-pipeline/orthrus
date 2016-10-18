@@ -593,10 +593,11 @@ class OrthrusStop(object):
             kill_fuzz_cmd = ["pkill", "-9"]
             if self.job_token.type == 'routine':
                 kill_fuzz_cmd.append("afl-fuzz")
+                util.run_cmd(" ".join(kill_fuzz_cmd))
             else:
-                fuzzers = [self.job_token.fuzzerA, self.job_token.fuzzerB]
-                kill_fuzz_cmd.extend(fuzzers)
-            util.run_cmd(" ".join(kill_fuzz_cmd))
+                for fuzzer in [self.job_token.fuzzerA, self.job_token.fuzzerB]:
+                    util.run_cmd(" ".join(kill_fuzz_cmd + [fuzzer]))
+
             util.color_print(util.bcolors.OKGREEN, "done")
 
             ## Kill afl-cov only for routine jobs
@@ -627,54 +628,182 @@ class OrthrusShow(object):
         self._args = args
         self._config = config
         self.test = test
+        self.orthrusdir = self._config['orthrus']['directory']
+        self.jobsconf = self.orthrusdir + j.JOBCONF
+        self.routinedir = self.orthrusdir + j.ROUTINEDIR
+        self.abtestsdir = self.orthrusdir + j.ABTESTSDIR
+        self.fail_msg = "No coverage info found. Have you run orthrus coverage or" \
+                                                " orthrus start -c already?"
+
+    def opencov(self, syncDir, job_type, job_id):
+        cov_web_indexhtml = syncDir + "/cov/web/index.html"
+
+        if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, cov_web_indexhtml),
+                                       'Opening coverage html for {} job ID [{}]'.format(job_type, job_id),
+                                       indent=2, fail_msg=self.fail_msg):
+            return False
+
+        if self.test:
+            return True
+
+        webbrowser.open_new_tab(cov_web_indexhtml)
+        return True
+
+    def opencov_abtests(self):
+
+        control_sync = '{}/{}/afl-out'.format(self.job_token.rootdir, self.job_token.joba_id)
+        exp_sync = '{}/{}/afl-out'.format(self.job_token.rootdir, self.job_token.jobb_id)
+
+        if not self.opencov(control_sync, self.job_token.type, self.job_token.joba_id):
+            return False
+        if not self.opencov(exp_sync, self.job_token.type, self.job_token.jobb_id):
+            return False
+        return True
+
+    def whatsup(self, syncDir):
+        try:
+            output = subprocess.check_output(["afl-whatsup", "-s", syncDir])
+        except subprocess.CalledProcessError as e:
+            print e.output
+            return False
+        output = output[output.find("==\n\n") + 4:]
+
+        for line in output.splitlines():
+            util.color_print(util.bcolors.OKBLUE, "\t" + line)
+        triaged_unique = 0
+
+        unique_dir = syncDir + "../unique"
+        if os.path.exists(unique_dir):
+            triaged_unique = len(glob.glob(unique_dir + "/*id*sig*"))
+        util.color_print(util.bcolors.OKBLUE, "\t     Triaged crashes : " + str(triaged_unique))
+        return True
+
+    # def whatsup_routine(self):
+    #     for routine_job in self.routine_list:
+    #         id = routine_job['id']
+    #         target = routine_job['target']
+    #         # params = routine_job['params']
+    #         syncdir = '{}/{}/afl-out'.format(self.routinedir, id)
+    #         util.color_print(util.bcolors.OKBLUE, "\tJob [" + id + "] " + "for target '" + target + "':")
+    #         if not self.whatsup(syncdir):
+    #             return False
+    #     return True
+
+    def whatsup_abtests(self, control_sync, exp_sync):
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "A/B test status")
+        util.color_print(util.bcolors.OKBLUE, "Control group")
+        if not self.whatsup(control_sync):
+            return False
+        util.color_print(util.bcolors.OKBLUE, "Experiment group")
+        if not self.whatsup(exp_sync):
+            return False
+        return True
+
+
+    def show_job(self):
+        self.job_token = j.jobtoken(self.orthrusdir, self._args.job_id)
+
+        if not util.pprint_decorator(self.job_token.materialize, 'Retrieving job ID [{}]'.format(self.job_token.id),
+                                     indent=2):
+            return False
+
+        if self.job_token.type == 'routine':
+            return self.whatsup('{}/afl-out'.format(self.job_token.rootdir))
+        else:
+            return self.whatsup_abtests('{}/{}/afl-out'.format(self.job_token.rootdir, self.job_token.joba_id),
+                                        '{}/{}/afl-out'.format(self.job_token.rootdir, self.job_token.jobb_id))
+
+    def show_conf(self):
+        with open(self.jobsconf, 'r') as jobconf_fp:
+            jobsconf_dict = json.load(jobconf_fp)
+
+        self.routine_list = jobsconf_dict['routine']
+        self.abtest_list = jobsconf_dict['abtests']
+        # self.routine_syncdirs = ['{}/{}'.format(self.routinedir,item['id']) for item in self.routine_list]
+        # self.abtest_rootdirs = ['{}/{}'.format(self.abtestsdir,item['id']) for item in self.abtest_list]
+
+        for idx, routine in enumerate(self.routine_list):
+            util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Configured routine jobs:")
+            util.color_print(util.bcolors.OKBLUE, "\t" + str(idx) + ") [" + routine['id'] + "] " +
+                             routine['target'] + " " + routine['params'])
+        for idx, abtest in enumerate(self.abtest_list):
+            util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Configured a/b tests:")
+            util.color_print(util.bcolors.OKBLUE, "\t" + str(idx) + ") [" + abtest['id'] + "] " +
+                             abtest['target'] + " " + abtest['params'])
+            util.color_print(util.bcolors.OKBLUE, "\t" + "Control group")
+            util.color_print(util.bcolors.OKBLUE, "\t" + "Fuzzer A: {}\t Fuzzer A args: {}".
+                             format(abtest['fuzzerA'],abtest['fuzzerA_args']))
+            util.color_print(util.bcolors.OKBLUE, "\t" + "Experiment group")
+            util.color_print(util.bcolors.OKBLUE, "\t" + "Fuzzer B: {}\t Fuzzer B args: {}".
+                             format(abtest['fuzzerB'],abtest['fuzzerB_args']))
+        return True
+
+    def show_cov(self):
+        # We have already processed the job
+        if self.job_token.type == 'routine':
+            util.color_print(util.bcolors.OKGREEN, "\t[+] Opening coverage in new browser tabs")
+            return self.opencov('{}/afl-out'.format(self.job_token.rootdir), self.job_token.type, self.job_token.id)
+        else:
+            util.color_print(util.bcolors.OKGREEN, "\t[+] Opening A/B test coverage in new browser tabs")
+            return self.opencov_abtests()
 
     def run(self):
-        job_config = ConfigParser.ConfigParser()
-        job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
-        if self._args.jobs:
-            util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Configured jobs found:")
-            for num, section in enumerate(job_config.sections()):
-                t = job_config.get(section, "target")
-                p = job_config.get(section, "params")
-                util.color_print(util.bcolors.OKGREEN, "\t" + str(num) + ") [" + section + "] " + t + " " + p)
-        elif self._args.cov:
-            for jobId in job_config.sections():
-                cov_web_indexhtml = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/" + \
-                                    "cov/web/index.html"
-                if os.path.exists(cov_web_indexhtml):
-                    util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Opening coverage html for job {} "
-                                                                              "in a new browser tab".format(jobId))
-                    # Early return for tests
-                    if self.test:
-                        return True
-                    webbrowser.open_new_tab(cov_web_indexhtml)
-                else:
-                    util.color_print(util.bcolors.INFO, "No coverage info at {}. Have you run orthrus coverage or"
-                                                        " orthrus start -c already?".format(cov_web_indexhtml))
-                    return False
-        else:
-            util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Status of jobs:")
-            
-            for jobId in job_config.sections():
-                syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/"
-                try:
-                    output = subprocess.check_output(["afl-whatsup", "-s", syncDir])
-                except subprocess.CalledProcessError as e:
-                    print e.output
-                    return False
-                output = output[output.find("==\n\n") + 4:]
-                
-                util.color_print(util.bcolors.OKBLUE, "\tJob [" + jobId + "] " + "for target '" +
-                                 job_config.get(jobId, "target") + "':")
-                for line in output.splitlines():
-                    util.color_print(util.bcolors.OKBLUE, "\t" + line)
-                triaged_unique = 0
-                if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/"):
-                    triaged_unique = len(glob.glob(self._config['orthrus']['directory'] + "/jobs/" + jobId +
-                                                   "/unique/*id*sig*"))
-                util.color_print(util.bcolors.OKBLUE, "\t     Triaged crashes : " + str(triaged_unique) + " available")
-                
+        if self._args.job_id:
+            if not self.show_job():
+                return False
+            if self._args.cov and not self.show_cov():
+                return False
+        elif self._args.conf:
+            return self.show_conf()
         return True
+
+    # def run(self):
+    #     job_config = ConfigParser.ConfigParser()
+    #     job_config.read(self._config['orthrus']['directory'] + "/jobs/jobs.conf")
+    #     if self._args.jobs:
+    #         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Configured jobs found:")
+    #         for num, section in enumerate(job_config.sections()):
+    #             t = job_config.get(section, "target")
+    #             p = job_config.get(section, "params")
+    #             util.color_print(util.bcolors.OKGREEN, "\t" + str(num) + ") [" + section + "] " + t + " " + p)
+    #     elif self._args.cov:
+    #         for jobId in job_config.sections():
+    #             cov_web_indexhtml = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/" + \
+    #                                 "cov/web/index.html"
+    #             if os.path.exists(cov_web_indexhtml):
+    #                 util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Opening coverage html for job {} "
+    #                                                                           "in a new browser tab".format(jobId))
+    #                 # Early return for tests
+    #                 if self.test:
+    #                     return True
+    #                 webbrowser.open_new_tab(cov_web_indexhtml)
+    #             else:
+    #                 util.color_print(util.bcolors.INFO, "No coverage info at {}. Have you run orthrus coverage or"
+    #                                                     " orthrus start -c already?".format(cov_web_indexhtml))
+    #                 return False
+    #     else:
+    #         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Status of jobs:")
+    #
+    #         for jobId in job_config.sections():
+    #             syncDir = self._config['orthrus']['directory'] + "/jobs/" + jobId + "/afl-out/"
+    #             try:
+    #                 output = subprocess.check_output(["afl-whatsup", "-s", syncDir])
+    #             except subprocess.CalledProcessError as e:
+    #                 print e.output
+    #                 return False
+    #             output = output[output.find("==\n\n") + 4:]
+    #
+    #             util.color_print(util.bcolors.OKBLUE, "\tJob [" + jobId + "] " + "for target '" +
+    #                              job_config.get(jobId, "target") + "':")
+    #             for line in output.splitlines():
+    #                 util.color_print(util.bcolors.OKBLUE, "\t" + line)
+    #             triaged_unique = 0
+    #             if os.path.exists(self._config['orthrus']['directory'] + "/jobs/" + jobId + "/unique/"):
+    #                 triaged_unique = len(glob.glob(self._config['orthrus']['directory'] + "/jobs/" + jobId +
+    #                                                "/unique/*id*sig*"))
+    #             util.color_print(util.bcolors.OKBLUE, "\t     Triaged crashes : " + str(triaged_unique) + " available")
+    #
+    #     return True
 
 class OrthrusTriage(object):
     
