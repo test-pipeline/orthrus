@@ -177,7 +177,7 @@ $ orthrus start -j 1167520733
 
 - To stop fuzzing, you do
 ```
-$ orthrus stop
+$ orthrus stop -j 1167520733
 [+] Stopping fuzzing jobs...done
 ```
 
@@ -271,7 +271,7 @@ $ orthrus coverage -j 1167520733
 
 You may force stop a live afl-cov instance along with all fuzz sessions, like so
 ```
-$ orthrus stop -c
+$ orthrus stop -j 1167520733 -c
 [+] Stopping fuzzing jobs...done
 [+] Stopping afl-cov for jobs...done
 ```
@@ -295,14 +295,14 @@ $ orthrus triage -j 1167520733
 
 - You may view configured jobs, like so
 ```
-$ orthrus show -j
+$ orthrus show -conf
 Configured jobs found:
         0) [1167520733] main @@
 ```
 
-- You may view the current status of afl-fuzz instances (via afl-whatsup)
+- You may view the current status of a job (via afl-whatsup)
 ```
-$ orthrus show
+$ orthrus show -j 1167520733
 Status of jobs:
         Job [1167520733] for target 'main':
                Fuzzers alive : 0
@@ -318,7 +318,7 @@ Status of jobs:
 
 - You may view coverage report (via afl-cov)
 ```
-$ orthrus show -c
+$ orthrus show -cov
 Opening coverage html for job 1167520733 in a new browser tab
 ```
 

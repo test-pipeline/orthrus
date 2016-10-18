@@ -4,7 +4,7 @@
   - 2.7 for orthrus
   - 3.X for afl-utils
 - [afl-fuzz][1]
-- [afl-utils][2] (latest: v1.31a)
+- [afl-utils][2] (latest: v1.31a, v1.32a (experimental) for a/b test support)
 ```bash
 $ cd $HOME
 $ wget -q https://github.com/rc0r/afl-utils/archive/v1.31a.tar.gz && tar xzf v1.31a.tar.gz

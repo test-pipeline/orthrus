@@ -359,15 +359,6 @@ def validate_inst(config):
             return False
     return True
 
-def validate_job(orthrus_root, jobID):
-
-    try:
-        job_token = j.jobtoken(orthrus_root, jobID)
-    except ValueError:
-        return False
-
-    return True
-
 def func_wrapper(function, *args):
     try:
         rv = function(*args)

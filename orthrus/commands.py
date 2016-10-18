@@ -592,11 +592,14 @@ class OrthrusStop(object):
         self._args = args
         self._config = config
         self.orthrusdir = self._config['orthrus']['directory']
+        self.routinedir = self.orthrusdir + j.ROUTINEDIR
+        self.abtestsdir = self.orthrusdir + j.ABTESTSDIR
 
+    # NOTE: Supported for routine fuzzing jobs only
     def get_afl_cov_pid(self):
         pid_regex = re.compile(r'afl_cov_pid[^\d]+(?P<pid>\d+)')
 
-        jobs_dir = self._config['orthrus']['directory'] + "/jobs"
+        jobs_dir = self.routinedir
         jobs_list = os.walk(jobs_dir).next()[1]
 
         pids = []
@@ -681,16 +684,17 @@ class OrthrusShow(object):
         webbrowser.open_new_tab(cov_web_indexhtml)
         return True
 
-    def opencov_abtests(self):
-
-        control_sync = '{}/{}/afl-out'.format(self.job_token.rootdir, self.job_token.joba_id)
-        exp_sync = '{}/{}/afl-out'.format(self.job_token.rootdir, self.job_token.jobb_id)
-
-        if not self.opencov(control_sync, self.job_token.type, self.job_token.joba_id):
-            return False
-        if not self.opencov(exp_sync, self.job_token.type, self.job_token.jobb_id):
-            return False
-        return True
+    # TODO: Add feature
+    # def opencov_abtests(self):
+    #
+    #     control_sync = '{}/{}/afl-out'.format(self.job_token.rootdir, self.job_token.joba_id)
+    #     exp_sync = '{}/{}/afl-out'.format(self.job_token.rootdir, self.job_token.jobb_id)
+    #
+    #     if not self.opencov(control_sync, self.job_token.type, self.job_token.joba_id):
+    #         return False
+    #     if not self.opencov(exp_sync, self.job_token.type, self.job_token.jobb_id):
+    #         return False
+    #     return True
 
     def whatsup(self, syncDir):
         try:

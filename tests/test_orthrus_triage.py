@@ -11,12 +11,12 @@ class TestOrthrusTriage(unittest.TestCase):
 
     def test_triage(self):
         args = parse_cmdline(self.description, ['triage', '-j', self.add_cmd.job.id])
-        cmd = OrthrusTriage(args, self.config)
+        cmd = OrthrusTriage(args, self.config, test=True)
         self.assertTrue(cmd.run())
 
     def test_triage_abtest(self):
         args = parse_cmdline(self.description, ['triage', '-j', self.add_cmd_abtest.job.id])
-        cmd = OrthrusTriage(args, self.config)
+        cmd = OrthrusTriage(args, self.config, test=True)
         self.assertTrue(cmd.run())
 
     @classmethod
@@ -56,6 +56,11 @@ class TestOrthrusTriage(unittest.TestCase):
         args = parse_cmdline(cls.description, ['stop', '-j', cls.add_cmd_abtest.job.id])
         cmd = OrthrusStop(args, cls.config)
         cmd.run()
+        # Simulate old triage
+        sim_unique_dir = cls.orthrusdirname + '/jobs/abtests/{}/{}/unique'.format(cls.add_cmd_abtest.job.id,
+                                                                         cls.add_cmd_abtest.job.joba_id)
+        if not os.path.isdir(sim_unique_dir):
+            os.mkdir(sim_unique_dir)
 
     @classmethod
     def tearDownClass(cls):
