@@ -397,6 +397,8 @@ class OrthrusStart(object):
         self.orthrusdir = self._config['orthrus']['directory']
         self.fail_msg = "failed. Are you sure you have done orthrus add --job or passed the " \
                         "right job ID. orthrus show -j might help"
+        self.is_harden = os.path.exists(self.orthrusdir + "/binaries/afl-harden")
+        self.is_asan = os.path.exists(self.orthrusdir + "/binaries/afl-asan")
 
     def check_core_pattern(self):
         cmd = ["cat /proc/sys/kernel/core_pattern"]
@@ -420,50 +422,34 @@ class OrthrusStart(object):
             if " Master " in line or " Slave " in line:
                 util.color_print_singleline(util.bcolors.OKGREEN, "\t\t\t\t" + "[+] " + line)
         output.close()
-    
+
+    def compute_cores_per_job(self, job_type):
+        if job_type == 'routine':
+            if self.is_harden and self.is_asan:
+                self.core_per_subjob = self.total_cores / 2
+            elif (self.is_harden and not self.is_asan) or (not self.is_harden and self.is_asan):
+                self.core_per_subjob = self.total_cores
+        else:
+            if self.is_harden and self.is_asan:
+                self.core_per_subjob = self.total_cores / 4
+            elif (self.is_harden and not self.is_asan) or (not self.is_harden and self.is_asan):
+                self.core_per_subjob = self.total_cores / 2
+
     def _start_fuzzers(self, jobroot_dir, job_type):
         if os.listdir(jobroot_dir + "/afl-out/") == []:
             start_cmd = "start"
         else:
             start_cmd = "resume"
 
-        '''
-        n = number of cores
-        Half the cores for AFL Harden (1 Master: n/2 - 1 slave)
-        Half the cores for AFL ASAN (n/2 slaves)
-        OR if asan only present
-        1 AFL ASAN Master, n-1 AFL ASAN slaves
-
-        In a/b test mode, each group has
-        Half the cores for AFL Harden (1 Master: n/4 - 1 slave)
-        Half the cores for AFL ASAN (n/4 slaves)
-        OR if asan only present
-        1 AFL ASAN Master, n/2 - 1 AFL ASAN slaves
-        '''
-
-        if job_type == 'routine':
-            core_per_subjob = self.total_cores / 2
-            core_for_asan_only = self.total_cores
-        else:
-            core_per_subjob = self.total_cores / 4
-            core_for_asan_only = self.total_cores / 2
-
-        if core_per_subjob == 0:
-            core_per_subjob = 1
-            if job_type != 'routine':
-                util.color_print(util.bcolors.WARNING, "\t\t\t[-] You do not have sufficient processor cores to carry"
-                                                       " out a scientific a/b test. Consider a routine job instead.")
-
         self.check_core_pattern()
 
         env = os.environ.copy()
         env.update({'AFL_SKIP_CPUFREQ': '1'})
 
-        if os.path.exists(self.orthrusdir + "/binaries/afl-harden"):
-
+        if self.is_harden and self.is_asan:
             harden_file = self.orthrusdir + "/logs/afl-harden.log"
             cmd = ["afl-multicore", "--config={}".format(jobroot_dir) + "/harden-job.conf",
-                                           start_cmd, str(core_per_subjob), "-v"]
+                   start_cmd, str(self.core_per_subjob), "-v"]
 
             if not util.pprint_decorator_fargs(util.func_wrapper(util.run_cmd, " ".join(cmd), env, harden_file),
                                                'Starting AFL harden fuzzer as master', indent=2):
@@ -471,22 +457,33 @@ class OrthrusStart(object):
 
             self.print_cmd_diag("/logs/afl-harden.log")
             
-            if os.path.exists(self.orthrusdir + "/binaries/afl-asan"):
-                asan_file = self.orthrusdir + "/logs/afl-asan.log"
-                cmd = ["afl-multicore", "--config={}".format(jobroot_dir) + "/asan-job.conf ", "add", \
-                                str(core_per_subjob), "-v"]
+            # if self.is_asan:
+            asan_file = self.orthrusdir + "/logs/afl-asan.log"
+            cmd = ["afl-multicore", "--config={}".format(jobroot_dir) + "/asan-job.conf ", "add", \
+                   str(self.core_per_subjob), "-v"]
 
-                if not util.pprint_decorator_fargs(util.func_wrapper(util.run_cmd, " ".join(cmd), env, asan_file),
-                                                   'Starting AFL ASAN fuzzer as slave', indent=2):
-                    return False
+            if not util.pprint_decorator_fargs(util.func_wrapper(util.run_cmd, " ".join(cmd), env, asan_file),
+                                               'Starting AFL ASAN fuzzer as slave', indent=2):
+                return False
 
-                self.print_cmd_diag("/logs/afl-asan.log")
+            self.print_cmd_diag("/logs/afl-asan.log")
 
-        elif os.path.exists(self.orthrusdir + "/binaries/afl-asan"):
+        elif (self.is_harden and not self.is_asan):
+            harden_file = self.orthrusdir + "/logs/afl-harden.log"
+            cmd = ["afl-multicore", "--config={}".format(jobroot_dir) + "/harden-job.conf",
+                   start_cmd, str(self.core_per_subjob), "-v"]
+
+            if not util.pprint_decorator_fargs(util.func_wrapper(util.run_cmd, " ".join(cmd), env, harden_file),
+                                               'Starting AFL harden fuzzer as master', indent=2):
+                return False
+
+            self.print_cmd_diag("/logs/afl-harden.log")
+
+        elif (not self.is_harden and self.is_asan):
 
             asan_file = self.orthrusdir + "/logs/afl-asan.log"
             cmd = ["afl-multicore", "--config={}".format(jobroot_dir) + "/asan-job.conf", start_cmd, \
-                   str(core_for_asan_only), "-v"]
+                   str(self.core_per_subjob), "-v"]
 
             if not util.pprint_decorator_fargs(util.func_wrapper(util.run_cmd, " ".join(cmd), env, asan_file),
                                                'Starting AFL ASAN fuzzer as master', indent=2):
@@ -537,6 +534,29 @@ class OrthrusStart(object):
             return False
 
         self.total_cores = int(util.getnproc())
+
+        '''
+        n = number of cores
+        Half the cores for AFL Harden (1 Master: n/2 - 1 slave)
+        Half the cores for AFL ASAN (n/2 slaves)
+        OR if asan only present
+        1 AFL ASAN Master, n-1 AFL ASAN slaves
+
+        In a/b test mode, each group has
+        Half the cores for AFL Harden (1 Master: n/4 - 1 slave)
+        Half the cores for AFL ASAN (n/4 slaves)
+        OR if asan only present
+        1 AFL ASAN Master, n/2 - 1 AFL ASAN slaves
+        '''
+
+        self.compute_cores_per_job(self.job_token.type)
+
+        if self.core_per_subjob == 0:
+            self.core_per_subjob = 1
+            if self.job_token.type != 'routine':
+                util.color_print(util.bcolors.WARNING, "\t\t\t[-] You do not have sufficient processor cores to carry"
+                                                       " out a scientific a/b test. Consider a routine job instead.")
+
         self.rootdirs = []
         self.ids = []
 
