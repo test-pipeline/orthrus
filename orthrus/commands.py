@@ -204,12 +204,12 @@ class OrthrusAdd(object):
         else:
             asanjob_config['mem_limit'] = "800"
 
-        asanjob_config['session'] = "SESSION"
+        asanjob_config['session'] = "ASAN"
         # https://github.com/rc0r/afl-utils/issues/34
         # asanjob_config['interactive'] = False
 
         if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
-            asanjob_config['slave_only'] = True
+            asanjob_config['master_instances'] = 0
 
         if fuzzer:
             asanjob_config['fuzzer'] = fuzzer
@@ -229,7 +229,7 @@ class OrthrusAdd(object):
         # hardenjob_config['file'] = "@@"
         hardenjob_config['timeout'] = "3000+"
         hardenjob_config['mem_limit'] = "800"
-        hardenjob_config['session'] = "SESSION"
+        hardenjob_config['session'] = "HARDEN"
         # hardenjob_config['interactive'] = False
 
         if fuzzer:
@@ -372,6 +372,11 @@ class OrthrusRemove(object):
         self.orthrusdir = self._config['orthrus']['directory']
     
     def run(self):
+
+        if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir),
+                                          "Checking Orthrus workspace", 2,
+                                          'failed. Are you sure you ran orthrus create -asan -fuzz?'):
+            return False
 
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Removing fuzzing job from Orthrus workspace")
 
@@ -535,6 +540,12 @@ class OrthrusStart(object):
         return True
         
     def run(self):
+
+        if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir),
+                                          "Checking Orthrus workspace", 2,
+                                          'failed. Are you sure you ran orthrus create -asan -fuzz?'):
+            return False
+
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Starting fuzzing jobs")
 
         self.job_token = j.jobtoken(self.orthrusdir, self._args.job_id)
@@ -646,6 +657,12 @@ class OrthrusStop(object):
         return True
 
     def run(self):
+
+        if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir),
+                                          "Checking Orthrus workspace", 2,
+                                          'failed. Are you sure you ran orthrus create -asan -fuzz?'):
+            return False
+
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Stopping fuzzing jobs")
         self.job_token = j.jobtoken(self.orthrusdir, self._args.job_id)
 
@@ -774,6 +791,12 @@ class OrthrusShow(object):
             # return self.opencov_abtests()
 
     def run(self):
+
+        if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir),
+                                          "Checking Orthrus workspace", 2,
+                                          'failed. Are you sure you ran orthrus create -asan -fuzz?'):
+            return False
+
         if self._args.job_id:
             if not self.show_job():
                 return False
@@ -928,6 +951,11 @@ class OrthrusTriage(object):
 
     def run(self):
 
+        if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir),
+                                          "Checking Orthrus workspace", 2,
+                                          'failed. Are you sure you ran orthrus create -asan -fuzz?'):
+            return False
+
         if not util.pprint_decorator_fargs(self.is_asan, 'Looking for ASAN debug binary', fail_msg=self.fail_msg_asan):
             return False
 
@@ -956,6 +984,12 @@ class OrthrusCoverage(object):
                          "right job ID? orthrus show -j might help."
 
     def run(self):
+
+        if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir),
+                                          "Checking Orthrus workspace", 2,
+                                          'failed. Are you sure you ran orthrus create -asan -fuzz?'):
+            return False
+
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Checking coverage for job ID [{}]".format(
             self._args.job_id))
 
