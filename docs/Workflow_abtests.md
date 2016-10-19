@@ -53,12 +53,14 @@ Creating binaries is no different for A/B testing. Please read step 2 of [docs/W
 Adding/removing a/b test jobs is identical to their routine counterparts, except for the `--abtest=PATH_TO_CONFIG` argument that is appended to the `orthrus add` command. For instance, you can do
 ```
 $ cat abtest.conf
-[test1]
-name = "Test 1"
-fuzzerA = "afl-fuzz"
-fuzzerA_args = ""
-fuzzerB = "afl-fuzz-fast"
-fuzzerB_args = ""
+{
+
+  "fuzzerA" = "afl-fuzz"
+  "fuzzerA_args" = ""
+  "fuzzerB" = "afl-fuzz-fast"
+  "fuzzerB_args" = ""
+}
+
 $ orthrus add --job="main @@" -s=./seeds --abtest=./abtest.conf
 [+] Adding fuzzing job to Orthrus workspace
 		[+] Checking Orthrus workspace... done
