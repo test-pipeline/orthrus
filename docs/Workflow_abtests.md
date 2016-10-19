@@ -227,8 +227,7 @@ Monitoring test coverage for a/b tests is WIP
 You can triage all crashes for an a/b test job, like so (**requires ASAN binary**)
 
 ```
-orthrus triage -j 1271685425
-$ 
+$ orthrus triage -j 1271685425
                 [+] Triaging abtests job ID [1271685425]... done
                 [+] Tidying crash dir... done
                 [+] Triaging harden mode crashes for abtests job ID [1178951622]... done
