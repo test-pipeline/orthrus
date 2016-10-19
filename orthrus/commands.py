@@ -791,6 +791,8 @@ class OrthrusTriage(object):
         self.orthrusdir = self._config['orthrus']['directory']
         self.fail_msg = "failed. Are you sure you have done orthrus add --job or passed the " \
                          "right job ID? orthrus show -j might help."
+        self.fail_msg_asan = 'No ASAN binary found. Triage requires an ASAN binary to continue. Please do orthrus ' \
+                             'create -asan'
         self.is_harden = os.path.exists(self.orthrusdir + "/binaries/afl-harden")
         self.is_asan = os.path.exists(self.orthrusdir + "/binaries/afl-asan")
         self.jobsconf = self.orthrusdir + j.JOBCONF
@@ -805,7 +807,8 @@ class OrthrusTriage(object):
             os.mkdir(dest)
 
         for script in glob.glob(crash_dir + "/gdb_script*"):
-            shutil.move(script, dest)
+            shutil.copy(script, dest)
+            os.remove(script)
 
         return True
 
@@ -924,6 +927,10 @@ class OrthrusTriage(object):
         return True
 
     def run(self):
+
+        if not util.pprint_decorator_fargs(self.is_asan, 'Looking for ASAN debug binary', fail_msg=self.fail_msg_asan):
+            return False
+
         self.job_token = j.jobtoken(self.orthrusdir, self._args.job_id)
 
         if not util.pprint_decorator(self.job_token.materialize, 'Retrieving job ID [{}]'.format(self.job_token.id),

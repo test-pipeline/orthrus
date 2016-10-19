@@ -27,7 +27,7 @@ $ orthrus validate
 - Creates the following binaries
   - ASAN+AFL instrumentation (fuzzing)
   - AFL+HARDEN instrumentation only (fuzzing)
-  - ASAN Debug (triage)
+  - ASAN Debug (triage) **Note: If you don't pass the `-asan` flag during orthrus create, you won't be able to triage crashes**
   - HARDEN Debug (triage)
   - Gcov (coverage)
 - All binaries installed in `.orthrus/binaries` subdir relative to WD root
