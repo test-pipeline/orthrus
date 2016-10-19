@@ -208,7 +208,7 @@ class OrthrusAdd(object):
         # https://github.com/rc0r/afl-utils/issues/34
         # asanjob_config['interactive'] = False
 
-        if os.path.exists(self._config['orthrus']['directory'] + "binaries/afl-harden"):
+        if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
             asanjob_config['slave_only'] = True
 
         if fuzzer:

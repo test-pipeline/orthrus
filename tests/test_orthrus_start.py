@@ -30,7 +30,7 @@ class TestOrthrusStart(unittest.TestCase):
     def test_start_coverage(self):
         self.is_coverage = True
         args = parse_cmdline(self.description, ['start', '-j', self.add_cmd.job.id, '-c'])
-        cmd = OrthrusStart(args, self.config)
+        cmd = OrthrusStart(args, self.config, True)
         self.assertTrue(cmd.run())
 
     def test_start_abtest(self):
@@ -70,6 +70,8 @@ class TestOrthrusStart(unittest.TestCase):
             else:
                 args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd.job.id])
         else:
+            # Sleep until afl-cov records its pid in afl-cov-status file and then stop
+            time.sleep(TEST_SLEEP)
             args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd.job.id, '-c'])
         cmd = OrthrusStop(args, self.config)
         self.assertTrue(cmd.run())
@@ -80,7 +82,7 @@ class TestOrthrusStart(unittest.TestCase):
         cmd = OrthrusCreate(args, cls.config)
         cmd.run()
         args = parse_cmdline(cls.description, ['add', '--job=main @@',
-                                               '-i=./afl-out.tar.gz'])
+                                               '-s=./seeds'])
         cls.add_cmd = OrthrusAdd(args, cls.config)
         cls.add_cmd.run()
 
@@ -89,7 +91,7 @@ class TestOrthrusStart(unittest.TestCase):
         with open(cls.abconf_file, 'w') as abconf_fp:
             json.dump(abconf_dict, abconf_fp, indent=4)
         args = parse_cmdline(cls.description, ['add', '--job=main @@',
-                                           '-i=./afl-out.tar.gz', '--abconf={}'.format(cls.abconf_file)])
+                                           '-s=./seeds', '--abconf={}'.format(cls.abconf_file)])
         cls.add_cmd_abtest = OrthrusAdd(args, cls.config)
         cls.add_cmd_abtest.run()
 
