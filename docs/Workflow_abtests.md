@@ -224,7 +224,59 @@ Monitoring test coverage for a/b tests is WIP
 
 ## Step 6: Triage crashes (via afl-utils/exploitable)
 
-Triaging crashes for A/B tests is WIP
+You can triage all crashes for an a/b test job, like so (**requires ASAN binary**)
+``` orthrus triage -j 1271685425
+$ 
+                [+] Triaging abtests job ID [1271685425]... done
+                [+] Tidying crash dir... done
+                [+] Triaging harden mode crashes for abtests job ID [1178951622]... done
+                [+] Triaging abtests job ID [1271685425]... done
+                [+] Tidying crash dir... done
+                [+] Triaging asan mode crashes for abtests job ID [1178951622]... done
+                [+] Triaging abtests job ID [1271685425]... done
+                [+] Tidying crash dir... done
+                [+] Triaging all mode crashes for abtests job ID [1178951622]... done
+                [+] Triaged 1 crashes. See .orthrus/jobs/abtests/1271685425/1178951622/unique/
+                [+] Triaging crashes in control group... done
+                [+] Triaging abtests job ID [1271685425]... done
+                [+] Tidying crash dir... done
+                [+] Triaging harden mode crashes for abtests job ID [3911664828]... done
+                [+] Triaging abtests job ID [1271685425]... done
+                [+] Tidying crash dir... done
+                [+] Triaging asan mode crashes for abtests job ID [3911664828]... done
+                [+] Triaging abtests job ID [1271685425]... done
+                [+] Tidying crash dir... done
+                [+] Triaging all mode crashes for abtests job ID [3911664828]... done
+                [+] Triaged 1 crashes. See .orthrus/jobs/abtests/1271685425/3911664828/unique/
+                [+] Triaging crashes in experiment group... done
+```
+
+and view triaged crashes for each group, like so
+
+```
+$ orthrus show -j 1271685425
+A/B test status
+Control group
+           Fuzzers alive : 2
+          Total run time : 0 days, 0 hours
+             Total execs : 0 million
+        Cumulative speed : 0 execs/sec
+           Pending paths : 2 faves, 2 total
+      Pending per fuzzer : 1 faves, 1 total (on average)
+           Crashes found : 0 locally unique
+
+         Triaged crashes : 0
+Experiment group
+           Fuzzers alive : 2
+          Total run time : 0 days, 0 hours
+             Total execs : 0 million
+        Cumulative speed : 0 execs/sec
+           Pending paths : 2 faves, 2 total
+      Pending per fuzzer : 1 faves, 1 total (on average)
+           Crashes found : 0 locally unique
+
+         Triaged crashes : 0
+```
 
 ## Step 7: User interface for fuzz status and coverage
 
