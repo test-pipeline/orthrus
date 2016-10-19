@@ -706,7 +706,7 @@ class OrthrusShow(object):
             util.color_print(util.bcolors.OKBLUE, "\t" + line)
         triaged_unique = 0
 
-        unique_dir = syncDir + "../unique"
+        unique_dir = syncDir + "/../unique"
         if os.path.exists(unique_dir):
             triaged_unique = len(glob.glob(unique_dir + "/*id*sig*"))
         util.color_print(util.bcolors.OKBLUE, "\t     Triaged crashes : " + str(triaged_unique))
