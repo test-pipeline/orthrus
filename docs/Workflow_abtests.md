@@ -225,7 +225,9 @@ Monitoring test coverage for a/b tests is WIP
 ## Step 6: Triage crashes (via afl-utils/exploitable)
 
 You can triage all crashes for an a/b test job, like so (**requires ASAN binary**)
-``` orthrus triage -j 1271685425
+
+```
+orthrus triage -j 1271685425
 $ 
                 [+] Triaging abtests job ID [1271685425]... done
                 [+] Tidying crash dir... done
