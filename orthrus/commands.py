@@ -206,7 +206,7 @@ class OrthrusAdd(object):
 
         asanjob_config['session'] = "ASAN"
         # https://github.com/rc0r/afl-utils/issues/34
-        # asanjob_config['interactive'] = False
+        asanjob_config['interactive'] = False
 
         if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
             asanjob_config['master_instances'] = 0
@@ -230,7 +230,7 @@ class OrthrusAdd(object):
         hardenjob_config['timeout'] = "3000+"
         hardenjob_config['mem_limit'] = "800"
         hardenjob_config['session'] = "HARDEN"
-        # hardenjob_config['interactive'] = False
+        hardenjob_config['interactive'] = False
 
         if fuzzer:
             hardenjob_config['fuzzer'] = fuzzer
@@ -448,8 +448,10 @@ class OrthrusStart(object):
     def _start_fuzzers(self, jobroot_dir, job_type):
         if os.listdir(jobroot_dir + "/afl-out/") == []:
             start_cmd = "start"
+            add_cmd = "add"
         else:
             start_cmd = "resume"
+            add_cmd = "resume"
 
         self.check_core_pattern()
 
@@ -469,7 +471,7 @@ class OrthrusStart(object):
             
             # if self.is_asan:
             asan_file = self.orthrusdir + "/logs/afl-asan.log"
-            cmd = ["afl-multicore", "--config={}".format(jobroot_dir) + "/asan-job.conf ", "add", \
+            cmd = ["afl-multicore", "--config={}".format(jobroot_dir) + "/asan-job.conf ", add_cmd, \
                    str(self.core_per_subjob), "-v"]
 
             if not util.pprint_decorator_fargs(util.func_wrapper(util.run_cmd, " ".join(cmd), env, asan_file),
