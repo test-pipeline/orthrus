@@ -22,7 +22,7 @@ class TestOrthrusTriage(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Create
-        args = parse_cmdline(cls.description, ['create', '-asan', '-fuzz'])
+        args = parse_cmdline(cls.description, ['create', '-asan'])
         cmd = OrthrusCreate(args, cls.config)
         cmd.run()
         # Add routine job

@@ -5,6 +5,7 @@ import os
 import shutil
 import ConfigParser
 from argparse import ArgumentParser
+import errno
 from job import job as j
 
 CREATE_HELP = """Create an orthrus workspace"""
@@ -76,8 +77,9 @@ def return_elf_binaries(inpath=None):
 
 def copy_binaries(dest):
     # Create bin dir if it doesn't exist
-    if not os.path.isdir(dest):
-        os.makedirs(dest)
+    mkdir_p(dest)
+    # if not os.path.isdir(dest):
+    #     os.makedirs(dest)
 
     binaries = return_elf_binaries()
     # Overwriting existing binaries is fine
@@ -395,3 +397,13 @@ def pprint_decorator(function, prologue, indent=0, fail_msg='failed', success_ms
     except:
         color_print(bcolors.FAIL, fail_msg)
         return False
+
+# HT: http://stackoverflow.com/a/600612/4712439
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc:  # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise

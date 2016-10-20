@@ -13,6 +13,9 @@ class BuildEnv(object):
     BEnv_afl_harden = BEnv('afl-clang', 'afl-clang++', '-O2', '-O2', '', '',
                         {'AFL_HARDEN': '1', 'AFL_DONT_OPTIMIZE': '1'})
 
+    BEnv_afl_harden_softfail = BEnv('afl-clang', 'afl-clang++', '-O2', '-O2', '', '',
+                        {'AFL_DONT_OPTIMIZE': '1'})
+
     BEnv_asan_debug = BEnv('clang', 'clang++', '-g -O0 -fsanitize=address -fno-omit-frame-pointer',
                         '-g -O0 -fsanitize=address -fno-omit-frame-pointer',
                         '-fsanitize=address', '-fsanitize=address', {})
@@ -20,6 +23,10 @@ class BuildEnv(object):
     BEnv_harden_debug = BEnv('clang', 'clang++', '-g -O0 -fstack-protector-all -D_FORTIFY_SOURCE=2 ' \
                         '-fno-omit-frame-pointer', '-g -O0 -fstack-protector-all ' \
                         '-D_FORTIFY_SOURCE=2 -fno-omit-frame-pointer', '', '', {})
+
+    BEnv_harden_debug_softfail = BEnv('clang', 'clang++', '-g -O0 -fstack-protector-all ' \
+                        '-fno-omit-frame-pointer', '-g -O0 -fstack-protector-all ' \
+                        '-fno-omit-frame-pointer', '', '', {})
 
     BEnv_coverage = BEnv('gcc', 'g++', '-g -O0 -fprofile-arcs -ftest-coverage',
                         '-g -O0 -fprofile-arcs -ftest-coverage', '-lgcov', '-lgcov', {})

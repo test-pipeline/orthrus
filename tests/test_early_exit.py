@@ -7,7 +7,15 @@ class TestOrthrusShow(unittest.TestCase):
     description = 'Test harness'
     orthrusdirname = '.orthrus'
     config = {'orthrus': {'directory': orthrusdirname}}
-    # abconf_file = orthrusdirname + '/conf/abconf.conf'
+
+    # Create
+    def test_create_early_exit(self):
+        if not os.path.isdir(self.orthrusdirname):
+            os.mkdir(self.orthrusdirname)
+        args = parse_cmdline(self.description, ['create', '-asan'])
+        cmd = OrthrusCreate(args, self.config)
+        self.assertFalse(cmd.run())
+        shutil.rmtree(self.orthrusdirname)
 
     # Add
     def test_add_early_exit(self):
@@ -40,6 +48,14 @@ class TestOrthrusShow(unittest.TestCase):
         cmd = OrthrusTriage(args, self.config)
         self.assertFalse(cmd.run())
 
+    def test_triage_asan_exit(self):
+        if not os.path.isdir(self.orthrusdirname):
+            os.mkdir(self.orthrusdirname)
+        args = parse_cmdline(self.description, ['triage', '-j', '123'])
+        cmd = OrthrusTriage(args, self.config)
+        self.assertFalse(cmd.run())
+        shutil.rmtree(self.orthrusdirname)
+
     # Coverage
     def test_coverage_early_exit(self):
         args = parse_cmdline(self.description, ['coverage', '-j', '123'])
@@ -50,4 +66,10 @@ class TestOrthrusShow(unittest.TestCase):
     def test_show_early_exit(self):
         args = parse_cmdline(self.description, ['show', '-j', '123'])
         cmd = OrthrusShow(args, self.config)
+        self.assertFalse(cmd.run())
+
+    # Destroy
+    def test_destroy_early_exit(self):
+        args = parse_cmdline(self.description, ['destroy'])
+        cmd = OrthrusDestroy(args, self.config, 'y')
         self.assertFalse(cmd.run())

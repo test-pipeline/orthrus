@@ -59,7 +59,7 @@ class OrthrusCreate(object):
     def create(self, dest, BEnv, logfn):
 
         install_path = dest
-        os.mkdir(install_path)
+        util.mkdir_p(install_path)
 
         ### Configure
         config_flags = ['--prefix=' + os.path.abspath(install_path)] + \
@@ -95,51 +95,65 @@ class OrthrusCreate(object):
 
     def run(self):
 
-        if os.path.exists(self.config['orthrus']['directory']):
-            util.color_print(util.bcolors.ERROR, "Error: Orthrus workspace already exists!")
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Creating Orthrus workspace")
+
+        if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.config['orthrus']['directory']) is False,
+                                           'Checking if workspace exists', indent=2,
+                                           fail_msg='yes. Archive the existing workspace or do orthrus destroy'):
             return False
 
-        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Create Orthrus workspace")
-        
         os.mkdir(self.config['orthrus']['directory'])
         dirs = ['/{}/'.format(x) for x in self.orthrusdirs]
         map(lambda x: os.mkdir(self.config['orthrus']['directory'] + x), dirs)
 
         # AFL-ASAN
         if self.args.afl_asan:
-
-            ### Prepare
-            util.color_print(util.bcolors.HEADER,
-                             "\t[+] Installing binaries for afl-fuzz with AddressSanitizer")
             install_path = self.config['orthrus']['directory'] + "/binaries/afl-asan/"
-            if not self.create(install_path, b.BuildEnv.BEnv_afl_asan, 'afl-asan_inst.log'):
+            if not util.pprint_decorator_fargs(util.func_wrapper(self.create, install_path, b.BuildEnv.BEnv_afl_asan,
+                                                                 'afl-asan_inst.log'),
+                                               'Installing binaries for afl-fuzz with AddressSanitizer',
+                                               indent=1):
                 return False
 
             #
             # ASAN Debug 
             #
-            util.color_print(util.bcolors.HEADER,
-                             "\t[+] Installing binaries for debug with AddressSanitizer")
             install_path = self.config['orthrus']['directory'] + "/binaries/asan-dbg/"
-            if not self.create(install_path, b.BuildEnv.BEnv_asan_debug, 'afl-asan_dbg.log'):
+            if not util.pprint_decorator_fargs(util.func_wrapper(self.create, install_path, b.BuildEnv.BEnv_asan_debug,
+                                                                 'afl-asan_dbg.log'),
+                                               'Installing binaries for debug with AddressSanitizer',
+                                               indent=1):
                 return False
 
         ### AFL-HARDEN
         if self.args.afl_harden:
-            util.color_print(util.bcolors.HEADER,
-                             "\t[+] Installing binaries for afl-fuzz in harden mode")
+
             install_path = self.config['orthrus']['directory'] + "/binaries/afl-harden/"
-            if not self.create(install_path, b.BuildEnv.BEnv_afl_harden, 'afl_harden.log'):
-                return False
+            if not util.pprint_decorator_fargs(util.func_wrapper(self.create, install_path, b.BuildEnv.BEnv_afl_harden,
+                                                                 'afl_harden.log'),
+                                               'Installing binaries for afl-fuzz in harden mode',
+                                               indent=1):
+                if not util.pprint_decorator_fargs(util.func_wrapper(self.create, install_path,
+                                                                     b.BuildEnv.BEnv_afl_harden_softfail,
+                                                                    'afl-harden_soft.log'),
+                                                'Retrying without the (sometimes problematic) AFL_HARDEN=1 setting',
+                                                indent=1):
+                    return False
 
             #
             # Harden Debug 
             #
-            util.color_print(util.bcolors.HEADER,
-                             "\t[+] Installing binaries for debug in harden mode")
             install_path = self.config['orthrus']['directory'] + "/binaries/harden-dbg/"
-            if not self.create(install_path, b.BuildEnv.BEnv_harden_debug, 'afl_harden_dbg.log'):
-                return False
+            if not util.pprint_decorator_fargs(util.func_wrapper(self.create, install_path, b.BuildEnv.BEnv_harden_debug,
+                                                                 'afl-harden_dbg.log'),
+                                               'Installing binaries for debug in harden mode',
+                                               indent=1):
+                if not util.pprint_decorator_fargs(util.func_wrapper(self.create, install_path,
+                                                                     b.BuildEnv.BEnv_harden_debug_softfail,
+                                                                    'afl-harden_dbg_soft.log'),
+                                                    'Retrying without FORTIFY compilation flag',
+                                                    indent=1):
+                    return False
 
         ### Coverage
         if self.args.coverage:
@@ -320,7 +334,7 @@ class OrthrusAdd(object):
         return True
 
     def run(self):
-        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Adding fuzzing job to Orthrus workspace")
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Adding new job to Orthrus workspace")
 
 
         if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir + "/binaries/"),
@@ -372,6 +386,8 @@ class OrthrusRemove(object):
         self.orthrusdir = self._config['orthrus']['directory']
     
     def run(self):
+
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Removing job ID [{}]".format(self._args.job_id))
 
         if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir),
                                           "Checking Orthrus workspace", 2,
@@ -543,6 +559,9 @@ class OrthrusStart(object):
         
     def run(self):
 
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Starting fuzzers for job ID [{}]".
+                         format(self._args.job_id))
+
         if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir),
                                           "Checking Orthrus workspace", 2,
                                           'failed. Are you sure you ran orthrus create -asan -fuzz?'):
@@ -659,6 +678,9 @@ class OrthrusStop(object):
         return True
 
     def run(self):
+
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Stopping fuzzers for job ID [{}]".
+                         format(self._args.job_id))
 
         if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir),
                                           "Checking Orthrus workspace", 2,
@@ -793,6 +815,8 @@ class OrthrusShow(object):
             # return self.opencov_abtests()
 
     def run(self):
+
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Checking stats and config")
 
         if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir),
                                           "Checking Orthrus workspace", 2,
@@ -953,12 +977,16 @@ class OrthrusTriage(object):
 
     def run(self):
 
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Triaging crashes for job ID [{}]".format(
+            self._args.job_id))
+
         if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir),
                                           "Checking Orthrus workspace", 2,
                                           'failed. Are you sure you ran orthrus create -asan -fuzz?'):
             return False
 
-        if not util.pprint_decorator_fargs(self.is_asan, 'Looking for ASAN debug binary', fail_msg=self.fail_msg_asan):
+        if not util.pprint_decorator_fargs(self.is_asan, 'Looking for ASAN debug binary', indent=2,
+                                           fail_msg=self.fail_msg_asan):
             return False
 
         self.job_token = j.jobtoken(self.orthrusdir, self._args.job_id)
@@ -987,13 +1015,13 @@ class OrthrusCoverage(object):
 
     def run(self):
 
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Checking coverage for job ID [{}]".format(
+            self._args.job_id))
+
         if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir),
                                           "Checking Orthrus workspace", 2,
                                           'failed. Are you sure you ran orthrus create -asan -fuzz?'):
             return False
-
-        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Checking coverage for job ID [{}]".format(
-            self._args.job_id))
 
         self.job_token = j.jobtoken(self.orthrusdir, self._args.job_id)
 
@@ -1022,22 +1050,18 @@ class OrthrusDestroy(object):
         self._args = args
         self._config = config
         self.testinput = testinput
+        self.orthrusdir = self._config['orthrus']['directory']
     
     def run(self):
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Destroy Orthrus workspace")
-        util.color_print_singleline(util.bcolors.BOLD + util.bcolors.HEADER, "[?] Delete complete workspace? [y/n]...: ")
+        util.color_print_singleline(util.bcolors.OKGREEN, "\t[?] Delete complete workspace? [y/n]...: ")
 
         if (self.testinput and 'y' in self.testinput) or 'y' in sys.stdin.readline()[0]:
-            util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Deleting all files... ")
-            if not os.path.exists(self._config['orthrus']['directory']):
-                util.color_print(util.bcolors.OKBLUE, "destroyed already")
-            else:
-                shutil.rmtree(self._config['orthrus']['directory'])
-                if not os.path.isdir(self._config['orthrus']['directory']):
-                    util.color_print(util.bcolors.OKGREEN, "done")
-                else:
-                    util.color_print(util.bcolors.FAIL, "failed")
-                    return False
+
+            if not util.pprint_decorator_fargs(util.func_wrapper(shutil.rmtree, self.orthrusdir),
+                                               'Deleting workspace', indent=2):
+                return False
+
         return True
 
 class OrthrusValidate(object):
@@ -1045,6 +1069,7 @@ class OrthrusValidate(object):
     def __init__(self, args, config):
         self._args = args
         self._config = config
+        self.success_msg = "\t\t[+] All requirements met. Orthrus is ready for use!"
 
     def get_on(self):
         return [item for item in self._config['dependencies'] if item[1] == 'on']
@@ -1056,8 +1081,8 @@ class OrthrusValidate(object):
         for prog, _ in self.get_on():
             util.color_print(util.bcolors.OKGREEN, "\t\t\t[+] {}".format(prog))
 
-        util.color_print(util.bcolors.OKGREEN, "\t\t[+] Checking if requirements are met.")
-        if not util.validate_inst(self._config):
+        if not util.pprint_decorator_fargs(util.func_wrapper(util.validate_inst, self._config),
+                                           'Checking if requirements are met', indent=2,
+                                           success_msg=self.success_msg):
             return False
-        util.color_print(util.bcolors.OKGREEN, "\t\t[+] All requirements met. Orthrus is ready for use!")
         return True
