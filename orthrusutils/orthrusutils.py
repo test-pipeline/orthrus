@@ -230,28 +230,9 @@ def parse_config(configfile=None):
 
     config['dependencies'] = configparser.items("dependencies")
 
-    # config['joern'] = {}
-    # config['joern']['joern_path'] = os.path.abspath(os.path.expanduser((configparser.get("joern", "joern_path"))))
-    #
-    # config['neo4j'] = {}
-    # config['neo4j']['neo4j_path'] = os.path.abspath(os.path.expanduser((configparser.get("neo4j", "neo4j_path"))))
-
-    # config['afl'] = {}
-    # config['afl']['afl_path'] = os.path.abspath(os.path.expanduser((configparser.get("afl", "afl_path"))))
-    #
-    # config['afl-utils'] = {}
-    # config['afl-utils']['afl_utils_path'] = os.path.abspath(
-    #     os.path.expanduser((configparser.get("afl-utils", "afl_utils_path"))))
-    #
-    # config['afl-cov'] = {}
-    # config['afl-cov']['afl_cov_path'] = os.path.abspath(
-    #     os.path.expanduser((configparser.get("afl-cov", "afl_cov_path"))))
-
     return config
 
-def minimize_sync_dir(orthrus_dir, jobroot_dir, job_id, target, params):
-    color_print(bcolors.OKGREEN, "\t\t[+] Minimizing corpus for job [" + job_id + "]...")
-
+def min_or_reseed_setup(orthrus_dir, target, params):
     export = {}
     export['PYTHONUNBUFFERED'] = "1"
     env = os.environ.copy()
@@ -270,6 +251,13 @@ def minimize_sync_dir(orthrus_dir, jobroot_dir, job_id, target, params):
         mem_limit = 30000000
     else:
         mem_limit = 800
+    return (env, launch, mem_limit)
+
+def minimize_sync_dir(orthrus_dir, jobroot_dir, job_id, target, params):
+    color_print(bcolors.OKGREEN, "\t\t[+] Minimizing corpus for job [" + job_id + "]...")
+
+    env, launch, mem_limit = min_or_reseed_setup(orthrus_dir, target, params)
+
     cmin = " ".join(
         ["afl-minimize", "-c", jobroot_dir + "/collect", "--cmin",
          "--cmin-mem-limit={}".format(mem_limit), "--cmin-timeout=5000", "--dry-run",
@@ -278,9 +266,12 @@ def minimize_sync_dir(orthrus_dir, jobroot_dir, job_id, target, params):
     for line in p.stdout:
         if "[*]" in line or "[!]" in line:
             color_print(bcolors.OKGREEN, "\t\t\t" + line)
+    return True
 
-    # Sleep for a short bit so that archived queue time stamps differ
-    time.sleep(2)
+def reseed_sync_dir(orthrus_dir, jobroot_dir, job_id, target, params):
+    color_print(bcolors.OKGREEN, "\t\t[+] Reseeding job [" + job_id + "]...")
+
+    env, launch, mem_limit = min_or_reseed_setup(orthrus_dir, target, params)
 
     reseed_cmd = " ".join(
         ["afl-minimize", "-c", jobroot_dir + "/collect.cmin",
@@ -295,11 +286,11 @@ def minimize_sync_dir(orthrus_dir, jobroot_dir, job_id, target, params):
         shutil.rmtree(jobroot_dir + "/collect")
     if os.path.exists(jobroot_dir + "/collect.cmin"):
         shutil.rmtree(jobroot_dir + "/collect.cmin")
-    if os.path.exists(jobroot_dir + "/collect.cmin.crashes"):
-        shutil.rmtree(jobroot_dir + "/collect.cmin.crashes")
-    if os.path.exists(jobroot_dir + "/collect.cmin.hangs"):
-        shutil.rmtree(jobroot_dir + "/collect.cmin.hangs")
+    return True
 
+def minimize_and_reseed(orthrus_dir, jobroot_dir, job_id, target, params):
+    minimize_sync_dir(orthrus_dir, jobroot_dir, job_id, target, params)
+    reseed_sync_dir(orthrus_dir, jobroot_dir, job_id, target, params)
     return True
 
 def is64bit():

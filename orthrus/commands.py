@@ -320,7 +320,7 @@ class OrthrusAdd(object):
                                            indent=2):
             return False
 
-        util.minimize_sync_dir(self.orthrusdir, rootdir, id, target, params)
+        util.minimize_and_reseed(self.orthrusdir, rootdir, id, target, params)
         return True
 
     def run_helper(self, rootdir, id, fuzzer, fuzzer_param):
@@ -520,41 +520,47 @@ class OrthrusStart(object):
             self.print_cmd_diag("/logs/afl-asan.log")
 
         return True
-    
-    def run_helper(self, rootdir, id):
-        if len(os.listdir(rootdir + "/afl-out/")) > 0 and self._args.minimize:
 
-            if not util.pprint_decorator_fargs(util.func_wrapper(util.minimize_sync_dir, self.orthrusdir, rootdir,
-                                                                 id, self.job_token.target, self.job_token.params),
-                                               'Minimizing afl sync dir for {} job ID [{}]'.
-                                                       format(self.job_token.type,id),
+    def start_and_cover(self):
+
+        for rootdir, id in zip(self.rootdirs, self.ids):
+            if not util.pprint_decorator_fargs(util.func_wrapper(self._start_fuzzers, rootdir, self.job_token.type),
+                                               'Starting fuzzer for {} job ID [{}]'.format(self.job_token.type,id),
                                                indent=2):
+                try:
+                    subprocess.call("pkill -9 afl-fuzz", shell=True, stderr=subprocess.STDOUT)
+                except OSError, subprocess.CalledProcessError:
+                    return False
                 return False
 
-        if not util.pprint_decorator_fargs(util.func_wrapper(self._start_fuzzers, rootdir, self.job_token.type),
-                                           'Starting fuzzer for {} job ID [{}]'.format(self.job_token.type,id),
-                                           indent=2):
-            try:
-                subprocess.call("pkill -9 afl-fuzz", shell=True, stderr=subprocess.STDOUT)
-            except OSError, subprocess.CalledProcessError:
-                return False
-            return False
+            # Live coverage is only supported for routine jobs
+            # To support live coverage for abtests jobs, we would need to create two code base dir each with a gcno file
+            # set due to the way gcov works.
+            if self._args.coverage:
+                if self.job_token.type == 'routine':
+                    if not util.pprint_decorator_fargs(util.func_wrapper(util.run_afl_cov, self.orthrusdir, rootdir,
+                                                                        self.job_token.target, self.job_token.params, True,
+                                                                        self.test),
+                                                       'Starting afl-cov for {} job ID [{}]'.format(self.job_token.type, id),
+                                                       indent=2):
+                        return False
+                else:
+                    util.color_print(util.bcolors.WARNING, "\t\t[+] Live coverage for a/b tests is not supported at the"
+                                                           " moment")
+                    return True
+        return True
 
-        # Live coverage is only supported for routine jobs
-        # To support live coverage for abtests jobs, we would need to create two code base dir each with a gcno file
-        # set due to the way gcov works.
-        if self._args.coverage:
-            if self.job_token.type == 'routine':
-                if not util.pprint_decorator_fargs(util.func_wrapper(util.run_afl_cov, self.orthrusdir, rootdir,
-                                                                    self.job_token.target, self.job_token.params, True,
-                                                                    self.test),
-                                                   'Starting afl-cov for {} job ID [{}]'.format(self.job_token.type, id),
+    def min_and_reseed(self):
+
+        for rootdir, id in zip(self.rootdirs, self.ids):
+            if len(os.listdir(rootdir + "/afl-out/")) > 0:
+
+                if not util.pprint_decorator_fargs(util.func_wrapper(util.minimize_and_reseed, self.orthrusdir, rootdir,
+                                                                     id, self.job_token.target, self.job_token.params),
+                                                   'Minimizing afl sync dir for {} job ID [{}]'.
+                                                           format(self.job_token.type,id),
                                                    indent=2):
                     return False
-            else:
-                util.color_print(util.bcolors.WARNING, "\t\t[+] Live coverage for a/b tests is not supported at the"
-                                                       " moment")
-                return True
         return True
         
     def run(self):
@@ -610,9 +616,16 @@ class OrthrusStart(object):
                                  self.job_token.rootdir + '/{}'.format(self.job_token.jobb_id)))
             self.ids.extend((self.job_token.joba_id, self.job_token.jobb_id))
 
-        for rootdir, id in zip(self.rootdirs, self.ids):
-            if not self.run_helper(rootdir, id):
+        if self._args.minimize:
+            if not self.min_and_reseed():
                 return False
+
+        if not self.start_and_cover():
+            return False
+
+        # for rootdir, id in zip(self.rootdirs, self.ids):
+        #     if not self.min_and_reseed(rootdir, id):
+        #         return False
 
         return True
     
