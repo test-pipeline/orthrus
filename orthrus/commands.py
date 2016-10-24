@@ -18,12 +18,28 @@ from job import job as j
 
 class OrthrusCreate(object):
 
-    def __init__(self, args, config):
+    def __init__(self, args, config, test=False):
         self.args = args
         self.config = config
-        self.orthrusdirs = ['binaries', 'conf', 'logs', 'jobs', 'archive']
+        self.test = test
+        self.orthrusdir = self.config['orthrus']['directory']
+        self.orthrus_subdirs = ['binaries', 'conf', 'logs', 'jobs', 'archive']
         self.fail_msg_bin = "Could not find ELF binaries. While we cannot guarantee " \
                             "that all libraries were instrumented correctly, they most likely were."
+
+    def archive(self):
+
+        util.color_print(util.bcolors.OKGREEN, "\t\t[?] Rerun create? [y/n]...: ")
+
+        if not self.test and 'y' not in sys.stdin.readline()[0]:
+            return False
+
+        if not util.pprint_decorator_fargs(util.func_wrapper(shutil.move, '{}/binaries'.format(self.orthrusdir),
+                                            '{}/archive/binaries.{}'.format(self.orthrusdir,
+                                                                            time.strftime("%Y-%m-%d-%H:%M:%S"))),
+                                           'Archiving binaries to {}/archive'.format(self.orthrusdir), indent=2):
+            return False
+        return True
 
     def verifycmd(self, cmd):
         try:
@@ -99,12 +115,13 @@ class OrthrusCreate(object):
 
         if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.config['orthrus']['directory']) is False,
                                            'Checking if workspace exists', indent=2,
-                                           fail_msg='yes. Archive the existing workspace or do orthrus destroy'):
-            return False
+                                           fail_msg='yes'):
+            if not self.archive():
+                return False
 
-        os.mkdir(self.config['orthrus']['directory'])
-        dirs = ['/{}/'.format(x) for x in self.orthrusdirs]
-        map(lambda x: os.mkdir(self.config['orthrus']['directory'] + x), dirs)
+        util.mkdir_p(self.config['orthrus']['directory'])
+        dirs = ['/{}/'.format(x) for x in self.orthrus_subdirs]
+        map(lambda x: util.mkdir_p(self.config['orthrus']['directory'] + x), dirs)
 
         # AFL-ASAN
         if self.args.afl_asan:

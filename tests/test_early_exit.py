@@ -10,11 +10,11 @@ class TestOrthrusShow(unittest.TestCase):
 
     # Create
     def test_create_early_exit(self):
-        if not os.path.isdir(self.orthrusdirname):
-            os.mkdir(self.orthrusdirname)
         args = parse_cmdline(self.description, ['create', '-asan'])
         cmd = OrthrusCreate(args, self.config)
-        self.assertFalse(cmd.run())
+        cmd.run()
+        cmd = OrthrusCreate(args, self.config, True)
+        self.assertTrue(cmd.run())
         shutil.rmtree(self.orthrusdirname)
 
     # Add
