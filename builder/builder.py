@@ -28,8 +28,17 @@ class BuildEnv(object):
                         '-fno-omit-frame-pointer', '-g -O0 -fstack-protector-all ' \
                         '-fno-omit-frame-pointer', '', '', {})
 
-    BEnv_coverage = BEnv('gcc', 'g++', '-g -O0 -fprofile-arcs -ftest-coverage',
+    BEnv_gcc_coverage = BEnv('gcc', 'g++', '-g -O0 -fprofile-arcs -ftest-coverage',
                         '-g -O0 -fprofile-arcs -ftest-coverage', '-lgcov', '-lgcov', {})
+
+    BEnv_asan_coverage = BEnv('clang', 'clang++',
+                              '-g -O0 -fsanitize=address -fno-omit-frame-pointer -fsanitize-coverage=bb',
+                              '-g -O0 -fsanitize=address -fno-omit-frame-pointer -fsanitize-coverage=bb',
+                              '-fsanitize=address', '-fsanitize=address', {})
+    BEnv_ubsan_coverage = BEnv('clang', 'clang++',
+                              '-g -O0 -fsanitize=undefined -fsanitize-coverage=bb',
+                              '-g -O0 -fsanitize=undefined -fsanitize-coverage=bb',
+                              '-fsanitize=undefined', '-fsanitize=undefined', {})
 
 
     def __init__(self, buildenv):
@@ -72,17 +81,7 @@ class Builder(object):
         if not os.path.isfile("Makefile"):
             return False
 
-        command = ["make clean; make -j install"]
+        command = ["make clean && make -j install"]
         if not util.run_cmd(command, self.env, self.logfile):
             return False
         return True
-
-    # def clean(self):
-    #     if not os.path.isfile("Makefile"):
-    #         return False
-    #
-    #     command = ["make clean distclean"]
-    #
-    #     if not util.run_cmd(command, self.env, self.logfile):
-    #         return False
-    #     return True

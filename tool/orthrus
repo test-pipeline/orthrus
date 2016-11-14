@@ -13,8 +13,8 @@ class OrthrusTool():
         self._args = parse_cmdline(description, args, self._create,
                                    self._add, self._remove,
                                    self._start, self._stop, self._show,
-                                   self._triage, self._coverage, self._destroy,
-                                   self._validate)
+                                   self._triage, self._coverage, self._spectrum,
+                                   self._destroy, self._validate)
         self._config = parse_config()
 
     def _create(self, args):
@@ -47,6 +47,10 @@ class OrthrusTool():
 
     def _coverage(self, args):
         cmd = OrthrusCoverage(args, self._config)
+        cmd.run()
+
+    def _spectrum(self, args):
+        cmd = OrthrusSpectrum(args, self._config)
         cmd.run()
 
     def _destroy(self, args):

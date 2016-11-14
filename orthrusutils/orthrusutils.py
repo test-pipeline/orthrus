@@ -1,4 +1,3 @@
-import time
 import sys
 import subprocess
 import os
@@ -6,7 +5,7 @@ import shutil
 import ConfigParser
 from argparse import ArgumentParser
 import errno
-from job import job as j
+import glob
 
 CREATE_HELP = """Create an orthrus workspace"""
 ADD_HELP = """Add a fuzzing job"""
@@ -16,6 +15,7 @@ STOP_HELP = """Stop a fuzzing jobs"""
 SHOW_HELP = """Show what's currently going on"""
 TRIAGE_HELP = """Triage crash corpus"""
 COVERAGE_HELP = """Run afl-cov on existing AFL corpus"""
+SPECTRUM_HELP = """Run spectrum based analysis on existing AFL corpus"""
 DESTROY_HELP = """Destroy an orthrus workspace"""
 VALIDATE_HELP = """Check if all Orthrus dependencies are met"""
 ## A/B Tests
@@ -90,7 +90,7 @@ def copy_binaries(dest):
 
 def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=None,
                   startfunc=None, stopfunc=None, showfunc=None, triagefunc=None,
-                  coveragefunc=None, destroyfunc=None, validatefunc=None):
+                  coveragefunc=None, spectrumfunc=None, destroyfunc=None, validatefunc=None):
     argParser = ArgumentParser(description)
 
     argParser.add_argument('-v', '--verbose',
@@ -113,6 +113,10 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
     create_parser.add_argument('-cov', '--coverage',
                                action='store_true',
                                help="""Setup binaries to collect coverage information""",
+                               default=False)
+    create_parser.add_argument('-sancov', '--san-coverage',
+                               action='store_true',
+                               help="""Setup binaries to collect sanitizer coverage information""",
                                default=False)
     create_parser.add_argument('-d', '--configure-flags', nargs='?',
                                type=str, default="",
@@ -203,6 +207,43 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
     # coverage_parser.add_argument('-abtest', '--abtest', action='store_true',
     #                         help=ABTEST_COVERAGE_HELP, default=False)
     coverage_parser.set_defaults(func=coveragefunc)
+
+    # Command 'spectrum': Merges afl-sancov functionality
+    spectrum_parser = subparsers.add_parser('spectrum', help=SPECTRUM_HELP)
+    spectrum_parser.add_argument('-j', '--job-id', type=str, default="", required=True,
+                               help="""Job Id for spectrum based analysis""")
+
+    spectrum_parser.add_argument("-O", "--overwrite", action='store_true',
+                                 help="Overwrite existing coverage results", default=False)
+    spectrum_parser.add_argument("--disable-cmd-redirection", action='store_true',
+                                 help="Disable redirection of command results to /dev/null",
+                                 default=False)
+    spectrum_parser.add_argument("--coverage-include-lines", action='store_true',
+                                 help="Include lines in zero-coverage status files",
+                                 default=False)
+    spectrum_parser.add_argument("--preserve-all-sancov-files", action='store_true',
+                                 help="Keep all sancov files (not usually necessary)",
+                                 default=False)
+    spectrum_parser.add_argument("-v", "--verbose", action='store_true',
+                                 help="Verbose mode", default=False)
+    spectrum_parser.add_argument("-V", "--version", action='store_true',
+                                 help="Print version and exit", default=False)
+    spectrum_parser.add_argument("-q", "--quiet", action='store_true',
+                                 help="Quiet mode", default=False)
+    spectrum_parser.add_argument("--sancov-path", type=str,
+                                 help="Path to sancov binary", default=which('sancov-3.8'))
+    spectrum_parser.add_argument("--pysancov-path", type=str,
+                                 help="Path to sancov.py script (in clang compiler-rt)",
+                                 default=which("pysancov"))
+    spectrum_parser.add_argument("--llvm-sym-path", type=str,
+                                 help="Path to llvm-symbolizer", default=which("llvm-symbolizer-3.8"))
+    spectrum_parser.add_argument("--dd-num", type=int,
+                                 help="Experimental! Perform more compute intensive analysis of crashing input by comparing its"
+                                      "path profile with aggregated path profiles of N=dd-num randomly selected non-crashing inputs",
+                                 default=1)
+    spectrum_parser.add_argument("--sancov-bug", action='store_true',
+                                 help="Sancov bug that occurs for certain coverage_dir env vars", default=False)
+    spectrum_parser.set_defaults(func=spectrumfunc)
 
     # Command 'destroy'
     destroy_parser = subparsers.add_parser('destroy', help=DESTROY_HELP)
@@ -324,7 +365,7 @@ def which(progname):
     return os.path.abspath(path)
 
 def run_afl_cov(orthrus_dir, jobroot_dir, target_arg, params, livemode=False, test=False):
-    target = orthrus_dir + "/binaries/coverage/bin/" + \
+    target = orthrus_dir + "/binaries/coverage/gcc/bin/" + \
              target_arg + " " + params.replace("@@", "AFL_FILE")
 
     if livemode:
@@ -398,3 +439,9 @@ def mkdir_p(path):
             pass
         else:
             raise
+
+def import_test_cases(qdir):
+    return sorted(glob.glob(qdir + "/id:*"))
+
+def import_unique_crashes(dir):
+    return sorted(glob.glob(dir + "/*id:*"))

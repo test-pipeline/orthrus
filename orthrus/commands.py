@@ -15,6 +15,7 @@ import json
 from orthrusutils import orthrusutils as util
 from builder import builder as b
 from job import job as j
+from spectrum.afl_sancov import AFLSancovReporter
 
 class OrthrusCreate(object):
 
@@ -29,7 +30,7 @@ class OrthrusCreate(object):
 
     def archive(self):
 
-        util.color_print(util.bcolors.OKGREEN, "\t\t[?] Rerun create? [y/n]...: ")
+        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[?] Rerun create? [y/n]...: ")
 
         if not self.test and 'y' not in sys.stdin.readline()[0]:
             return False
@@ -57,9 +58,27 @@ class OrthrusCreate(object):
         cmd = ['objdump -t ' + binpath + ' | grep __asan_get_shadow_mapping']
         return self.verifycmd(cmd)
 
-    def verifycov(self, binpath):
+    def verifyubsan(self, binpath):
+        cmd = ['objdump -t ' + binpath + ' | grep ubsan_init']
+        return self.verifycmd(cmd)
+
+    def verify_gcccov(self, binpath):
         cmd = ['objdump -t ' + binpath + ' | grep gcov_write_block']
         return self.verifycmd(cmd)
+
+    def verify_sancov(self, binpath):
+        cmd = ['objdump -t ' + binpath + ' | grep __sanitizer_cov_module_init']
+        return self.verifycmd(cmd)
+
+    def verify_asancov(self, binpath):
+        if not (self.verifyasan(binpath) and self.verify_sancov(binpath)):
+            return False
+        return True
+
+    def verify_ubsancov(self, binpath):
+        if not (self.verifyubsan(binpath) and self.verify_sancov(binpath)):
+            return False
+        return True
 
     def verify(self, binpath, benv):
 
@@ -67,7 +86,11 @@ class OrthrusCreate(object):
             return False
         if ('-fsanitize=address' in benv.cflags or 'AFL_USE_ASAN=1' in benv.misc) and not self.verifyasan(binpath):
             return False
-        if '-ftest-coverage' in benv.cflags and not self.verifycov(binpath):
+        if '-ftest-coverage' in benv.cflags and not self.verify_gcccov(binpath):
+            return False
+        if '-fsanitize-coverage' in benv.cflags and '-fsanitize=address' in benv.cflags and not self.verify_asancov(binpath):
+            return False
+        if '-fsanitize-coverage' in benv.cflags and '-fsanitize=undefined' in benv.cflags and not self.verify_ubsancov(binpath):
             return False
 
         return True
@@ -174,10 +197,31 @@ class OrthrusCreate(object):
 
         ### Coverage
         if self.args.coverage:
-            util.color_print(util.bcolors.HEADER, "\t[+] Installing binaries for obtaining test coverage information")
-            install_path = self.config['orthrus']['directory'] + "/binaries/coverage/"
-            if not self.create(install_path, b.BuildEnv.BEnv_coverage, 'gcc_coverage.log'):
+            install_path = self.config['orthrus']['directory'] + "/binaries/coverage/gcc/"
+            if not util.pprint_decorator_fargs(util.func_wrapper(self.create, install_path, b.BuildEnv.BEnv_gcc_coverage,
+                                                                 'gcc_coverage.log'),
+                                               'Installing binaries for obtaining test coverage information',
+                                               indent=1):
                 return False
+
+        ### SanitizerCoverage
+        if self.args.san_coverage:
+            if self.args.afl_asan:
+                install_path = self.config['orthrus']['directory'] + "/binaries/coverage/asan/"
+                if not util.pprint_decorator_fargs(util.func_wrapper(self.create, install_path,
+                                                                     b.BuildEnv.BEnv_asan_coverage,
+                                                                    'asan_coverage.log'),
+                                                    'Installing binaries for obtaining ASAN coverage',
+                                                    indent=1):
+                    return False
+            if self.args.afl_harden:
+                install_path = self.config['orthrus']['directory'] + "/binaries/coverage/ubsan/"
+                if not util.pprint_decorator_fargs(util.func_wrapper(self.create, install_path,
+                                                                     b.BuildEnv.BEnv_ubsan_coverage,
+                                                                    'ubsan_coverage.log'),
+                                                    'Installing binaries for obtaining HARDEN coverage (via UBSAN)',
+                                                    indent=1):
+                    return False
 
         return True
 
@@ -779,7 +823,8 @@ class OrthrusShow(object):
 
         unique_dir = syncDir + "/../unique"
         if os.path.exists(unique_dir):
-            triaged_unique = len(glob.glob(unique_dir + "/*id*sig*"))
+            triaged_unique = len(glob.glob(unique_dir + "/asan/*id*sig*")) + \
+                             len(glob.glob(unique_dir + "/harden/*id*sig*"))
         util.color_print(util.bcolors.OKBLUE, "\t     Triaged crashes : " + str(triaged_unique))
         return True
 
@@ -938,7 +983,7 @@ class OrthrusTriage(object):
         return True
 
     def prepare_for_rerun(self, jobroot_dir):
-        util.color_print(util.bcolors.OKGREEN, "[?] Rerun triaging? [y/n]...: ")
+        util.color_print_singleline(util.bcolors.OKGREEN, "[?] Rerun triaging? [y/n]...: ")
 
         if not self.test and 'y' not in sys.stdin.readline()[0]:
             return False
@@ -988,6 +1033,20 @@ class OrthrusTriage(object):
         if not triaged_crashes:
             util.color_print(util.bcolors.OKBLUE, "\t\t[+] Nothing to do")
             return True
+
+        # Organize unique crashes
+        asan_crashes = glob.glob('{}ASAN*id*sig*'.format(uniq_path))
+        harden_crashes = glob.glob('{}HARDEN*id*sig*'.format(uniq_path))
+        if asan_crashes:
+            uniq_asan_dir = '{}asan'.format(uniq_path)
+            util.mkdir_p(uniq_asan_dir)
+            for file in asan_crashes:
+                shutil.move(file, uniq_asan_dir)
+        if harden_crashes:
+            uniq_harden_dir = '{}harden'.format(uniq_path)
+            util.mkdir_p(uniq_harden_dir)
+            for file in harden_crashes:
+                shutil.move(file, uniq_harden_dir)
 
         return True
 
@@ -1072,6 +1131,84 @@ class OrthrusCoverage(object):
 
         util.color_print(util.bcolors.OKGREEN, "\t\t[+] This might take a while. Please check {} for progress."
                          .format(self.job_token.rootdir + "/afl-out/cov/afl-cov.log"))
+        return True
+
+class OrthrusSpectrum(object):
+
+    def __init__(self, args, config):
+        self._args = args
+        self._config = config
+        self.orthrusdir = self._config['orthrus']['directory']
+        self.fail_msg = "failed. Are you sure you have done orthrus add --job or passed the " \
+                         "right job ID? orthrus show -j might help."
+        self.is_harden = os.path.exists(self.orthrusdir + "/binaries/coverage/ubsan")
+        self.is_asan = os.path.exists(self.orthrusdir + "/binaries/coverage/asan")
+
+    def run_afl_sancov(self, is_asan=False):
+        if is_asan:
+            bin_path = self.orthrusdir + "/binaries/coverage/asan/bin/{}".format(self.job_token.target)
+            crash_dir = self.job_token.rootdir + "/unique/asan"
+            sanitizer = 'asan'
+            target = self.orthrusdir + "/binaries/coverage/asan/bin/" + \
+                     self.job_token.target + " " + self.job_token.params.replace("@@", "AFL_FILE")
+        else:
+            bin_path = self.orthrusdir + "/binaries/coverage/ubsan/bin/{}".format(self.job_token.target)
+            crash_dir = self.job_token.rootdir + "/unique/ubsan"
+            sanitizer = 'ubsan'
+            target = self.orthrusdir + "/binaries/coverage/ubsan/bin/" + \
+                     self.job_token.target + " " + self.job_token.params.replace("@@", "AFL_FILE")
+
+        # def __init__(self, parsed_args, cov_cmd, bin_path, crash_dir, afl_out, sanitizer):
+        export = {}
+        export['PYTHONUNBUFFERED'] = "1"
+        env = os.environ.copy()
+        env.update(export)
+        reporter = AFLSancovReporter(self._args, target, bin_path, crash_dir, '{}/afl-out'.format(self.job_token.rootdir),
+                                     sanitizer)
+        return reporter.run()
+
+    def run(self):
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Starting spectrum generation for job ID [{}]".format(
+            self._args.job_id))
+
+        if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir),
+                                           "Checking Orthrus workspace", 2,
+                                           'failed. Are you sure you ran orthrus create -asan -fuzz?'):
+            return False
+
+        self.job_token = j.jobtoken(self.orthrusdir, self._args.job_id)
+
+        if not util.pprint_decorator(self.job_token.materialize, 'Retrieving job ID [{}]'.format(self.job_token.id),
+                                     indent=2, fail_msg=self.fail_msg):
+            return False
+
+        if self.job_token.type == 'abtests':
+            util.color_print(util.bcolors.WARNING, "\t[+] Spectrum generation for A/B tests is not supported at the "
+                                                   "moment")
+            return True
+
+        self.crash_dir = '{}/unique'.format(self.job_token.rootdir)
+        if not os.path.exists(self.crash_dir):
+            util.color_print(util.bcolors.WARNING, "\t[+] It looks like you are attempting to generate crash spectrum "
+                                                   "before crash triage. Please triage first.")
+            return False
+
+        self.asan_crashes = glob.glob('{}/asan/*id*sig*'.format(self.crash_dir))
+        self.harden_crashes = glob.glob('{}/harden/*id*sig*'.format(self.crash_dir))
+
+        if (self.asan_crashes and not self.is_asan) or (self.harden_crashes and not self.is_harden):
+            util.color_print(util.bcolors.WARNING, "\t[+] It looks like you are attempting to generate crash spectrum "
+                                                   "without sanitizer coverage binaries. Did you run orthrus create "
+                                                   "with -sancov argument?")
+            return False
+
+        util.color_print(util.bcolors.OKGREEN, "\t\t[+] Generating crash spectrum {} job ID [{}]".format(
+            self.job_token.type, self.job_token.id))
+
+        if self.asan_crashes:
+            if self.run_afl_sancov(True):
+               return False
+
         return True
 
 class OrthrusDestroy(object):

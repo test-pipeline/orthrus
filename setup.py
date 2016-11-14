@@ -1,9 +1,10 @@
 from setuptools import setup, find_packages
 import os
+import orthrus
 
 setup(
     name = "orthrus",
-    version = "0.1 (pre-alpha)",
+    version = orthrus.__version__,
     author = "Markus Leutner, and Bhargava Shastry",
     author_email = "bshastry@sec.t-labs.tu-berlin.de",
     description = "A tool for end-to-end security testing.",
@@ -12,13 +13,10 @@ setup(
     long_description = open('./README.md', 'r').read(),
     packages = find_packages(),
     data_files=[(os.path.expanduser('~') + '/.orthrus', ['conf/orthrus.conf'])],
-    classifiers=["Development Status :: 2 - Pre-Alpha",
-                 "Topic :: Security",
+    classifiers=["Topic :: Security",
                  "Programming Language :: Python :: 2",
                  "Operating System :: POSIX :: Linux"],
     scripts = ['tool/orthrus'],
-    # install_requires = ['afl-utils'],
-    # dependency_links = ['https://github.com/rc0r/afl-utils/tarball/master#egg=afl-utils-v1.27a'],
     keywords=[ 'Fuzzing',
                'American Fuzzy Lop',
                'Triage'
