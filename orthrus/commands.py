@@ -1198,6 +1198,10 @@ class OrthrusSpectrum(object):
         self.asan_crashes = glob.glob('{}/asan/*id*sig*'.format(self.crash_dir))
         self.harden_crashes = glob.glob('{}/harden/*id*sig*'.format(self.crash_dir))
 
+        if not self.asan_crashes and not self.harden_crashes:
+            util.color_print(util.bcolors.INFO, "\t[+] There are no crashes to analyze!")
+            return True
+
         if (self.asan_crashes and not self.is_asan) or (self.harden_crashes and not self.is_harden):
             util.color_print(util.bcolors.WARNING, "\t[+] It looks like you are attempting to generate crash spectrum "
                                                    "without sanitizer coverage binaries. Did you run orthrus create "
