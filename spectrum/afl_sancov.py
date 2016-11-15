@@ -244,6 +244,7 @@ class AFLSancovReporter:
 
         ### Make sure crashing input indeed triggers a program crash
         cov_cmd = self.coverage_cmd.replace('AFL_FILE', crash_fname)
+
         if not self.does_dry_run_throw_error(cov_cmd):
             self.logr("Crash input ({}) does not crash the program! Filtering crash file."
                       .format(cbasename))
@@ -659,8 +660,12 @@ class AFLSancovReporter:
     # Credit: http://stackoverflow.com/a/1104641/4712439
     def does_dry_run_throw_error(self, cmd):
 
+        env = os.environ.copy()
+        if self.sanitizer == 'asan':
+            env.update({'ASAN_OPTIONS': 'abort_on_error=1'})
+
         try:
-            out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
+            out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True, env=env)
         except Exception, e:
             return (e.returncode > 128)
 
