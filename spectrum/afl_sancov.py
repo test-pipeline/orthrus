@@ -551,10 +551,11 @@ class AFLSancovReporter:
         if self.sanitizer == "asan":
             if self.find_crash_parent_regex.match(afl_input):
                 if not self.args.sancov_bug:
-                    sancov_env['ASAN_OPTIONS'] = 'coverage=1:coverage_direct=1:' \
-                                             'coverage_dir=%s' % fpath
+                    sancov_env['ASAN_OPTIONS'] = 'abort_on_error=1:disable_coredump=1:symbolize=1:coverage=1:' \
+                                                 'coverage_direct=1:coverage_dir=%s' % fpath
                 else:
-                    sancov_env['ASAN_OPTIONS'] = 'coverage=1:coverage_direct=1'
+                    sancov_env['ASAN_OPTIONS'] = 'abort_on_error=1:disable_coredump=1:symbolize=1:coverage=1:' \
+                                                 'coverage_direct=1'
             else:
                 if not self.args.sancov_bug:
                     sancov_env['ASAN_OPTIONS'] = 'coverage=1:coverage_dir=%s' % fpath

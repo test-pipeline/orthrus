@@ -1227,6 +1227,16 @@ class OrthrusSpectrum(object):
 
         return True
 
+class OrthrusRuntime(object):
+
+    def __init__(self, args, config):
+        self._args = args
+        self._config = config
+        self.orthrusdir = self._config['orthrus']['directory']
+
+    def run(self):
+        pass
+
 class OrthrusDestroy(object):
     
     def __init__(self, args, config, testinput=None):
