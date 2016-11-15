@@ -1191,7 +1191,7 @@ class OrthrusSpectrum(object):
 
         self.crash_dir = '{}/unique'.format(self.job_token.rootdir)
         if not os.path.exists(self.crash_dir):
-            util.color_print(util.bcolors.WARNING, "\t[+] It looks like you are attempting to generate crash spectrum "
+            util.color_print(util.bcolors.WARNING, "\t\t[+] It looks like you are attempting to generate crash spectrum "
                                                    "before crash triage. Please triage first.")
             return False
 
@@ -1199,11 +1199,11 @@ class OrthrusSpectrum(object):
         self.harden_crashes = glob.glob('{}/harden/*id*sig*'.format(self.crash_dir))
 
         if not self.asan_crashes and not self.harden_crashes:
-            util.color_print(util.bcolors.INFO, "\t[+] There are no crashes to analyze!")
+            util.color_print(util.bcolors.INFO, "\t\t[+] There are no crashes to analyze!")
             return True
 
         if (self.asan_crashes and not self.is_asan) or (self.harden_crashes and not self.is_harden):
-            util.color_print(util.bcolors.WARNING, "\t[+] It looks like you are attempting to generate crash spectrum "
+            util.color_print(util.bcolors.WARNING, "\t\t[+] It looks like you are attempting to generate crash spectrum "
                                                    "without sanitizer coverage binaries. Did you run orthrus create "
                                                    "with -sancov argument?")
             return False
