@@ -4,7 +4,7 @@ source = orthrus
 	 tool
 	 orthrusutils
 	 tests
-
+	 spectrum
 
 [report]
 show_missing = True

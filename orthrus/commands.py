@@ -1153,16 +1153,12 @@ class OrthrusSpectrum(object):
                      self.job_token.target + " " + self.job_token.params.replace("@@", "AFL_FILE")
         else:
             bin_path = self.orthrusdir + "/binaries/coverage/ubsan/bin/{}".format(self.job_token.target)
-            crash_dir = self.job_token.rootdir + "/unique/ubsan"
+            crash_dir = self.job_token.rootdir + "/unique/harden"
             sanitizer = 'ubsan'
             target = self.orthrusdir + "/binaries/coverage/ubsan/bin/" + \
                      self.job_token.target + " " + self.job_token.params.replace("@@", "AFL_FILE")
 
         # def __init__(self, parsed_args, cov_cmd, bin_path, crash_dir, afl_out, sanitizer):
-        export = {}
-        export['PYTHONUNBUFFERED'] = "1"
-        env = os.environ.copy()
-        env.update(export)
         reporter = AFLSancovReporter(self._args, target, bin_path, crash_dir, '{}/afl-out'.format(self.job_token.rootdir),
                                      sanitizer)
         return reporter.run()
@@ -1187,6 +1183,12 @@ class OrthrusSpectrum(object):
                                                    "moment")
             return True
 
+        if self._args.version:
+            reporter = AFLSancovReporter(self._args, None, None, None, None, None)
+            if reporter.run():
+                return False
+            return True
+
         self.crash_dir = '{}/unique'.format(self.job_token.rootdir)
         if not os.path.exists(self.crash_dir):
             util.color_print(util.bcolors.WARNING, "\t[+] It looks like you are attempting to generate crash spectrum "
@@ -1202,12 +1204,22 @@ class OrthrusSpectrum(object):
                                                    "with -sancov argument?")
             return False
 
+        self.is_second_run = os.path.exists('{}/crash-analysis'.format(self.job_token.rootdir))
+        if self.is_second_run and not self._args.overwrite:
+            util.color_print(util.bcolors.WARNING, "\t\t[+] It looks like crash spectrum has already been generated. "
+                                                   "Please pass --overwrite to regenerate. Old data will be lost unless "
+                                                   "manually archived.")
+            return False
+
         util.color_print(util.bcolors.OKGREEN, "\t\t[+] Generating crash spectrum {} job ID [{}]".format(
             self.job_token.type, self.job_token.id))
 
         if self.asan_crashes:
             if self.run_afl_sancov(True):
                return False
+        if self.harden_crashes:
+            if self.run_afl_sancov():
+                return False
 
         return True
 
