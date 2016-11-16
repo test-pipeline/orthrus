@@ -662,7 +662,7 @@ class AFLSancovReporter:
 
         env = os.environ.copy()
         if self.sanitizer == 'asan':
-            env.update({'ASAN_OPTIONS': 'abort_on_error=1'})
+            env['ASAN_OPTIONS'] = 'abort_on_error=1:disable_coredump=1'
 
         try:
             out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True, env=env)
