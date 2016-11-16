@@ -401,9 +401,13 @@ class AFLSancovReporter:
             ### or a parent (in queue) that also crashes the program. In case we bump into
             ### such parents, we try to recursively find their parent i.e., the crash file's
             ### ancestor.
-            while self.parent_identical_or_crashes(crash_fname, pname):
+            while pname and self.parent_identical_or_crashes(crash_fname, pname):
                 self.logr("Looking up ancestors of crash file {}".format(cbasename))
                 pname = self.find_queue_parent(pname)
+
+            if not pname:
+                self.logr("No non-identical parent of crash file {} found. Bailing out!".format(cbasename))
+                continue
 
             pbasename = os.path.basename(pname)
 
@@ -667,7 +671,8 @@ class AFLSancovReporter:
         try:
             out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True, env=env)
         except Exception, e:
-            return (e.returncode > 128)
+            # OR condition is bug fix for compute shell returning negative instead of positive code
+            return (e.returncode > 128 or e.returncode < 0)
 
         return False
 
