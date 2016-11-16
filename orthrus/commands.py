@@ -939,7 +939,7 @@ class OrthrusTriage(object):
     def triage(self, jobroot_dir, inst, indir=None, outdir=None):
         env = os.environ.copy()
         asan_flag = {}
-        asan_flag['ASAN_OPTIONS'] = "abort_on_error=1:disable_coredump=1:symbolize=1"
+        asan_flag['ASAN_OPTIONS'] = "abort_on_error=1:disable_core=1:symbolize=1"
         env.update(asan_flag)
 
         if inst is 'harden':
