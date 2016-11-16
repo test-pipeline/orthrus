@@ -550,6 +550,9 @@ class OrthrusStart(object):
             asan_file = self.orthrusdir + "/logs/afl-asan.log"
             cmd = ["afl-multicore", "--config={}".format(jobroot_dir) + "/asan-job.conf ", add_cmd, \
                    str(self.core_per_subjob), "-v"]
+            # This ensures SEGV crashes are named sig:11 and not sig:06
+            # See: https://groups.google.com/forum/#!topic/afl-users/aklNGdKbpkI
+            util.overrride_default_afl_asan_options(env)
 
             if not util.pprint_decorator_fargs(util.func_wrapper(util.run_cmd, " ".join(cmd), env, asan_file),
                                                'Starting AFL ASAN fuzzer as slave', indent=2):
@@ -573,6 +576,9 @@ class OrthrusStart(object):
             asan_file = self.orthrusdir + "/logs/afl-asan.log"
             cmd = ["afl-multicore", "--config={}".format(jobroot_dir) + "/asan-job.conf", start_cmd, \
                    str(self.core_per_subjob), "-v"]
+            # This ensures SEGV crashes are named sig:11 and not sig:06
+            # See: https://groups.google.com/forum/#!topic/afl-users/aklNGdKbpkI
+            util.overrride_default_afl_asan_options(env)
 
             if not util.pprint_decorator_fargs(util.func_wrapper(util.run_cmd, " ".join(cmd), env, asan_file),
                                                'Starting AFL ASAN fuzzer as master', indent=2):
@@ -938,9 +944,7 @@ class OrthrusTriage(object):
 
     def triage(self, jobroot_dir, inst, indir=None, outdir=None):
         env = os.environ.copy()
-        asan_flag = {}
-        asan_flag['ASAN_OPTIONS'] = "abort_on_error=1:disable_core=1:symbolize=1"
-        env.update(asan_flag)
+        util.triage_asan_options(env)
 
         if inst is 'harden':
             prefix = 'HARDEN'

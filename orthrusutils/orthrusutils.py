@@ -446,3 +446,17 @@ def run_cmd_and_copy_stderr(cmd, stringIO, env=None):
     if ret != 0:
         return False
     return True
+
+def overrride_default_afl_asan_options(env):
+    env.update({'ASAN_OPTIONS': 'abort_on_error=1:detect_leaks=0:symbolize=0:handle_segv=0:allocator_may_return_null=1'})
+
+def triage_asan_options(env):
+    env.update({'ASAN_OPTIONS': 'abort_on_error=1:detect_leaks=0:symbolize=1:handle_segv=0:allocator_may_return_null=1:'
+                                'disable_core=1'})
+
+def spectrum_asan_options(env, extra=None):
+    if extra:
+        env.update({'ASAN_OPTIONS': 'abort_on_error=1:detect_leaks=0:symbolize=1:handle_segv=0:allocator_may_return_null=1:'
+                                'disable_core=1:{}'.format(extra)})
+    else:
+        triage_asan_options(env)

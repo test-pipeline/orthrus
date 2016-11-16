@@ -8,7 +8,7 @@ import os
 import collections
 import json
 from spectrum import __version__
-from orthrusutils.orthrusutils import import_unique_crashes, import_test_cases
+from orthrusutils.orthrusutils import import_unique_crashes, import_test_cases, spectrum_asan_options
 
 try:
     import subprocess32 as subprocess
@@ -556,16 +556,14 @@ class AFLSancovReporter:
         if self.sanitizer == "asan":
             if self.find_crash_parent_regex.match(afl_input):
                 if not self.args.sancov_bug:
-                    sancov_env['ASAN_OPTIONS'] = 'abort_on_error=1:disable_core=1:symbolize=1:coverage=1:' \
-                                                 'coverage_direct=1:coverage_dir=%s' % fpath
+                    spectrum_asan_options(sancov_env, 'coverage=1:coverage_direct=1:coverage_dir={}'.format(fpath))
                 else:
-                    sancov_env['ASAN_OPTIONS'] = 'abort_on_error=1:disable_core=1:symbolize=1:coverage=1:' \
-                                                 'coverage_direct=1'
+                    spectrum_asan_options(sancov_env, 'coverage=1:coverage_direct=1')
             else:
                 if not self.args.sancov_bug:
-                    sancov_env['ASAN_OPTIONS'] = 'coverage=1:coverage_dir=%s' % fpath
+                    spectrum_asan_options(sancov_env, 'coverage=1:coverage_dir={}'.format(fpath))
                 else:
-                    sancov_env['ASAN_OPTIONS'] = 'coverage=1'
+                    spectrum_asan_options(sancov_env, 'coverage=1')
         else:
             if self.find_crash_parent_regex.match(afl_input):
                 if not self.args.sancov_bug:
@@ -666,7 +664,7 @@ class AFLSancovReporter:
 
         env = os.environ.copy()
         if self.sanitizer == 'asan':
-            env['ASAN_OPTIONS'] = 'abort_on_error=1:disable_core=1'
+            spectrum_asan_options(env)
 
         try:
             out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True, env=env)
