@@ -152,19 +152,19 @@ class TestOrthrusSpectrum(unittest.TestCase):
         cmd.run()
 
         ## Expected filenames
-        cls.gen_dice = '{}/crash-analysis/asan/spectrum/dice/ASAN:SESSION000:id:000000,sig:06,src:000000,op:havoc,rep:2.json' \
+        cls.gen_dice = '{}/crash-analysis/spectrum/asan/dice/ASAN:SESSION000:id:000000,sig:06,src:000000,op:havoc,rep:2.json' \
             .format(cls.add_cmd.job.rootdir)
         cls.exp_dice_single = './expects/asan/spectrum/dice/single/' \
                               'ASAN:SESSION000:id:000000,sig:06,src:000000,op:havoc,rep:2.json'
         cls.exp_dice_multiple = './expects/asan/spectrum/dice/multiple/' \
                               'ASAN:SESSION000:id:000000,sig:06,src:000000,op:havoc,rep:2.json'
 
-        cls.gen_slice = '{}/crash-analysis/asan/spectrum/slice/ASAN:SESSION000:id:000000,sig:06,src:000000,op:havoc,rep:2.json' \
+        cls.gen_slice = '{}/crash-analysis/spectrum/asan/slice/ASAN:SESSION000:id:000000,sig:06,src:000000,op:havoc,rep:2.json' \
             .format(cls.add_cmd.job.rootdir)
         cls.exp_slice = './expects/asan/spectrum/slice/ASAN:SESSION000:id:000000,sig:06,src:000000,op:havoc,rep:2.json'
 
-        cls.dice_dir = '{}/crash-analysis/asan/spectrum/dice'.format(cls.add_cmd.job.rootdir)
-        cls.slice_dir = '{}/crash-analysis/asan/spectrum/slice'.format(cls.add_cmd.job.rootdir)
+        cls.dice_dir = '{}/crash-analysis/spectrum/asan/dice'.format(cls.add_cmd.job.rootdir)
+        cls.slice_dir = '{}/crash-analysis/spectrum/asan/slice'.format(cls.add_cmd.job.rootdir)
 
     @classmethod
     def tearDownClass(cls):

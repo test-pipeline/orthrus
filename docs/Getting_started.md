@@ -23,6 +23,13 @@ $ sudo apt-get --no-install-suggests --no-install-recommends --force-yes install
 ```bash
 $ sudo apt-get install lcov
 ```
+- pysancov
+```bash
+$ wget -q https://raw.githubusercontent.com/llvm-mirror/compiler-rt/release_38/lib/sanitizer_common/scripts/sancov.py &> /dev/null
+$ chmod +x sancov.py &> /dev/null
+$ sudo mv sancov.py /usr/local/bin/pysancov &> /dev/null
+```
+
 - An autotools open-source project for fuzzing
 
 # Python package dependencies

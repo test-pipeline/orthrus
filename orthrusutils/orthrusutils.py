@@ -6,6 +6,7 @@ import ConfigParser
 from argparse import ArgumentParser
 import errno
 import glob
+import logging
 
 CREATE_HELP = """Create an orthrus workspace"""
 ADD_HELP = """Add a fuzzing job"""
@@ -389,6 +390,8 @@ def func_wrapper(function, *args):
         else:
             return False
     except:
+        logging.basicConfig(level=logging.ERROR, filename='.pyexp')
+        logging.exception('Traceback of an exception raised during Orthrus invocation follows')
         return False
 
 def pprint_decorator_fargs(predicate, prologue, indent=0, fail_msg='failed', success_msg='done'):
@@ -415,6 +418,8 @@ def pprint_decorator(function, prologue, indent=0, fail_msg='failed', success_ms
             color_print(bcolors.FAIL, fail_msg)
             return False
     except:
+        logging.basicConfig(level=logging.ERROR, filename='.pyexp')
+        logging.exception('Traceback of an exception raised during Orthrus invocation follows')
         color_print(bcolors.FAIL, fail_msg)
         return False
 
@@ -434,17 +439,16 @@ def import_test_cases(qdir):
 def import_unique_crashes(dir):
     return sorted(glob.glob(dir + "/*id:*"))
 
-def run_cmd_and_copy_stderr(cmd, stringIO, env=None):
+def get_asan_report(cmd, strbuf, env=None):
 
     if not env:
         env = os.environ.copy()
 
-    proc = subprocess.Popen(cmd, shell=True, executable='/bin/bash',
-                            env=env, stdout=None, stderr=stringIO)
-    ret = proc.wait()
 
-    if ret != 0:
-        return False
+    proc = subprocess.Popen(cmd, shell=True, executable='/bin/bash',
+                            env=env, stdout=None, stderr=subprocess.PIPE)
+    strbuf.append(proc.communicate()[1])
+
     return True
 
 def overrride_default_afl_asan_options(env):
@@ -460,3 +464,6 @@ def spectrum_asan_options(env, extra=None):
                                 'disable_core=1:{}'.format(extra)})
     else:
         triage_asan_options(env)
+
+def runtime_asan_options(env):
+    env.update({'ASAN_OPTIONS': 'detect_leaks=0:symbolize=1:allocator_may_return_null=1'})

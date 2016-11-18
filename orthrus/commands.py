@@ -16,6 +16,7 @@ from orthrusutils import orthrusutils as util
 from builder import builder as b
 from job import job as j
 from spectrum.afl_sancov import AFLSancovReporter
+from runtime.runtime import RuntimeAnalyzer
 
 class OrthrusCreate(object):
 
@@ -1212,7 +1213,7 @@ class OrthrusSpectrum(object):
                                                    "with -sancov argument?")
             return False
 
-        self.is_second_run = os.path.exists('{}/crash-analysis'.format(self.job_token.rootdir))
+        self.is_second_run = os.path.exists('{}/crash-analysis/spectrum'.format(self.job_token.rootdir))
         if self.is_second_run and not self._args.overwrite:
             util.color_print(util.bcolors.WARNING, "\t\t[+] It looks like crash spectrum has already been generated. "
                                                    "Please pass --overwrite to regenerate. Old data will be lost unless "
@@ -1237,9 +1238,87 @@ class OrthrusRuntime(object):
         self._args = args
         self._config = config
         self.orthrusdir = self._config['orthrus']['directory']
+        self.is_harden = os.path.exists(self.orthrusdir + "/binaries/harden-dbg")
+        self.is_asan = os.path.exists(self.orthrusdir + "/binaries/asan-dbg")
+        self.fail_msg = "failed. Are you sure you have done orthrus add --job or passed the " \
+                         "right job ID? orthrus show -j might help."
+
+    def analyze(self, is_asan=False):
+        if is_asan:
+            bin_path = self.orthrusdir + "/binaries/asan-dbg/bin/{}".format(self.job_token.target)
+            crash_dir = self.job_token.rootdir + "/unique/asan"
+            sanitizer = 'asan'
+            target = self.orthrusdir + "/binaries/asan-dbg/bin/" + \
+                     self.job_token.target + " " + self.job_token.params
+        else:
+            bin_path = self.orthrusdir + "/binaries/harden-dbg/bin/{}".format(self.job_token.target)
+            crash_dir = self.job_token.rootdir + "/unique/harden"
+            sanitizer = 'harden'
+            target = self.orthrusdir + "/binaries/harden-dbg/bin/" + \
+                     self.job_token.target + " " + self.job_token.params
+
+        #__init__(self, job_token, crash_dir, sanitizer)
+        analyzer = RuntimeAnalyzer(self.job_token.rootdir, bin_path, target, crash_dir, sanitizer)
+        return analyzer.run()
 
     def run(self):
-        pass
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Starting dynamic analysis of all crashes for"
+                                                                  " job ID [{}]".format(self._args.job_id))
+
+        if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir),
+                                           "Checking Orthrus workspace", 2,
+                                           'failed. Are you sure you ran orthrus create -asan -fuzz?'):
+            return False
+
+        self.job_token = j.jobtoken(self.orthrusdir, self._args.job_id)
+
+        if not util.pprint_decorator(self.job_token.materialize, 'Retrieving job ID [{}]'.format(self.job_token.id),
+                                     indent=2, fail_msg=self.fail_msg):
+            return False
+
+        if self.job_token.type == 'abtests':
+            util.color_print(util.bcolors.WARNING, "\t[+] Dynamic analysis is not supported for A/B tests at the "
+                                                   "moment")
+            return True
+
+        self.crash_dir = '{}/unique'.format(self.job_token.rootdir)
+        if not os.path.exists(self.crash_dir):
+            util.color_print(util.bcolors.WARNING, "\t\t[+] It looks like you are attempting to analyze crashes you don't "
+                                                   "have or not triaged. Please run triage!")
+            return False
+
+        self.asan_crashes = glob.glob('{}/asan/*id*sig*'.format(self.crash_dir))
+        self.harden_crashes = glob.glob('{}/harden/*id*sig*'.format(self.crash_dir))
+
+        if not self.asan_crashes and not self.harden_crashes:
+            util.color_print(util.bcolors.INFO, "\t\t[+] There are no crashes to analyze!")
+            return True
+
+        if (self.asan_crashes and not self.is_asan) or (self.harden_crashes and not self.is_harden):
+            util.color_print(util.bcolors.WARNING, "\t\t[+] It looks like you are attempting to invoke crash analysis "
+                                                   "without sanitizer and/or debug binaries. Did you run orthrus create "
+                                                   "with -asan -fuzz?")
+            return False
+
+        self.is_second_run = os.path.exists('{}/crash-analysis/runtime'.format(self.job_token.rootdir))
+        if self.is_second_run and not self._args.overwrite:
+            util.color_print(util.bcolors.WARNING, "\t\t[+] It looks like dynamic analysis results are already there. "
+                                                   "Please pass --overwrite to regenerate. Old data will be lost unless "
+                                                   "manually archived.")
+            return False
+
+        util.color_print(util.bcolors.OKGREEN, "\t\t[+] Performing dynamic analysis of crashes for {} job ID [{}]".format(
+            self.job_token.type, self.job_token.id))
+
+        if self.asan_crashes:
+            if not self.analyze(True):
+               return False
+        if self.harden_crashes:
+            if not self.analyze():
+                return False
+
+        return True
+
 
 class OrthrusDestroy(object):
     

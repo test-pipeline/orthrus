@@ -5,6 +5,7 @@ source = orthrus
 	 orthrusutils
 	 tests
 	 spectrum
+	 runtime
 
 [report]
 show_missing = True

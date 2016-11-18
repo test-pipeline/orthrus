@@ -490,7 +490,7 @@ class AFLSancovReporter:
 
     def init_tracking(self):
 
-        self.cov_paths['top_dir'] = self.afl_fuzzing_dir + '/../crash-analysis/{}'.format(self.sanitizer)
+        self.cov_paths['top_dir'] = self.afl_fuzzing_dir + '/../crash-analysis/spectrum/{}'.format(self.sanitizer)
         self.cov_paths['log_file'] = self.cov_paths['top_dir'] + '/afl-sancov.log'
         self.cov_paths['tmp_out'] = self.cov_paths['top_dir'] + '/cmd-out.tmp'
 
@@ -504,9 +504,8 @@ class AFLSancovReporter:
         self.cov_paths['parent_sancov_raw'] = ''
         self.cov_paths['crash_sancov_raw'] = ''
         # Diff in delta debug mode
-        self.cov_paths['spectrum_dir'] = self.cov_paths['top_dir'] + '/spectrum'
-        self.cov_paths['slice_dir'] = self.cov_paths['spectrum_dir'] + '/slice'
-        self.cov_paths['dice_dir'] = self.cov_paths['spectrum_dir'] + '/dice'
+        self.cov_paths['slice_dir'] = self.cov_paths['top_dir'] + '/slice'
+        self.cov_paths['dice_dir'] = self.cov_paths['top_dir'] + '/dice'
         self.cov_paths['dd_stash_dir'] = self.cov_paths['dice_dir'] + '/.raw'
         self.cov_paths['dd_filter_dir'] = self.cov_paths['dice_dir'] + '/.filter'
         self.cov_paths['dd_final_stats'] = self.cov_paths['dice_dir'] + '/final_stats.dd'
@@ -791,7 +790,7 @@ class AFLSancovReporter:
         if create_cov_dirs:
             for k in ['top_dir']:
                 os.makedirs(self.cov_paths[k])
-            for k in ['spectrum_dir', 'slice_dir', 'dice_dir', 'dd_stash_dir', 'dd_filter_dir']:
+            for k in ['slice_dir', 'dice_dir', 'dd_stash_dir', 'dd_filter_dir']:
                 os.mkdir(self.cov_paths[k])
         return
 

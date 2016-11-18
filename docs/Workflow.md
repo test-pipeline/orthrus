@@ -291,7 +291,43 @@ $ orthrus triage -j 1167520733
                 [+] Triaged 15 crashes. See .orthrus/jobs/1167520733/unique/
 ```
 
-## Step 7: User interface for fuzz status and coverage
+## Step 7: Obtain crash spectrum
+
+- Crash spectrum technically means basic block coverage of crashing executions (slice) and differential basic block coverage of crashing vs. non crashing input (dice)
+- To obtain the spectra, do
+```
+$ orthrus spectrum -j 3138688894
+[+] Starting spectrum generation for job ID [3138688894]
+      [+] Checking Orthrus workspace... done
+      [+] Retrieving job ID [3138688894]... done
+      [+] Generating crash spectrum routine job ID [3138688894]
+						    
+	*** Imported 60 new crash files from: .orthrus/jobs/routine/3138688894/afl-out/unique
+
+	    [+] Processing crash file (1/60)
+	    ...
+```
+
+- Output is written to `.orthrus/jobs/routine/job_id/crash-analysis/spectrum`
+
+## Step 8: Obtain runtime crash information
+
+- Run time information includes faulting addresses, crash backtrace etc.
+- At the moment, only ASAN reports are parsed, in the future raw core dump parsing may be introduced
+  - The parsed information is JSONified in the output dir (filename corresponds to crashing input filename)
+```
+$ orthrus runtime -j 538551600
+[+] Starting dynamic analysis of all crashes for job ID [538551600]
+		[+] Checking Orthrus workspace... done
+		[+] Retrieving job ID [538551600]... done
+		[+] Performing dynamic analysis of crashes for routine job ID [538551600]
+			[+] Analyzing crash 1 of 1... done
+			[+] JSONifying ASAN report... done
+```
+
+- Output is written to `.orthrus/jobs/routine/job_id/crash-analysis/runtime`
+
+## Step 9: User interface for fuzz status and coverage
 
 - You may view configured jobs, like so
 ```
@@ -322,7 +358,7 @@ $ orthrus show -cov
 Opening coverage html for job 1167520733 in a new browser tab
 ```
 
-## Step 8: Destroy orthrus session
+## Step 10: Destroy orthrus session
 
 - This permanently deletes all orthrus data (under `.orthrus`)
 ```
