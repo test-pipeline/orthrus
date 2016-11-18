@@ -21,9 +21,10 @@ Please read [docs/Workflow_abtests.md](docs/Workflow_abtests.md).
 # Full usage
 ```
 $ orthrus -h
-usage: A tool to manage, conduct, and assess security testing of autotools projects.
+usage: Orthrus version_string by Markus Leutner, and Bhargava Shastry <https://github.com/test-pipeline/orthrus> 
        [-h] [-v]
-       {create,add,remove,start,stop,show,triage,coverage,destroy} ...
+       {create,add,remove,start,stop,show,triage,coverage,spectrum,runtime,destroy,validate}
+       ...
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -32,31 +33,19 @@ optional arguments:
 subcommands:
   Orthrus subcommands
 
-  {create,add,remove,start,stop,show,triage,coverage,destroy}
+  {create,add,remove,start,stop,show,triage,coverage,spectrum,runtime,destroy,validate}
     create              Create an orthrus workspace
     add                 Add a fuzzing job
     remove              Remove a fuzzing job
-    start               Start the fuzzing jobs
-    stop                Stop the fuzzing jobs
-    show                Show whats currently going on
-    triage              Triage crash samples
+    start               Start a fuzzing jobs
+    stop                Stop a fuzzing jobs
+    show                Show what's currently going on
+    triage              Triage crash corpus
     coverage            Run afl-cov on existing AFL corpus
-    destroy             Destroy the orthrus workspace
-
-# For subcommand help
-$ orthrus create -h
-usage: A tool to manage, conduct, and assess security testing of autotools projects. create
-       [-h] [-asan] [-fuzz] [-cov] [-d [CONFIGURE_FLAGS]]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -asan, --afl-asan     Setup binaries for afl with AddressSanitizer
-  -fuzz, --afl-harden   Setup binaries for afl in 'harden' mode (stack-
-                        protector, fortify)
-  -cov, --coverage      Setup binaries to collect coverage information
-  -d [CONFIGURE_FLAGS], --configure-flags [CONFIGURE_FLAGS]
-                        Additional flags for configuring the source
-
+    spectrum            Run spectrum based analysis on existing AFL corpus
+    runtime             Perform dynamic analysis of existing AFL corpus
+    destroy             Destroy an orthrus workspace
+    validate            Check if all Orthrus dependencies are met
 ```
 
 # Issues and PRs
