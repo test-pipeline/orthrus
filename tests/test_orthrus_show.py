@@ -24,7 +24,7 @@ class TestOrthrusShow(unittest.TestCase):
         cmd = OrthrusShow(args, self.config)
         self.assertTrue(cmd.run())
         args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd.job.id])
-        stop_cmd = OrthrusStop(args, self.config)
+        stop_cmd = OrthrusStop(args, self.config, True)
         stop_cmd.run()
 
     def test_show_status_abtest(self):
@@ -37,7 +37,7 @@ class TestOrthrusShow(unittest.TestCase):
         cmd = OrthrusShow(args, self.config)
         self.assertTrue(cmd.run())
         args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd_abtest.job.id])
-        stop_cmd = OrthrusStop(args, self.config)
+        stop_cmd = OrthrusStop(args, self.config, True)
         stop_cmd.run()
 
     def test_show_cov(self):
@@ -48,7 +48,7 @@ class TestOrthrusShow(unittest.TestCase):
         # Long sleep so that afl-cov catches up
         time.sleep(2*TEST_SLEEP)
         args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd.job.id])
-        stop_cmd = OrthrusStop(args, self.config)
+        stop_cmd = OrthrusStop(args, self.config, True)
         stop_cmd.run()
         # Sleep again so afl-cov finishes
         time.sleep(TEST_SLEEP)
@@ -64,7 +64,7 @@ class TestOrthrusShow(unittest.TestCase):
         # Long sleep so that afl-cov catches up
         time.sleep(2*TEST_SLEEP)
         args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd_abtest.job.id, '-c'])
-        stop_cmd = OrthrusStop(args, self.config)
+        stop_cmd = OrthrusStop(args, self.config, True)
         stop_cmd.run()
         # Sleep again so afl-cov finishes
         time.sleep(TEST_SLEEP)

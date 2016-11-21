@@ -39,7 +39,7 @@ class TestOrthrusShow(unittest.TestCase):
     # Stop
     def test_stop_early_exit(self):
         args = parse_cmdline(self.description, ['stop', '-j', '123'])
-        cmd = OrthrusStop(args, self.config)
+        cmd = OrthrusStop(args, self.config, True)
         self.assertFalse(cmd.run())
 
     # Triage

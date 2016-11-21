@@ -37,7 +37,7 @@ class TestOrthrusTriage(unittest.TestCase):
         time.sleep(2*TEST_SLEEP)
         # Stop routine job fuzzing
         args = parse_cmdline(cls.description, ['stop', '-j', cls.add_cmd.job.id])
-        cmd = OrthrusStop(args, cls.config)
+        cmd = OrthrusStop(args, cls.config, True)
         cmd.run()
         # Add a/b test job
         abconf_dict = {'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast', 'fuzzerB_args': ''}
@@ -54,13 +54,15 @@ class TestOrthrusTriage(unittest.TestCase):
         time.sleep(2 * TEST_SLEEP)
         # Stop a/b test job
         args = parse_cmdline(cls.description, ['stop', '-j', cls.add_cmd_abtest.job.id])
-        cmd = OrthrusStop(args, cls.config)
+        cmd = OrthrusStop(args, cls.config, True)
         cmd.run()
-        # Simulate old triage
-        sim_unique_dir = cls.orthrusdirname + '/jobs/abtests/{}/{}/unique'.format(cls.add_cmd_abtest.job.id,
-                                                                         cls.add_cmd_abtest.job.joba_id)
-        if not os.path.isdir(sim_unique_dir):
-            os.mkdir(sim_unique_dir)
+        # Simulate old triage unique and exploitable dirs
+        sim_dirs = [cls.orthrusdirname + '/jobs/abtests/{}/{}/unique'.format(cls.add_cmd_abtest.job.id,
+                                                                         cls.add_cmd_abtest.job.joba_id),
+                   cls.orthrusdirname + '/jobs/abtests/{}/{}/exploitable'.format(cls.add_cmd_abtest.job.id,
+                                                                         cls.add_cmd_abtest.job.joba_id)]
+        for dir in sim_dirs:
+            os.makedirs(dir)
 
     @classmethod
     def tearDownClass(cls):

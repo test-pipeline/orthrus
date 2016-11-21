@@ -699,12 +699,13 @@ class OrthrusStart(object):
     
 class OrthrusStop(object):
     
-    def __init__(self, args, config):
+    def __init__(self, args, config, test=False):
         self._args = args
         self._config = config
         self.orthrusdir = self._config['orthrus']['directory']
         self.routinedir = self.orthrusdir + j.ROUTINEDIR
         self.abtestsdir = self.orthrusdir + j.ABTESTSDIR
+        self.test = test
 
     # NOTE: Supported for routine fuzzing jobs only
     def get_afl_cov_pid(self):
@@ -730,32 +731,40 @@ class OrthrusStop(object):
                 pids.append(match.groups()[0])
         return pids
 
+    def kill_fuzzers_test(self):
+        if self.job_token.type == 'routine':
+            return util.run_cmd("pkill -15 afl-fuzz")
+        else:
+            for fuzzer in [self.job_token.fuzzerA, self.job_token.fuzzerB]:
+                # FIXME: Silently failing
+                if not util.run_cmd("pkill -15 {}".format(fuzzer)):
+                    return True
+        return True
+
     def run_helper(self):
-        util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Stopping {} job for ID [{}]... ".
-                         format(self.job_token.type, self.job_token.id))
 
-        try:
-            ## Kill all fuzzers
-            kill_fuzz_cmd = ["pkill", "-9"]
-            if self.job_token.type == 'routine':
-                kill_fuzz_cmd.append("afl-fuzz")
-                util.run_cmd(" ".join(kill_fuzz_cmd))
-            else:
-                for fuzzer in [self.job_token.fuzzerA, self.job_token.fuzzerB]:
-                    util.run_cmd(" ".join(kill_fuzz_cmd + [fuzzer]))
+        if self.test:
+            if not util.pprint_decorator(self.kill_fuzzers_test, "Stopping {} job for ID [{}]".format(
+                                            self.job_token.type, self.job_token.id), indent=2):
+                return False
+        else:
+            kill_cmd = ["afl-multikill -S HARDEN && afl-multikill -S ASAN"]
+            if not util.pprint_decorator_fargs(util.func_wrapper(util.run_cmd, kill_cmd),
+                                               "Stopping {} job for ID [{}]".format(self.job_token.type,
+                                                                                    self.job_token.id),
+                                               indent=2):
+                return False
 
+        ## Kill afl-cov only for routine jobs
+        if self._args.coverage and self.job_token.type == 'routine':
+            util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Stopping afl-cov for {} job... ".
+                                        format(self.job_token.type))
+            for pid in self.get_afl_cov_pid():
+                kill_aflcov_cmd = ["kill", "-15", pid]
+                if not util.run_cmd(" ".join(kill_aflcov_cmd)):
+                    return False
             util.color_print(util.bcolors.OKGREEN, "done")
 
-            ## Kill afl-cov only for routine jobs
-            if self._args.coverage and self.job_token.type == 'routine':
-                util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Stopping afl-cov for {} job... ".
-                                            format(self.job_token.type))
-                for pid in self.get_afl_cov_pid():
-                    kill_aflcov_cmd = ["kill", "-9", pid]
-                    util.run_cmd(" ".join(kill_aflcov_cmd))
-                util.color_print(util.bcolors.OKGREEN, "done")
-        except:
-            return False
         return True
 
     def run(self):
@@ -995,6 +1004,11 @@ class OrthrusTriage(object):
 
         shutil.move(jobroot_dir + "/unique/", jobroot_dir + "/unique." + time.strftime("%Y-%m-%d-%H:%M:%S"))
         os.mkdir(jobroot_dir + "/unique/")
+        # Archive exploitable crashes from prior triaging if necessary
+        exp_path = jobroot_dir + "/exploitable"
+        if os.path.exists(exp_path):
+            shutil.move(exp_path, "{}.{}".format(exp_path, time.strftime("%Y-%m-%d-%H:%M:%S")))
+            os.mkdir(exp_path)
         return True
 
     def make_unique_dirs(self, jobroot_dir):

@@ -47,7 +47,7 @@ class TestOrthrusCoverage(unittest.TestCase):
         time.sleep(TEST_SLEEP)
         # Stop routine
         args = parse_cmdline(cls.description, ['stop', '-j', cls.add_cmd.job.id])
-        cmd = OrthrusStop(args, cls.config)
+        cmd = OrthrusStop(args, cls.config, True)
         cmd.run()
 
     @classmethod

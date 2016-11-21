@@ -21,7 +21,7 @@ class TestOrthrusStart(unittest.TestCase):
         self.assertTrue(cmd.run())
         time.sleep(TEST_SLEEP)
         args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd.job.id])
-        cmd = OrthrusStop(args, self.config)
+        cmd = OrthrusStop(args, self.config, True)
         self.assertTrue(cmd.run())
         args = parse_cmdline(self.description, ['start', '-j', self.add_cmd.job.id, '-m'])
         cmd = OrthrusStart(args, self.config)
@@ -46,7 +46,7 @@ class TestOrthrusStart(unittest.TestCase):
         self.assertTrue(cmd.run())
         time.sleep(TEST_SLEEP)
         args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd_abtest.job.id])
-        cmd = OrthrusStop(args, self.config)
+        cmd = OrthrusStop(args, self.config, True)
         self.assertTrue(cmd.run())
         args = parse_cmdline(self.description, ['start', '-j', self.add_cmd_abtest.job.id, '-m'])
         cmd = OrthrusStart(args, self.config)
@@ -72,8 +72,11 @@ class TestOrthrusStart(unittest.TestCase):
         else:
             # Sleep until afl-cov records its pid in afl-cov-status file and then stop
             time.sleep(TEST_SLEEP)
-            args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd.job.id, '-c'])
-        cmd = OrthrusStop(args, self.config)
+            if self.is_abtest:
+                args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd_abtest.job.id, '-c'])
+            else:
+                args = parse_cmdline(self.description, ['stop', '-j', self.add_cmd.job.id, '-c'])
+        cmd = OrthrusStop(args, self.config, True)
         self.assertTrue(cmd.run())
 
     @classmethod
