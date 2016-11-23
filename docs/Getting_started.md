@@ -4,7 +4,7 @@
   - 2.7 for orthrus
   - 3.X for afl-utils
 - [afl-fuzz][1]
-- [afl-utils][2] (latest: v1.31a, v1.32a (experimental) for a/b test support)
+- [afl-utils][2]
 - virtualenv and virtualenvwrapper (optional but highly recommended)
 
 ```bash
@@ -40,12 +40,12 @@ You can install Orthus' python dependencies (afl-utils, and afl-cov) via virtual
 
 All steps that work assume that you are creating and working with the `afl` virtualenv (`workon afl`)
 
-- afl-utils (use 1.32a instead of 1.31a for a/b testing)
+- afl-utils v1.32a
 
 ```bash
 $ mkvirtualenv -p /usr/bin/python3.4 afl
-$ wget -q https://github.com/rc0r/afl-utils/archive/v1.31a.tar.gz && tar xzf v1.31a.tar.gz
-$ rm v1.31a.tar.gz && cd afl-utils-1.31a
+$ wget -q https://github.com/rc0r/afl-utils/archive/v1.32a.tar.gz && tar xzf v1.32a.tar.gz
+$ rm v1.32a.tar.gz && cd afl-utils-1.32a
 $ python setup.py install
 ```
 
@@ -60,15 +60,15 @@ $ cp afl-cov ~/.virtualenvs/afl/bin/
 
 ## Native installation
 
-- afl-utils (use 1.32a instead of 1.31a for a/b testing)
+- afl-utils v1.32a
 ```bash
 $ cd $HOME
-$ wget -q https://github.com/rc0r/afl-utils/archive/v1.31a.tar.gz && tar xzf v1.31a.tar.gz
-$ rm v1.31a.tar.gz && cd afl-utils-1.31a
+$ wget -q https://github.com/rc0r/afl-utils/archive/v1.32a.tar.gz && tar xzf v1.32a.tar.gz
+$ rm v1.32a.tar.gz && cd afl-utils-1.32a
 $ sudo mkdir -p /usr/lib/python3.4/site-packages && sudo python3 setup.py install
 $ cd ../
 $ echo "source /usr/lib/python3.4/site-packages/exploitable-1.32_rcor-py3.4.egg/exploitable/expl
-$ sudo rm -rf afl-utils-1.31a
+$ sudo rm -rf afl-utils-1.32a
 ```
 
 - afl-cov (v0.6)
@@ -82,8 +82,6 @@ $ cd .. && rm -rf afl-cov-0.6
 # Installation
 
 ## Using Virtualenvwrapper
-
-- For a/b test sandwich `-b dev` between `git clone` and the git URL
 
 ```bash
 $ mkdir -p ~/.virtualenvs/afl/lib/python2.7/site-packages/
@@ -107,6 +105,5 @@ $ (sudo) python2.7 setup.py install
 ```
 
 [1]: http://lcamtuf.coredump.cx/afl/
-[2]: https://github.com/rc0r/afl-utils/tree/v1.27a
+[2]: https://github.com/rc0r/afl-utils/tree/v1.32a
 [3]: https://github.com/mrash/afl-cov/
-
