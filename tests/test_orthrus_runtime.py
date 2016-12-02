@@ -9,12 +9,21 @@ class TestOrthrusRuntime(unittest.TestCase):
     config = {'orthrus': {'directory': orthrusdirname}}
     abconf_file = orthrusdirname + '/conf/abconf.conf'
 
-    def test_runtime_routine(self):
-        args = parse_cmdline(self.description, ['runtime', '-j', self.add_cmd.job.id])
+    def test_runtime_routine_asan(self):
+        args = parse_cmdline(self.description, ['runtime', '-j', self.add_cmd1.job.id])
         cmd = OrthrusRuntime(args, self.config)
         self.assertTrue(cmd.run())
-        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(self.add_cmd.job.rootdir)))
-        self.assertTrue(glob.glob('{}/crash-analysis/runtime/asan/*.json'.format(self.add_cmd.job.rootdir)))
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(self.add_cmd1.job.rootdir)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/asan/*.json'.format(self.add_cmd1.job.rootdir)))
+
+    def test_runtime_routine_harden_asan(self):
+        args = parse_cmdline(self.description, ['runtime', '-j', self.add_cmd2.job.id])
+        cmd = OrthrusRuntime(args, self.config)
+        self.assertTrue(cmd.run())
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(self.add_cmd2.job.rootdir)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/asan/*.json'.format(self.add_cmd2.job.rootdir)))
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/harden'.format(self.add_cmd2.job.rootdir)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/harden/*.json'.format(self.add_cmd2.job.rootdir)))
 
     def test_runtime_abtests(self):
         args = parse_cmdline(self.description, ['runtime', '-j', self.add_cmd_abtest.job.id])
@@ -27,13 +36,23 @@ class TestOrthrusRuntime(unittest.TestCase):
         args = parse_cmdline(cls.description, ['create', '-asan', '-fuzz'])
         cmd = OrthrusCreate(args, cls.config)
         cmd.run()
-        # Add routine job
+        # Add routine job 1 (asan only)
         args = parse_cmdline(cls.description, ['add', '--job=test_asan @@',
-                                                '-i=./afl-crash-out.tar.gz'])
-        cls.add_cmd = OrthrusAdd(args, cls.config)
-        cls.add_cmd.run()
+                                                '-i=./afl-crash-out-rename.tar.gz'])
+        cls.add_cmd1 = OrthrusAdd(args, cls.config)
+        cls.add_cmd1.run()
 
-        args = parse_cmdline(cls.description, ['triage', '-j', cls.add_cmd.job.id])
+        args = parse_cmdline(cls.description, ['triage', '-j', cls.add_cmd1.job.id])
+        cmd = OrthrusTriage(args, cls.config, test=True)
+        cmd.run()
+
+        # Add routine job 2 (harden+asan)
+        args = parse_cmdline(cls.description, ['add', '--job=main_no_abort @@',
+                                                '-i=./afl-crash-out-rename.tar.gz'])
+        cls.add_cmd2 = OrthrusAdd(args, cls.config)
+        cls.add_cmd2.run()
+
+        args = parse_cmdline(cls.description, ['triage', '-j', cls.add_cmd2.job.id])
         cmd = OrthrusTriage(args, cls.config, test=True)
         cmd.run()
 

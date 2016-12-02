@@ -1019,6 +1019,16 @@ class OrthrusTriage(object):
         else:
             return False
 
+    def get_formatted_crashnames(self, path, prefix):
+        list = glob.glob('{}/{}/crashes/*id*sig*'.format(path, prefix))
+        ## Rename files
+        for file in list:
+            head, fn = os.path.split(file)
+            newfn = '{}:{}'.format(prefix, fn)
+            shutil.move(file, os.path.join(head, newfn))
+        return glob.glob('{}/{}/crashes/*id*sig*'.format(path, prefix))
+
+
     def triage_wrapper(self, jobroot_dir, job_id):
         if not self.make_unique_dirs(jobroot_dir) and not self.prepare_for_rerun(jobroot_dir):
             return False
@@ -1036,17 +1046,19 @@ class OrthrusTriage(object):
                                                    self.job_token.type, job_id), indent=2):
                 return False
 
-        #Second pass over all exploitable crashes
-        exp_path = jobroot_dir + "/exploitable/"
-        uniq_path = jobroot_dir + "/unique/"
+        # BUGFIX: Second pass may be suboptimal (eliminate HARDEN crashes). Instead simply copy all.
+        exp_path = jobroot_dir + "/exploitable"
+        uniq_path = jobroot_dir + "/unique"
         if os.path.exists(exp_path):
-            if not util.pprint_decorator_fargs(util.func_wrapper(self.triage, jobroot_dir, 'all', exp_path,
-                                                                 uniq_path),
-                                               'Triaging all mode crashes for {} job ID [{}]'.format(
-                                                   self.job_token.type, job_id), indent=2):
-                return False
+            exp_all = []
+            exp_asan_crashes = self.get_formatted_crashnames(exp_path, 'ASAN')
+            exp_harden_crashes = self.get_formatted_crashnames(exp_path, 'HARDEN')
+            exp_all.extend(exp_asan_crashes)
+            exp_all.extend(exp_harden_crashes)
+            for file in exp_all:
+                shutil.copy(file, uniq_path)
 
-        triaged_crashes = glob.glob(uniq_path + "*id*sig*")
+        triaged_crashes = glob.glob(uniq_path + "/*id*sig*")
         util.color_print(util.bcolors.OKGREEN, "\t\t[+] Triaged " + str(len(triaged_crashes)) + \
                          " crashes. See {}".format(uniq_path))
         if not triaged_crashes:
@@ -1054,15 +1066,15 @@ class OrthrusTriage(object):
             return True
 
         # Organize unique crashes
-        asan_crashes = glob.glob('{}ASAN*id*sig*'.format(uniq_path))
-        harden_crashes = glob.glob('{}HARDEN*id*sig*'.format(uniq_path))
+        asan_crashes = glob.glob('{}/ASAN*id*sig*'.format(uniq_path))
+        harden_crashes = glob.glob('{}/HARDEN*id*sig*'.format(uniq_path))
         if asan_crashes:
-            uniq_asan_dir = '{}asan'.format(uniq_path)
+            uniq_asan_dir = '{}/asan'.format(uniq_path)
             util.mkdir_p(uniq_asan_dir)
             for file in asan_crashes:
                 shutil.move(file, uniq_asan_dir)
         if harden_crashes:
-            uniq_harden_dir = '{}harden'.format(uniq_path)
+            uniq_harden_dir = '{}/harden'.format(uniq_path)
             util.mkdir_p(uniq_harden_dir)
             for file in harden_crashes:
                 shutil.move(file, uniq_harden_dir)

@@ -1,6 +1,7 @@
 import os
 import shutil
 from SanitizerReport import ASANReport
+from GdbExtractor import GdbExtractor
 from orthrusutils.orthrusutils import import_unique_crashes, get_asan_report, runtime_asan_options, \
                                         func_wrapper, pprint_decorator_fargs, pprint_decorator
 
@@ -24,20 +25,36 @@ class RuntimeAnalyzer(object):
         else:
             os.makedirs(self.outdir)
 
+    def asan_helper(self, crash, count, total_crashes):
+        report = ASANReport('.', True, '{}/{}.json'.format(self.outdir, os.path.basename(crash)))
+        mystderr = []
+
+        if not pprint_decorator_fargs(func_wrapper(get_asan_report, self.target_cmd.replace('@@', crash),
+                                                   mystderr, self.env), 'Analyzing ASAN crash {} of {}'.
+                                              format(count, total_crashes), indent=3):
+            return False
+
+        if not pprint_decorator_fargs(func_wrapper(report.parse, mystderr[0]), 'JSONifying ASAN report', indent=3):
+            return False
+        return True
+
+    def harden_helper(self, crash, count, total_crashes):
+        params = self.target_cmd.replace(self.bin_path, '').replace('@@', crash)
+        report = GdbExtractor(self.bin_path, params, '{}/{}.json'.format(self.outdir, os.path.basename(crash)))
+
+        if not pprint_decorator(report.run, 'JSONifying HARDEN crash {} of {}'.format(count, total_crashes), indent=3):
+            return False
+        return True
+
     def run(self):
         afl_crashes = import_unique_crashes(self.crash_dir)
         total_crashes = len(afl_crashes)
         count = 0
         for crash in afl_crashes:
             count += 1
-            report = ASANReport('.', True, '{}/{}.json'.format(self.outdir, os.path.basename(crash)))
-            mystderr = []
-
-            if not pprint_decorator_fargs(func_wrapper(get_asan_report, self.target_cmd.replace('@@', crash),
-                                                       mystderr, self.env), 'Analyzing crash {} of {}'.
-                                                                            format(count, total_crashes), indent=3):
-                continue
-
-            if not pprint_decorator_fargs(func_wrapper(report.parse, mystderr[0]), 'JSONifying ASAN report', indent=3):
-                continue
+            # FIXME: Error handling
+            if self.sanitizer == 'asan':
+                self.asan_helper(crash, count, total_crashes)
+            elif self.sanitizer == 'harden':
+                self.harden_helper(crash, count, total_crashes)
         return True
