@@ -52,12 +52,6 @@ class RuntimeAnalyzer(object):
             return False
         return True
 
-        # report = GdbExtractor(self.bin_path, params, '{}/{}.json'.format(self.outdir, os.path.basename(crash)))
-        #
-        # if not pprint_decorator(report.run, 'JSONifying HARDEN crash {} of {}'.format(count, total_crashes), indent=3):
-        #     return False
-        # return True
-
     def run(self):
         afl_crashes = import_unique_crashes(self.crash_dir)
         total_crashes = len(afl_crashes)
