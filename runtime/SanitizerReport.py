@@ -555,37 +555,46 @@ class ASANReport(SanitizerReport):
         SanitizerReport.__init__(self, path_prefix, verbose, jsonfile)
 
 
-    @staticmethod
-    def serialize_dict(obj):
-        local_dict = {}
-        for key, value in obj.__dict__.iteritems():
-            attr = getattr(obj, key)
-            if not key.startswith('__') and not callable(attr) and not type(attr) is staticmethod:
-                if type(value) is str or type(value) is int:
-                    local_dict[key] = value
-        return local_dict
+    # @staticmethod
+    # def serialize_dict(obj):
+    #     local_dict = {}
+    #     for key, value in obj.__dict__.iteritems():
+    #         attr = getattr(obj, key)
+    #         if not key.startswith('__') and not callable(attr) and not type(attr) is staticmethod:
+    #             if type(value) is str or type(value) is int:
+    #                 local_dict[key] = value
+    #     return local_dict
 
-    def serialize(self):
-        serial_dict = {}
-        for key, value in self.__dict__.iteritems():
-            attr = getattr(self, key)
-            if not key.startswith('__') and not callable(attr) and not type(attr) is staticmethod:
-                if type(value) is str or type(value) is int:
-                    serial_dict[key] = value
-                if type(value) is list and value and type(value[0]) is StackFrame:
-                    sf_dict = {}
-                    for idx, stackframe in enumerate(value):
-                        sf_dict['frame{}'.format(idx)] = self.serialize_dict(stackframe)
-                    serial_dict[key] = sf_dict
-        return serial_dict
+    def update_asan_dict(self):
+        for attr in ['_pid', '_reason', '_operation', '_op_size', '_fault_address', '_pc', '_bp', '_sp', '_thread'
+                     '_loc_offset', '_loc_position', '_loc_size', '_loc_frame_no', '_loc_function', '_loc_filename'
+                     '_loc_var_name', '_loc_line', '_command_line', '_exec_file', 'jsonfile', '_fault_var']:
+            if hasattr(self, attr):
+                self.asan_dict[attr] = getattr(self, attr)
+
+    # def serialize(self):
+    #     serial_dict = {}
+    #     for key, value in self.__dict__.iteritems():
+    #         attr = getattr(self, key)
+    #         if not key.startswith('__') and not callable(attr) and not type(attr) is staticmethod:
+    #             if type(value) is str or type(value) is int:
+    #                 serial_dict[key] = value
+    #             if type(value) is list and value and type(value[0]) is StackFrame:
+    #                 sf_dict = {}
+    #                 for idx, stackframe in enumerate(value):
+    #                     sf_dict['frame{}'.format(idx)] = self.serialize_dict(stackframe)
+    #                 serial_dict[key] = sf_dict
+    #     return serial_dict
 
     def jsonify(self):
+        self.update_asan_dict()
         with open(self.jsonfile, 'w') as file:
-            json.dump(self.serialize(), file, indent=4)
+            json.dump(self.asan_dict, file, indent=4)
 
     # @Override
     def parse(self, report):
-        # Parse ASAN header information
+        self.asan_dict = {}
+        # Parse ASAN header information into dict
         match = self._re_asan_hdr.search(report)
         if match is not None:
             self._pid = int(match.group("pid"))
@@ -618,10 +627,28 @@ class ASANReport(SanitizerReport):
                 end += report[end:].find("\n")
             else:
                 break
-            
+
+        self.asan_dict['_fault_bt'] = {}
+        bt_key = '_fault_bt'
         for match in self._re_asan_stack.finditer(report[start:end]):
             frame_no, address, func, paramlist, filename, line, column, module, offset = match.group("frame_no", "address", "func", "paramlist", "file", "line", "column", "module", "offset")
             self._fault_bt.append(StackFrame(frame_no, address, func, paramlist, filename, line, column, module, offset))
+
+            # Don't want these frames in dict
+            if (func == '_start' and module) or (func == '__libc_start_main'):
+                continue
+
+            # Dictify
+            frame_key = 'frame{}'.format(frame_no)
+            self.asan_dict[bt_key][frame_key] = {}
+            self.asan_dict[bt_key][frame_key]['address'] = address
+            self.asan_dict[bt_key][frame_key]['func'] = func
+            self.asan_dict[bt_key][frame_key]['paramlist'] = paramlist
+            self.asan_dict[bt_key][frame_key]['filename'] = filename
+            self.asan_dict[bt_key][frame_key]['line'] = line
+            self.asan_dict[bt_key][frame_key]['column'] = column
+            self.asan_dict[bt_key][frame_key]['module'] = module
+            self.asan_dict[bt_key][frame_key]['offset'] = offset
         
         #Origin location
         match = self._re_asan_location_heap.search(report)
@@ -629,8 +656,8 @@ class ASANReport(SanitizerReport):
             self._loc_offset = match.group("offset")
             self._loc_position = match.group("position")
             self._loc_size = match.group("size")
-            self._loc_region[0] = match.group("start")
-            self._loc_region[1] = match.group("end")
+            self._loc_region[0] = self.asan_dict['_loc_start'] = match.group("start")
+            self._loc_region[1] = self.asan_dict['_loc_end'] = match.group("end")
             if self._fault_address is None:
                 self._fault_address = match.group("fault_addr")
 
@@ -647,8 +674,8 @@ class ASANReport(SanitizerReport):
             self._loc_var_name = match.group("var")
             self._loc_size = str(int(match.group("end")) - int(match.group("start")))
             
-            self._loc_region[0] = hex(int(self._fault_address, 0) - int(self._loc_offset) + int(self._loc_region[0]))
-            self._loc_region[1] = hex(int(self._fault_address, 0) - int(self._loc_offset) + int(self._loc_region[1]))
+            self._loc_region[0] = self.asan_dict['_loc_start'] = hex(int(self._fault_address, 0) - int(self._loc_offset) + int(self._loc_region[0]))
+            self._loc_region[1] = self.asan_dict['_loc_end'] = hex(int(self._fault_address, 0) - int(self._loc_offset) + int(self._loc_region[1]))
         
         #Backtrace of origin
         start = report.find("allocated by")
@@ -661,10 +688,24 @@ class ASANReport(SanitizerReport):
             else:
                 break
 
+        self.asan_dict['_origin_bt'] = {}
+        bt_key = '_origin_bt'
         for match in self._re_asan_stack.finditer(report[start:end]):
             frame_no, address, func, paramlist, filename, line, column, module, offset = match.group("frame_no", "address", "func", "paramlist", "file", "line", "column", "module", "offset")
             self._origin_bt.append(StackFrame(frame_no, address, func, paramlist, filename, line, column, module, offset))
             #self._origin_bt.append((frame_no, address, func or "", filename or "", line or "", column or "", module or "", offset or ""))
+
+            # Dictify
+            frame_key = 'frame{}'.format(frame_no)
+            self.asan_dict[bt_key][frame_key] = {}
+            self.asan_dict[bt_key][frame_key]['address'] = address
+            self.asan_dict[bt_key][frame_key]['func'] = func
+            self.asan_dict[bt_key][frame_key]['paramlist'] = paramlist
+            self.asan_dict[bt_key][frame_key]['filename'] = filename
+            self.asan_dict[bt_key][frame_key]['line'] = line
+            self.asan_dict[bt_key][frame_key]['column'] = column
+            self.asan_dict[bt_key][frame_key]['module'] = module
+            self.asan_dict[bt_key][frame_key]['offset'] = offset
         
         #Backtrace of intermediate position
         start = report.find("freed by")
@@ -676,9 +717,24 @@ class ASANReport(SanitizerReport):
                 end += report[end:].find("\n")
             else:
                 break
+
+        self.asan_dict['_freedby_bt'] = {}
+        bt_key = '_freedby_bt'
         for match in self._re_asan_stack.finditer(report[start:end]):
             frame_no, address, func, paramlist, filename, line, column, module, offset = match.group("frame_no", "address", "func", "paramlist", "file", "line", "column", "module", "offset")
             self._intermediate_bt.append(StackFrame(frame_no, address, func, paramlist, filename, line, column, module, offset))
+
+            # Dictify
+            frame_key = 'frame{}'.format(frame_no)
+            self.asan_dict[bt_key][frame_key] = {}
+            self.asan_dict[bt_key][frame_key]['address'] = address
+            self.asan_dict[bt_key][frame_key]['func'] = func
+            self.asan_dict[bt_key][frame_key]['paramlist'] = paramlist
+            self.asan_dict[bt_key][frame_key]['filename'] = filename
+            self.asan_dict[bt_key][frame_key]['line'] = line
+            self.asan_dict[bt_key][frame_key]['column'] = column
+            self.asan_dict[bt_key][frame_key]['module'] = module
+            self.asan_dict[bt_key][frame_key]['offset'] = offset
         
         match = self._re_asan_cmd_line.search(report)
         if match is not None:
