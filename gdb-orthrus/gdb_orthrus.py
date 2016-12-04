@@ -335,7 +335,7 @@ class GdbOrthrus(gdb.Function):
                         (at\s*(?P<file>[A-Za-z0-9_\.\-]*):(?P<line>[0-9]+)\s*)?
                         ((\s)?\((?P<module>.+?)\+(?P<offset>0x[A-Fa-f0-9]+)\))?
                         """, re.MULTILINE | re.VERBOSE)
-    _re_gdb_exploitable = re.compile(r"Description: (?P<desc>[\w|\s]+).*"
+    _re_gdb_exploitable = re.compile(r".*Description: (?P<desc>[\w|\s]+).*"
                                      r"Short description: (?P<shortdesc>[\w|\s\(\)\/]+).*"
                                      r"Hash: (?P<hash>[0-9A-Za-z\.]+).*"
                                      r"Exploitability Classification: (?P<class>[A-Z_]+).*"
@@ -373,7 +373,6 @@ class GdbOrthrus(gdb.Function):
         # Parse fault address and exploitable output
         self.gdb_dict['fault_addr'] = gdb.execute('printf "%#lx", $_siginfo._sifields._sigfault.si_addr', False, True)
         exp_string = gdb.execute('exploitable', False, True)
-        print exp_string
         match = self._re_gdb_exploitable.match(exp_string)
         if match is not None:
             exp_dict = {}
