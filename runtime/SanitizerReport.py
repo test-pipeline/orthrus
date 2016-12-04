@@ -9,163 +9,163 @@ import os
 from collections import OrderedDict
 import json
 
-class StackFrame(object):
-    '''
-    Representation of a stack frame
-    '''
-    def __init__(self, frameNo, address, function, paramlist, filename, line, column, module, offset):
-        self._frame_no = frameNo
-        self._address = address
-        self._function = function
-        self._paramlist = paramlist
-        self._filename = os.path.normpath(filename or "")
-        if os.path.isfile(self._filename):
-            self._filename = os.path.abspath(self._filename)
-        else:
-            # Path information is incomplete, thus we have to search for the file
-            candidates = []
-            for dirpath, dirnames, filenames in os.walk('./'):
-                for fn in filenames:
-                    if fn == filename:
-                        fpath = os.path.join(dirpath, fn)
-                        candidates.append(fpath)
-            if len(candidates) > 0:
-                # We found one or more source file candidate, doing some heuristics
-                found = False
-                for fn in candidates:
-                    fh = open(fn, "r")
-                    for linestr in fh:
-                        if function in linestr:
-                            self._filename = os.path.abspath(os.path.normpath(fn))
-                            found = True
-                            break
-                    fh.close()
-                    if found:
-                        break
-            else:
-                self._filename = filename or ""
-            
-        self._line = int(line or 0)
-        self._column = int(column or 0)
-        self._module = module or ""
-        self._offset = offset or ""
-        
-        # VarName : [0] = type, [1] = value (ptr/primitive), [2] = data/ subDict (member of struct/class), [3] = blob (row data)
-        self._args = OrderedDict()
-        self._locals = OrderedDict()
-        
-    # def getVarInfo(self, var_name):
-    #     var_seq = var_name.replace("->", ".").split(".")
-    #     var_info = self._traverseVar(self._args, var_seq)
-    #     if var_info:
-    #         if isinstance(var_info[2], OrderedDict):
-    #             var_info[2] = None
-    #         return var_info
-    #     var_info = self._traverseVar(self._locals, var_seq)
-    #     if var_info:
-    #         if isinstance(var_info[2], OrderedDict):
-    #             var_info[2] = None
-    #         return var_info
-    #     return None
-    #
-    # def _traverseVar(self, obj, var_seq, level = 0):
-    #     for key, value in obj.items():
-    #         if var_seq[level] == key:
-    #             if level != len(var_seq) - 1:
-    #                 if isinstance(value[2], OrderedDict):
-    #                     return self._traverseVar(value[2], var_seq, level + 1)
-    #                 else:
-    #                     return None
-    #             else:
-    #                 return value
-
-    @property
-    def frameNo(self):
-        """ Position of frame on stack """
-        return self._frame_no
-    @frameNo.setter
-    def frameNo(self, value):
-        self._frameNo = value
-
-    @property
-    def address(self):
-        """ Address in frame """
-        return self._address
-    @address.setter
-    def address(self, value):
-        self._address = value
-
-    @property
-    def function(self):
-        """ Function name """
-        return self._function
-    @function.setter
-    def function(self, value):
-        self._function = value
-
-    @property
-    def filename(self):
-        """ Source Location filename """
-        return self._filename
-    @filename.setter
-    def filename(self, value):
-        self._filename = value
-
-    @property
-    def paramlist(self):
-        """ Parameter list """
-        return self._paramlist
-    @paramlist.setter
-    def paramlist(self, value):
-        self._paramlist = value
-
-    @property
-    def line(self):
-        """ Source Location line """
-        return self._line
-    @line.setter
-    def line(self, value):
-        self._line = value
-
-    @property
-    def column(self):
-        """ Source Location column """
-        return self._column
-    @column.setter
-    def column(self, value):
-        self._column = value
-
-    @property
-    def module(self):
-        """ Module name """
-        return self._module
-    @module.setter
-    def module(self, value):
-        self._module = value
-
-    @property
-    def offset(self):
-        """ Offset in module """
-        return self._offset
-    @offset.setter
-    def offset(self, value):
-        self._offset = value
-
-    @property
-    def args(self):
-        """ Arguments of the function """
-        return self._args
-    @args.setter
-    def args(self, value):
-        self._args = value
-
-    @property
-    def locals(self):
-        """ Locals of the function """
-        return self._locals
-    @locals.setter
-    def locals(self, value):
-        self._locals = value
+# class StackFrame(object):
+#     '''
+#     Representation of a stack frame
+#     '''
+#     def __init__(self, frameNo, address, function, paramlist, filename, line, column, module, offset):
+#         self._frame_no = frameNo
+#         self._address = address
+#         self._function = function
+#         self._paramlist = paramlist
+#         self._filename = os.path.normpath(filename or "")
+#         if os.path.isfile(self._filename):
+#             self._filename = os.path.abspath(self._filename)
+#         else:
+#             # Path information is incomplete, thus we have to search for the file
+#             candidates = []
+#             for dirpath, dirnames, filenames in os.walk('./'):
+#                 for fn in filenames:
+#                     if fn == filename:
+#                         fpath = os.path.join(dirpath, fn)
+#                         candidates.append(fpath)
+#             if len(candidates) > 0:
+#                 # We found one or more source file candidate, doing some heuristics
+#                 found = False
+#                 for fn in candidates:
+#                     fh = open(fn, "r")
+#                     for linestr in fh:
+#                         if function in linestr:
+#                             self._filename = os.path.abspath(os.path.normpath(fn))
+#                             found = True
+#                             break
+#                     fh.close()
+#                     if found:
+#                         break
+#             else:
+#                 self._filename = filename or ""
+#
+#         self._line = int(line or 0)
+#         self._column = int(column or 0)
+#         self._module = module or ""
+#         self._offset = offset or ""
+#
+#         # VarName : [0] = type, [1] = value (ptr/primitive), [2] = data/ subDict (member of struct/class), [3] = blob (row data)
+#         self._args = OrderedDict()
+#         self._locals = OrderedDict()
+#
+#     # def getVarInfo(self, var_name):
+#     #     var_seq = var_name.replace("->", ".").split(".")
+#     #     var_info = self._traverseVar(self._args, var_seq)
+#     #     if var_info:
+#     #         if isinstance(var_info[2], OrderedDict):
+#     #             var_info[2] = None
+#     #         return var_info
+#     #     var_info = self._traverseVar(self._locals, var_seq)
+#     #     if var_info:
+#     #         if isinstance(var_info[2], OrderedDict):
+#     #             var_info[2] = None
+#     #         return var_info
+#     #     return None
+#     #
+#     # def _traverseVar(self, obj, var_seq, level = 0):
+#     #     for key, value in obj.items():
+#     #         if var_seq[level] == key:
+#     #             if level != len(var_seq) - 1:
+#     #                 if isinstance(value[2], OrderedDict):
+#     #                     return self._traverseVar(value[2], var_seq, level + 1)
+#     #                 else:
+#     #                     return None
+#     #             else:
+#     #                 return value
+#
+#     @property
+#     def frameNo(self):
+#         """ Position of frame on stack """
+#         return self._frame_no
+#     @frameNo.setter
+#     def frameNo(self, value):
+#         self._frameNo = value
+#
+#     @property
+#     def address(self):
+#         """ Address in frame """
+#         return self._address
+#     @address.setter
+#     def address(self, value):
+#         self._address = value
+#
+#     @property
+#     def function(self):
+#         """ Function name """
+#         return self._function
+#     @function.setter
+#     def function(self, value):
+#         self._function = value
+#
+#     @property
+#     def filename(self):
+#         """ Source Location filename """
+#         return self._filename
+#     @filename.setter
+#     def filename(self, value):
+#         self._filename = value
+#
+#     @property
+#     def paramlist(self):
+#         """ Parameter list """
+#         return self._paramlist
+#     @paramlist.setter
+#     def paramlist(self, value):
+#         self._paramlist = value
+#
+#     @property
+#     def line(self):
+#         """ Source Location line """
+#         return self._line
+#     @line.setter
+#     def line(self, value):
+#         self._line = value
+#
+#     @property
+#     def column(self):
+#         """ Source Location column """
+#         return self._column
+#     @column.setter
+#     def column(self, value):
+#         self._column = value
+#
+#     @property
+#     def module(self):
+#         """ Module name """
+#         return self._module
+#     @module.setter
+#     def module(self, value):
+#         self._module = value
+#
+#     @property
+#     def offset(self):
+#         """ Offset in module """
+#         return self._offset
+#     @offset.setter
+#     def offset(self, value):
+#         self._offset = value
+#
+#     @property
+#     def args(self):
+#         """ Arguments of the function """
+#         return self._args
+#     @args.setter
+#     def args(self, value):
+#         self._args = value
+#
+#     @property
+#     def locals(self):
+#         """ Locals of the function """
+#         return self._locals
+#     @locals.setter
+#     def locals(self, value):
+#         self._locals = value
 
     # def _printArgList(self, args, max_level = 0, level = 0):
     #     if level > max_level:
@@ -632,7 +632,7 @@ class ASANReport(SanitizerReport):
         bt_key = '_fault_bt'
         for match in self._re_asan_stack.finditer(report[start:end]):
             frame_no, address, func, paramlist, filename, line, column, module, offset = match.group("frame_no", "address", "func", "paramlist", "file", "line", "column", "module", "offset")
-            self._fault_bt.append(StackFrame(frame_no, address, func, paramlist, filename, line, column, module, offset))
+            # self._fault_bt.append(StackFrame(frame_no, address, func, paramlist, filename, line, column, module, offset))
 
             # Don't want these frames in dict
             if (func == '_start' and module) or (func == '__libc_start_main'):
@@ -692,7 +692,7 @@ class ASANReport(SanitizerReport):
         bt_key = '_origin_bt'
         for match in self._re_asan_stack.finditer(report[start:end]):
             frame_no, address, func, paramlist, filename, line, column, module, offset = match.group("frame_no", "address", "func", "paramlist", "file", "line", "column", "module", "offset")
-            self._origin_bt.append(StackFrame(frame_no, address, func, paramlist, filename, line, column, module, offset))
+            # self._origin_bt.append(StackFrame(frame_no, address, func, paramlist, filename, line, column, module, offset))
             #self._origin_bt.append((frame_no, address, func or "", filename or "", line or "", column or "", module or "", offset or ""))
 
             # Dictify
@@ -722,7 +722,7 @@ class ASANReport(SanitizerReport):
         bt_key = '_freedby_bt'
         for match in self._re_asan_stack.finditer(report[start:end]):
             frame_no, address, func, paramlist, filename, line, column, module, offset = match.group("frame_no", "address", "func", "paramlist", "file", "line", "column", "module", "offset")
-            self._intermediate_bt.append(StackFrame(frame_no, address, func, paramlist, filename, line, column, module, offset))
+            # self._intermediate_bt.append(StackFrame(frame_no, address, func, paramlist, filename, line, column, module, offset))
 
             # Dictify
             frame_key = 'frame{}'.format(frame_no)
@@ -743,14 +743,14 @@ class ASANReport(SanitizerReport):
         # Try to extract the executable name if command line is available in report,
         # otherwise try to extract its name from the backtrace
         self._exec_file, self._input_file = self._parseCmdLine(self._command_line)
-        if not self._exec_file:
-            self._exec_file = self._fault_bt[-1].module
-            
-        if self._fault_bt[-1].function == "_start" and self._fault_bt[-1].module != None:
-            del self._fault_bt[-1]
-            
-        if self._fault_bt[-1].function == "__libc_start_main":
-            del self._fault_bt[-1]
+        # if not self._exec_file:
+        #     self._exec_file = self._fault_bt[-1].module
+        #
+        # if self._fault_bt[-1].function == "_start" and self._fault_bt[-1].module != None:
+        #     del self._fault_bt[-1]
+        #
+        # if self._fault_bt[-1].function == "__libc_start_main":
+        #     del self._fault_bt[-1]
 
         self.jsonify()
         return True
