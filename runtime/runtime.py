@@ -1,7 +1,7 @@
 import os
 import shutil
 from SanitizerReport import ASANReport
-from GdbExtractor import GdbExtractor
+import subprocess
 from orthrusutils.orthrusutils import import_unique_crashes, get_asan_report, runtime_asan_options, \
                                         func_wrapper, pprint_decorator_fargs, pprint_decorator
 
@@ -39,12 +39,24 @@ class RuntimeAnalyzer(object):
         return True
 
     def harden_helper(self, crash, count, total_crashes):
-        params = self.target_cmd.replace(self.bin_path, '').replace('@@', crash)
-        report = GdbExtractor(self.bin_path, params, '{}/{}.json'.format(self.outdir, os.path.basename(crash)))
 
-        if not pprint_decorator(report.run, 'JSONifying HARDEN crash {} of {}'.format(count, total_crashes), indent=3):
+        outfile = '{}/{}'.format(self.outdir, os.path.basename(crash))
+        params = self.target_cmd.replace(self.bin_path, '').replace('@@', crash)
+
+        ## Instead of parsing gdb output, obtain JSON via orthrus GDB plugin
+        cmd = ['gdb',  '-q',  "-ex=set args {}".format(params), '-ex=r', '-ex=call $jsonify("{}.json")'.
+            format(outfile), '-ex=quit', self.bin_path]
+        ret = subprocess.Popen(cmd, stdout=open(os.devnull), stderr=subprocess.STDOUT).wait()
+        if not pprint_decorator_fargs((ret == 0), 'JSONifying HARDEN crash {} of {}'.format(count, total_crashes),
+                                      indent=3):
             return False
         return True
+
+        # report = GdbExtractor(self.bin_path, params, '{}/{}.json'.format(self.outdir, os.path.basename(crash)))
+        #
+        # if not pprint_decorator(report.run, 'JSONifying HARDEN crash {} of {}'.format(count, total_crashes), indent=3):
+        #     return False
+        # return True
 
     def run(self):
         afl_crashes = import_unique_crashes(self.crash_dir)

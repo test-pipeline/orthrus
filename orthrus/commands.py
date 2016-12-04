@@ -1105,9 +1105,9 @@ class OrthrusTriage(object):
                                           'failed. Are you sure you ran orthrus create -asan -fuzz?'):
             return False
 
-        if not util.pprint_decorator_fargs(self.is_asan, 'Looking for ASAN debug binary', indent=2,
-                                           fail_msg=self.fail_msg_asan):
-            return False
+        # if not util.pprint_decorator_fargs(self.is_asan, 'Looking for ASAN debug binary', indent=2,
+        #                                    fail_msg=self.fail_msg_asan):
+        #     return False
 
         self.job_token = j.jobtoken(self.orthrusdir, self._args.job_id)
 

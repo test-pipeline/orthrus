@@ -12,7 +12,7 @@ setup(
     url = "https://github.com/test-pipeline/orthrus.git",
     long_description = open('./README.md', 'r').read(),
     packages = find_packages(),
-    data_files=[(os.path.expanduser('~') + '/.orthrus', ['conf/orthrus.conf'])],
+    data_files=[(os.path.expanduser('~') + '/.orthrus', ['conf/orthrus.conf', 'gdb-orthrus/gdb_orthrus.py'])],
     classifiers=["Topic :: Security",
                  "Programming Language :: Python :: 2",
                  "Operating System :: POSIX :: Linux"],
