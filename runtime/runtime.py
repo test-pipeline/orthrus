@@ -46,7 +46,7 @@ class RuntimeAnalyzer(object):
         ## Instead of parsing gdb output, obtain JSON via orthrus GDB plugin
         cmd = ['gdb',  '-q',  "-ex=set args {}".format(params), '-ex=r', '-ex=call $jsonify("{}.json")'.
             format(outfile), '-ex=quit', self.bin_path]
-        ret = subprocess.Popen(cmd, stdout=open(os.devnull), stderr=subprocess.STDOUT).wait()
+        ret = subprocess.Popen(cmd, stdout=None, stderr=subprocess.STDOUT).wait()
         if not pprint_decorator_fargs((ret == 0), 'JSONifying HARDEN crash {} of {}'.format(count, total_crashes),
                                       indent=3):
             return False
