@@ -446,7 +446,7 @@ def get_asan_report(cmd, strbuf, env=None):
 
 
     proc = subprocess.Popen(cmd, shell=True, executable='/bin/bash',
-                            env=env, stdout=None, stderr=subprocess.PIPE)
+                            env=env, stdout=open(os.devnull), stderr=subprocess.PIPE)
     strbuf.append(proc.communicate()[1])
 
     return True
