@@ -15,9 +15,27 @@ class TestOrthrusRuntime(unittest.TestCase):
         self.assertTrue(cmd.run())
         self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(self.add_cmd1.job.rootdir)))
         self.assertTrue(glob.glob('{}/crash-analysis/runtime/asan/*.json'.format(self.add_cmd1.job.rootdir)))
+        ## Fail cos regen
+        self.assertFalse(cmd.run())
+        ## Regen and check
+        args = parse_cmdline(self.description, ['runtime', '-j', self.add_cmd1.job.id, '--regenerate'])
+        cmd = OrthrusRuntime(args, self.config)
+        self.assertTrue(cmd.run())
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(self.add_cmd1.job.rootdir)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/asan/*.json'.format(self.add_cmd1.job.rootdir)))
 
     def test_runtime_routine_harden_asan(self):
         args = parse_cmdline(self.description, ['runtime', '-j', self.add_cmd2.job.id])
+        cmd = OrthrusRuntime(args, self.config)
+        self.assertTrue(cmd.run())
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(self.add_cmd2.job.rootdir)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/asan/*.json'.format(self.add_cmd2.job.rootdir)))
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/harden'.format(self.add_cmd2.job.rootdir)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/harden/*.json'.format(self.add_cmd2.job.rootdir)))
+        ## Fail cos regen
+        self.assertFalse(cmd.run())
+        ## Regen and check
+        args = parse_cmdline(self.description, ['runtime', '-j', self.add_cmd2.job.id, '--regenerate'])
         cmd = OrthrusRuntime(args, self.config)
         self.assertTrue(cmd.run())
         self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(self.add_cmd2.job.rootdir)))

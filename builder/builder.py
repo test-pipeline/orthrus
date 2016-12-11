@@ -4,10 +4,19 @@ import orthrusutils.orthrusutils as util
 
 class BuildEnv(object):
 
+    cwd = os.getcwd()
+    blacklist_file = '{}/asan_blacklist.txt'.format(cwd)
+
     BEnv = namedtuple('BEnv', ['cc', 'cxx', 'cflags', 'cxxflags', 'ldflags',
                           'ldxxflags', 'misc'])
 
     BEnv_afl_asan = BEnv('afl-clang', 'afl-clang++', '-O3', '-O3', '', '',
+                        {'AFL_USE_ASAN': '1', 'AFL_DONT_OPTIMIZE': '1'})
+
+    BEnv_afl_asan_blacklist = BEnv('afl-clang', 'afl-clang++', '-O3 -fsanitize-blacklist={}'.format(blacklist_file),
+                                   '-O3 -fsanitize-blacklist={}'.format(blacklist_file),
+                                   '-fsanitize-blacklist={}'.format(blacklist_file),
+                                   '-fsanitize-blacklist={}'.format(blacklist_file),
                         {'AFL_USE_ASAN': '1', 'AFL_DONT_OPTIMIZE': '1'})
 
     BEnv_afl_harden = BEnv('afl-clang', 'afl-clang++', '-O2', '-O2', '', '',
@@ -19,6 +28,12 @@ class BuildEnv(object):
     BEnv_asan_debug = BEnv('clang', 'clang++', '-g -O0 -fsanitize=address -fno-omit-frame-pointer',
                         '-g -O0 -fsanitize=address -fno-omit-frame-pointer',
                         '-fsanitize=address', '-fsanitize=address', {})
+
+    BEnv_asan_debug_blacklist = BEnv('clang', 'clang++',
+                         '-g -O0 -fsanitize=address -fno-omit-frame-pointer -fsanitize-blacklist={}'.format(blacklist_file),
+                        '-g -O0 -fsanitize=address -fno-omit-frame-pointer -fsanitize-blacklist={}'.format(blacklist_file),
+                        '-fsanitize=address -fsanitize-blacklist={}'.format(blacklist_file),
+                         '-fsanitize=address -fsanitize-blacklist={}'.format(blacklist_file), {})
 
     BEnv_harden_debug = BEnv('clang', 'clang++', '-g -O0 -fstack-protector-all -D_FORTIFY_SOURCE=2 ' \
                         '-fno-omit-frame-pointer', '-g -O0 -fstack-protector-all ' \

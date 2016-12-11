@@ -108,6 +108,9 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
                                action='store_true',
                                help="""Setup binaries for afl with AddressSanitizer""",
                                default=False)
+    create_parser.add_argument('-asanblacklist', '--afl-asan-blacklist', action='store_true',
+                               help="""Setup binaries for afl with AddressSanitizer with issue supression.""",
+                               default=False)
     create_parser.add_argument('-fuzz', '--afl-harden',
                                action='store_true',
                                help="""Setup binaries for afl in 'harden' mode (stack-protector, fortify)""",
@@ -233,8 +236,8 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
     runtime_parser = subparsers.add_parser('runtime', help=RUNTIME_HELP)
     runtime_parser.add_argument('-j', '--job-id', type=str, default="", required=True,
                                help="""Job Id for dynamic analysis""")
-    runtime_parser.add_argument("-O", "--overwrite", action='store_true',
-                                 help="Overwrite existing dynamic analysis results", default=False)
+    runtime_parser.add_argument("-regen", "--regenerate", action='store_true',
+                                 help="Regenerate dynamic info, archiving old results", default=False)
     runtime_parser.set_defaults(func=runtimefunc)
 
     # Command 'destroy'

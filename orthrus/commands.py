@@ -150,6 +150,7 @@ class OrthrusCreate(object):
         # AFL-ASAN
         if self.args.afl_asan:
             install_path = self.config['orthrus']['directory'] + "/binaries/afl-asan/"
+
             if not util.pprint_decorator_fargs(util.func_wrapper(self.create, install_path, b.BuildEnv.BEnv_afl_asan,
                                                                  'afl-asan_inst.log'),
                                                'Installing binaries for afl-fuzz with AddressSanitizer',
@@ -164,6 +165,33 @@ class OrthrusCreate(object):
                                                                  'afl-asan_dbg.log'),
                                                'Installing binaries for debug with AddressSanitizer',
                                                indent=1):
+                return False
+        # AFL-ASAN-BLACKLIST
+        elif self.args.afl_asan_blacklist:
+
+            install_path = self.config['orthrus']['directory'] + "/binaries/afl-asan/"
+
+            is_blacklist = os.path.exists('asan_blacklist.txt')
+            if not util.pprint_decorator_fargs(is_blacklist, 'Checking if asan_blacklist.txt exists',
+                                               indent=2):
+                return False
+
+            if not util.pprint_decorator_fargs(
+                    util.func_wrapper(self.create, install_path, b.BuildEnv.BEnv_afl_asan_blacklist,
+                                      'afl-asan_inst.log'),
+                    'Installing binaries for afl-fuzz with AddressSanitizer (blacklist)',
+                    indent=1):
+                return False
+
+            #
+            # ASAN Debug
+            #
+            install_path = self.config['orthrus']['directory'] + "/binaries/asan-dbg/"
+            if not util.pprint_decorator_fargs(
+                    util.func_wrapper(self.create, install_path, b.BuildEnv.BEnv_asan_debug_blacklist,
+                                      'afl-asan_dbg.log'),
+                    'Installing binaries for debug with AddressSanitizer (blacklist)',
+                    indent=1):
                 return False
 
         ### AFL-HARDEN
@@ -1326,12 +1354,16 @@ class OrthrusRuntime(object):
                                                    "with -asan -fuzz?")
             return False
 
-        self.is_second_run = os.path.exists('{}/crash-analysis/runtime'.format(self.job_token.rootdir))
-        if self.is_second_run and not self._args.overwrite:
-            util.color_print(util.bcolors.WARNING, "\t\t[+] It looks like dynamic analysis results are already there. "
-                                                   "Please pass --overwrite to regenerate. Old data will be lost unless "
-                                                   "manually archived.")
-            return False
+        runtime_path = '{}/crash-analysis/runtime'.format(self.job_token.rootdir)
+        self.is_second_run = os.path.exists(runtime_path)
+        if self.is_second_run:
+            if not self._args.regenerate:
+                util.color_print(util.bcolors.WARNING, "\t\t[+] It looks like dynamic analysis results are already there. "
+                                                       "Please pass --regenerate to regenerate. Old data will be archived.")
+                return False
+            else:
+                util.color_print(util.bcolors.OKGREEN, "\t\t[+] Archiving old analysis results.")
+                shutil.move(runtime_path, "{}.{}".format(runtime_path, time.strftime("%Y-%m-%d-%H:%M:%S")))
 
         util.color_print(util.bcolors.OKGREEN, "\t\t[+] Performing dynamic analysis of crashes for {} job ID [{}]".format(
             self.job_token.type, self.job_token.id))
