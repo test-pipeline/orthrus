@@ -874,10 +874,10 @@ class OrthrusShow(object):
 
     def whatsup_abtests(self, control_sync, exp_sync):
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "A/B test status")
-        util.color_print(util.bcolors.OKBLUE, "Control group")
+        util.color_print(util.bcolors.OKBLUE, "Control group [{}]".format(self.job_token.joba_id))
         if not self.whatsup(control_sync):
             return False
-        util.color_print(util.bcolors.OKBLUE, "Experiment group")
+        util.color_print(util.bcolors.OKBLUE, "Experiment group [{}]".format(self.job_token.jobb_id))
         if not self.whatsup(exp_sync):
             return False
         return True
@@ -913,10 +913,10 @@ class OrthrusShow(object):
             util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Configured a/b tests:")
             util.color_print(util.bcolors.OKBLUE, "\t" + str(idx) + ") [" + abtest['id'] + "] " +
                              abtest['target'] + " " + abtest['params'])
-            util.color_print(util.bcolors.OKBLUE, "\t" + "Control group")
+            util.color_print(util.bcolors.OKBLUE, "\t" + "Control group [{}]".format(abtest['jobA_id']))
             util.color_print(util.bcolors.OKBLUE, "\t" + "Fuzzer A: {}\t Fuzzer A args: {}".
                              format(abtest['fuzzerA'],abtest['fuzzerA_args']))
-            util.color_print(util.bcolors.OKBLUE, "\t" + "Experiment group")
+            util.color_print(util.bcolors.OKBLUE, "\t" + "Experiment group [{}]".format(abtest['jobB_id']))
             util.color_print(util.bcolors.OKBLUE, "\t" + "Fuzzer B: {}\t Fuzzer B args: {}".
                              format(abtest['fuzzerB'],abtest['fuzzerB_args']))
         return True
