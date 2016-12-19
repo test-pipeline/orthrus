@@ -48,6 +48,57 @@ class TestOrthrusRuntime(unittest.TestCase):
         cmd = OrthrusRuntime(args, self.config)
         self.assertTrue(cmd.run())
 
+        # Check if files were generated
+        joba_root = '{}/{}'.format(self.add_cmd_abtest.job.rootdir, self.add_cmd_abtest.job.joba_id)
+        jobb_root = '{}/{}'.format(self.add_cmd_abtest.job.rootdir, self.add_cmd_abtest.job.jobb_id)
+
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(joba_root)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/asan/*.json'.format(joba_root)))
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(jobb_root)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/asan/*.json'.format(jobb_root)))
+        ## Fail cos regen
+        self.assertFalse(cmd.run())
+        ## Regen and check
+        args = parse_cmdline(self.description, ['runtime', '-j', self.add_cmd_abtest.job.id, '--regenerate'])
+        cmd = OrthrusRuntime(args, self.config)
+        self.assertTrue(cmd.run())
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(joba_root)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/asan/*.json'.format(joba_root)))
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(jobb_root)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/asan/*.json'.format(jobb_root)))
+
+    def test_runtime_abtests_harden_asan(self):
+        args = parse_cmdline(self.description, ['runtime', '-j', self.add_cmd_abtest2.job.id])
+        cmd = OrthrusRuntime(args, self.config)
+        self.assertTrue(cmd.run())
+
+        # Check if files were generated
+        joba_root = '{}/{}'.format(self.add_cmd_abtest2.job.rootdir, self.add_cmd_abtest2.job.joba_id)
+        jobb_root = '{}/{}'.format(self.add_cmd_abtest2.job.rootdir, self.add_cmd_abtest2.job.jobb_id)
+
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(joba_root)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/asan/*.json'.format(joba_root)))
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/harden'.format(joba_root)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/harden/*.json'.format(joba_root)))
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(jobb_root)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/asan/*.json'.format(jobb_root)))
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/harden'.format(jobb_root)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/harden/*.json'.format(jobb_root)))
+        ## Fail cos regen
+        self.assertFalse(cmd.run())
+        ## Regen and check
+        args = parse_cmdline(self.description, ['runtime', '-j', self.add_cmd_abtest2.job.id, '--regenerate'])
+        cmd = OrthrusRuntime(args, self.config)
+        self.assertTrue(cmd.run())
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(joba_root)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/asan/*.json'.format(joba_root)))
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/harden'.format(joba_root)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/harden/*.json'.format(joba_root)))
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(jobb_root)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/asan/*.json'.format(jobb_root)))
+        self.assertTrue(os.path.exists('{}/crash-analysis/runtime/harden'.format(jobb_root)))
+        self.assertTrue(glob.glob('{}/crash-analysis/runtime/harden/*.json'.format(jobb_root)))
+
     @classmethod
     def setUpClass(cls):
         # Create
@@ -74,7 +125,7 @@ class TestOrthrusRuntime(unittest.TestCase):
         cmd = OrthrusTriage(args, cls.config, test=True)
         cmd.run()
 
-        # Add a/b test job
+        # Add a/b test job (asan only)
         abconf_dict = {'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast', 'fuzzerB_args': ''}
         with open(cls.abconf_file, 'w') as abconf_fp:
             json.dump(abconf_dict, abconf_fp, indent=4)
@@ -84,6 +135,16 @@ class TestOrthrusRuntime(unittest.TestCase):
         cls.add_cmd_abtest.run()
 
         args = parse_cmdline(cls.description, ['triage', '-j', cls.add_cmd_abtest.job.id])
+        cmd = OrthrusTriage(args, cls.config, test=True)
+        cmd.run()
+
+        # Add a/b test job (asan + harden)
+        args = parse_cmdline(cls.description, ['add', '--job=main_no_abort @@', '-i=./afl-crash-out.tar.gz', '--abconf={}'.
+                             format(cls.abconf_file)])
+        cls.add_cmd_abtest2 = OrthrusAdd(args, cls.config)
+        cls.add_cmd_abtest2.run()
+
+        args = parse_cmdline(cls.description, ['triage', '-j', cls.add_cmd_abtest2.job.id])
         cmd = OrthrusTriage(args, cls.config, test=True)
         cmd.run()
 
