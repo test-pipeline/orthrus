@@ -41,7 +41,10 @@ class RuntimeAnalyzer(object):
     def harden_helper(self, crash, count, total_crashes):
 
         outfile = '{}/{}'.format(self.outdir, os.path.basename(crash))
-        params = self.target_cmd.replace(self.bin_path, '').replace('@@', crash)
+        if '@@' in self.target_cmd:
+            params = self.target_cmd.replace(self.bin_path, '').replace('@@', crash)
+        else:
+            params = self.target_cmd.replace(self.bin_path, '') + ' < {}'.format(crash)
 
         ## Instead of parsing gdb output, obtain JSON via orthrus GDB plugin
         cmd = ['gdb',  '-q',  "-ex=set args {}".format(params), '-ex=r', '-ex=call $jsonify("{}.json")'.
