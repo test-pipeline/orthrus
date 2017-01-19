@@ -73,7 +73,8 @@ class TestOrthrusAdd(unittest.TestCase):
         args = parse_cmdline(cls.description, ['create', '-asan'])
         cmd = OrthrusCreate(args, cls.config)
         cmd.run()
-        abconf_dict = {'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast', 'fuzzerB_args': ''}
+        abconf_dict = {'num_jobs': 2, 'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast',
+                       'fuzzerB_args': ''}
         with open(cls.abconf_file, 'w') as abconf_fp:
             json.dump(abconf_dict, abconf_fp, indent=4)
 

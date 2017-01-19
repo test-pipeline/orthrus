@@ -1,6 +1,7 @@
 import binascii
 import json
 import os
+import string
 
 '''
 What is a job?
@@ -69,6 +70,9 @@ class job(object):
         self.orthrusdir = orthrusdir
         self.jobsconf = self.orthrusdir + JOBCONF
         self.fuzz_cmd = fuzz_cmd
+        self.jobids = []
+        self.fuzzers = []
+        self.fuzzer_args = []
 
         ## Bootstap jobs.conf if necessary
         if not os.path.exists(self.jobsconf):
@@ -78,12 +82,15 @@ class job(object):
         with open(self.abconf, 'rb') as abconf_fp:
             self.abconf_data = json.load(abconf_fp)
 
-        if not (self.abconf_data['fuzzerA'] and self.abconf_data['fuzzerB']):
+        # Multi-variate tests must have even number of jobs
+        if self.abconf_data['num_jobs'] % 2:
             return False
 
-        # Move dependency check to elsewhere
-        # if not (util.which(self.abconf_data['test']['fuzzerA']) and util.which(self.abconf_data['test']['fuzzerB'])):
-        #     return False
+        self.num_jobs = self.abconf_data['num_jobs']
+
+        for i in range(0, self.num_jobs):
+            if not self.abconf_data['fuzzer{}'.format(string.ascii_uppercase[i])]:
+                return False
 
         return True
 
@@ -97,11 +104,8 @@ class job(object):
             jobsconf_dict['routine'].append(routine_dict)
         elif self.type == 'abtests':
             abtests_dict = {'id': self.id, 'target': self.target, 'params': self.params,
-                            'jobA_id': self.joba_id, 'jobB_id': self.jobb_id,
-                            'fuzzerA': self.abconf_data['fuzzerA'],
-                            'fuzzerA_args': self.abconf_data['fuzzerA_args'],
-                            'fuzzerB': self.abconf_data['fuzzerB'],
-                            'fuzzerB_args': self.abconf_data['fuzzerB_args'], 'type': self.type}
+                            'jobids': self.jobids, 'fuzzers': self.fuzzers,
+                            'fuzzer_args': self.fuzzer_args, 'type': self.type, 'num_jobs': self.num_jobs}
             jobsconf_dict['abtests'].append(abtests_dict)
 
         # Overwrites JSON file
@@ -121,9 +125,8 @@ class job(object):
             os.makedirs(self.orthrusdir + ROUTINEDIR + '/{}'.format(self.id))
         elif self.type == 'abtests':
             os.makedirs(self.orthrusdir + ABTESTSDIR + '/{}'.format(self.id))
-            os.makedirs(self.orthrusdir + ABTESTSDIR + '/{}'.format(self.id) + '/{}'.format(self.joba_id))
-            os.makedirs(self.orthrusdir + ABTESTSDIR + '/{}'.format(self.id) + '/{}'.format(self.jobb_id))
-
+            for i in range(0, self.num_jobs):
+                os.makedirs(self.orthrusdir + ABTESTSDIR + '/{}'.format(self.id) + '/{}'.format(self.jobids[i]))
 
     def materialize(self):
 
@@ -146,17 +149,16 @@ class job(object):
             self.id = str(binascii.crc32(crcstring) & 0xffffffff)
             self.rootdir = self.orthrusdir + ROUTINEDIR + '/{}'.format(self.id)
         else:
-            crcstring = self.abconf_data['fuzzerA'] + self.abconf_data['fuzzerA_args'] + \
-                        self.abconf_data['fuzzerB'] + self.abconf_data['fuzzerB_args'] + \
-                        self.fuzz_cmd
+            crcstring = self.fuzz_cmd
+            for i in range(0, self.num_jobs):
+                fuzzername = 'fuzzer{}'.format(string.ascii_uppercase[i])
+                fuzzerargs = fuzzername + '_args'
+                crcstring += self.abconf_data[fuzzername] + self.abconf_data[fuzzerargs]
+                self.jobids.append(str(binascii.crc32(self.fuzz_cmd+str(i)) & 0xffffffff))
+                self.fuzzers.append(self.abconf_data[fuzzername])
+                self.fuzzer_args.append(self.abconf_data[fuzzerargs])
             self.id = str(binascii.crc32(crcstring) & 0xffffffff)
-            self.joba_id = str(binascii.crc32(self.fuzz_cmd+'control') & 0xffffffff)
-            self.jobb_id = str(binascii.crc32(self.fuzz_cmd + 'experiment') & 0xffffffff)
             self.rootdir = self.orthrusdir + ABTESTSDIR + '/{}'.format(self.id)
-            self.fuzzerA = self.abconf_data['fuzzerA']
-            self.fuzzerA_args = self.abconf_data['fuzzerA_args']
-            self.fuzzerB = self.abconf_data['fuzzerB']
-            self.fuzzerB_args = self.abconf_data['fuzzerB_args']
 
         # Check if ID exists in jobs.conf
         if does_id_exist(self.jobsconf, self.id):
@@ -190,12 +192,10 @@ class jobtoken(object):
         self.type = self._jobdesc['type']
         if self.type == 'abtests':
             self.rootdir = self.orthrusdir + ABTESTSDIR + '/{}'.format(self.id)
-            self.joba_id = self._jobdesc['jobA_id']
-            self.jobb_id = self._jobdesc['jobB_id']
-            self.fuzzerA = self._jobdesc['fuzzerA']
-            self.fuzzerA_args = self._jobdesc['fuzzerA_args']
-            self.fuzzerB = self._jobdesc['fuzzerB']
-            self.fuzzerB_args = self._jobdesc['fuzzerB_args']
+            self.jobids = self._jobdesc['jobids']
+            self.fuzzers = self._jobdesc['fuzzers']
+            self.fuzzer_args = self._jobdesc['fuzzer_args']
+            self.num_jobs = self._jobdesc['num_jobs']
         else:
             self.rootdir = self.orthrusdir + ROUTINEDIR + '/{}'.format(self.id)
         return True

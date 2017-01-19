@@ -49,8 +49,8 @@ class TestOrthrusRuntime(unittest.TestCase):
         self.assertTrue(cmd.run())
 
         # Check if files were generated
-        joba_root = '{}/{}'.format(self.add_cmd_abtest.job.rootdir, self.add_cmd_abtest.job.joba_id)
-        jobb_root = '{}/{}'.format(self.add_cmd_abtest.job.rootdir, self.add_cmd_abtest.job.jobb_id)
+        joba_root = '{}/{}'.format(self.add_cmd_abtest.job.rootdir, self.add_cmd_abtest.job.jobids[0])
+        jobb_root = '{}/{}'.format(self.add_cmd_abtest.job.rootdir, self.add_cmd_abtest.job.jobids[1])
 
         self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(joba_root)))
         self.assertTrue(glob.glob('{}/crash-analysis/runtime/asan/*.json'.format(joba_root)))
@@ -73,8 +73,8 @@ class TestOrthrusRuntime(unittest.TestCase):
         self.assertTrue(cmd.run())
 
         # Check if files were generated
-        joba_root = '{}/{}'.format(self.add_cmd_abtest2.job.rootdir, self.add_cmd_abtest2.job.joba_id)
-        jobb_root = '{}/{}'.format(self.add_cmd_abtest2.job.rootdir, self.add_cmd_abtest2.job.jobb_id)
+        joba_root = '{}/{}'.format(self.add_cmd_abtest2.job.rootdir, self.add_cmd_abtest2.job.jobids[0])
+        jobb_root = '{}/{}'.format(self.add_cmd_abtest2.job.rootdir, self.add_cmd_abtest2.job.jobids[1])
 
         self.assertTrue(os.path.exists('{}/crash-analysis/runtime/asan'.format(joba_root)))
         self.assertTrue(glob.glob('{}/crash-analysis/runtime/asan/*.json'.format(joba_root)))
@@ -126,7 +126,8 @@ class TestOrthrusRuntime(unittest.TestCase):
         cmd.run()
 
         # Add a/b test job (asan only)
-        abconf_dict = {'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast', 'fuzzerB_args': ''}
+        abconf_dict = {'num_jobs':2, 'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast',
+                       'fuzzerB_args': ''}
         with open(cls.abconf_file, 'w') as abconf_fp:
             json.dump(abconf_dict, abconf_fp, indent=4)
         args = parse_cmdline(cls.description, ['add', '--job=test_asan @@', '-i=./afl-crash-out.tar.gz', '--abconf={}'.

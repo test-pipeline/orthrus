@@ -12,6 +12,7 @@ import webbrowser
 import tarfile
 import time
 import json
+import string
 from orthrusutils import orthrusutils as util
 from builder import builder as b
 from job import job as j
@@ -454,11 +455,10 @@ class OrthrusAdd(object):
             self.fuzzers.append(None)
             self.fuzzer_param.append(None)
         else:
-            self.rootdirs.extend((self.job.rootdir + '/{}'.format(self.job.joba_id),
-                                  self.job.rootdir + '/{}'.format(self.job.jobb_id)))
-            self.ids.extend((self.job.joba_id, self.job.jobb_id))
-            self.fuzzers.extend((self.job.fuzzerA, self.job.fuzzerB))
-            self.fuzzer_param.extend((self.job.fuzzerA_args, self.job.fuzzerB_args))
+            self.rootdirs.extend(self.job.rootdir + '/{}'.format(id) for id in self.job.jobids)
+            self.ids.extend(self.job.jobids)
+            self.fuzzers.extend(self.job.fuzzers)
+            self.fuzzer_param.extend(self.job.fuzzer_args)
 
         for rootdir, id, fuzzer, fuzzer_param in zip(self.rootdirs, self.ids, self.fuzzers, self.fuzzer_param):
             if not self.run_helper(rootdir, id, fuzzer, fuzzer_param):
@@ -547,9 +547,9 @@ class OrthrusStart(object):
                 self.core_per_subjob = self.total_cores
         else:
             if self.is_harden and self.is_asan:
-                self.core_per_subjob = self.total_cores / 4
+                self.core_per_subjob = self.total_cores / (2 * self.job_token.num_jobs)
             elif (self.is_harden and not self.is_asan) or (not self.is_harden and self.is_asan):
-                self.core_per_subjob = self.total_cores / 2
+                self.core_per_subjob = self.total_cores / self.job_token.num_jobs
 
     def _start_fuzzers(self, jobroot_dir, job_type):
         if os.listdir(jobroot_dir + "/afl-out/") == []:
@@ -708,9 +708,8 @@ class OrthrusStart(object):
             self.rootdirs.append(self.job_token.rootdir)
             self.ids.append(self.job_token.id)
         else:
-            self.rootdirs.extend((self.job_token.rootdir + '/{}'.format(self.job_token.joba_id),
-                                 self.job_token.rootdir + '/{}'.format(self.job_token.jobb_id)))
-            self.ids.extend((self.job_token.joba_id, self.job_token.jobb_id))
+            self.rootdirs.extend(self.job_token.rootdir + '/{}'.format(id) for id in self.job_token.jobids)
+            self.ids.extend(self.job_token.jobids)
 
         if self._args.minimize:
             if not self.min_and_reseed():
@@ -763,7 +762,7 @@ class OrthrusStop(object):
         if self.job_token.type == 'routine':
             return util.run_cmd("pkill -15 afl-fuzz")
         else:
-            for fuzzer in [self.job_token.fuzzerA, self.job_token.fuzzerB]:
+            for fuzzer in self.job_token.fuzzers:
                 # FIXME: Silently failing
                 if not util.run_cmd("pkill -15 {}".format(fuzzer)):
                     return True
@@ -872,14 +871,12 @@ class OrthrusShow(object):
         util.color_print(util.bcolors.OKBLUE, "\t     Triaged crashes : " + str(triaged_unique))
         return True
 
-    def whatsup_abtests(self, control_sync, exp_sync):
-        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "A/B test status")
-        util.color_print(util.bcolors.OKBLUE, "Control group [{}]".format(self.job_token.joba_id))
-        if not self.whatsup(control_sync):
-            return False
-        util.color_print(util.bcolors.OKBLUE, "Experiment group [{}]".format(self.job_token.jobb_id))
-        if not self.whatsup(exp_sync):
-            return False
+    def whatsup_abtests(self, sync_list):
+        util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Multivariate test status")
+        for idx, val in enumerate(sync_list):
+            util.color_print(util.bcolors.OKBLUE, "Config {} [{}]".format(idx, self.job_token.jobids[idx]))
+            if not self.whatsup(val):
+                return False
         return True
 
 
@@ -893,8 +890,8 @@ class OrthrusShow(object):
         if self.job_token.type == 'routine':
             return self.whatsup('{}/afl-out'.format(self.job_token.rootdir))
         else:
-            return self.whatsup_abtests('{}/{}/afl-out'.format(self.job_token.rootdir, self.job_token.joba_id),
-                                        '{}/{}/afl-out'.format(self.job_token.rootdir, self.job_token.jobb_id))
+            return self.whatsup_abtests('{}/{}/afl-out'.format(self.job_token.rootdir, id) for id in
+                                        self.job_token.jobids)
 
     def show_conf(self):
         with open(self.jobsconf, 'r') as jobconf_fp:
@@ -910,15 +907,14 @@ class OrthrusShow(object):
             util.color_print(util.bcolors.OKBLUE, "\t" + str(idx) + ") [" + routine['id'] + "] " +
                              routine['target'] + " " + routine['params'])
         for idx, abtest in enumerate(self.abtest_list):
-            util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Configured a/b tests:")
-            util.color_print(util.bcolors.OKBLUE, "\t" + str(idx) + ") [" + abtest['id'] + "] " +
-                             abtest['target'] + " " + abtest['params'])
-            util.color_print(util.bcolors.OKBLUE, "\t" + "Control group [{}]".format(abtest['jobA_id']))
-            util.color_print(util.bcolors.OKBLUE, "\t" + "Fuzzer A: {}\t Fuzzer A args: {}".
-                             format(abtest['fuzzerA'],abtest['fuzzerA_args']))
-            util.color_print(util.bcolors.OKBLUE, "\t" + "Experiment group [{}]".format(abtest['jobB_id']))
-            util.color_print(util.bcolors.OKBLUE, "\t" + "Fuzzer B: {}\t Fuzzer B args: {}".
-                             format(abtest['fuzzerB'],abtest['fuzzerB_args']))
+            util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Configured multivariate tests:")
+            for i in range(0, abtest['num_jobs']):
+                alp_idx = string.ascii_uppercase[i]
+                util.color_print(util.bcolors.OKBLUE, "\t" + str(idx) + ") [" + abtest['id'] + "] " +
+                                 abtest['target'] + " " + abtest['params'])
+                util.color_print(util.bcolors.OKBLUE, "\t" + "Config {} [{}]".format(i, abtest['jobids'][i]))
+                util.color_print(util.bcolors.OKBLUE, "\t" + "Fuzzer {}: {}\t Fuzzer A args: {}".
+                                 format(alp_idx, abtest['fuzzers'][i],abtest['fuzzer_args'][i]))
         return True
 
     def show_cov(self):
@@ -1110,15 +1106,12 @@ class OrthrusTriage(object):
         return True
 
     def triage_abtests(self):
-        for rootdir,id in [('{}/{}'.format(self.job_token.rootdir, jobId), jobId) for jobId in [self.job_token.joba_id,
-                                                                                    self.job_token.jobb_id]]:
-            if id == self.job_token.joba_id:
-                group = 'control'
-            else:
-                group = 'experiment'
-
+        count = 0
+        for rootdir,id in [('{}/{}'.format(self.job_token.rootdir, jobId), jobId) for jobId in self.job_token.jobids]:
+            group = 'Config {}'.format(count)
+            count += 1
             if not util.pprint_decorator_fargs(util.func_wrapper(self.triage_wrapper, rootdir, id),
-                                               'Triaging crashes in {} group'.format(group), indent=2):
+                                               'Triaging crashes in {}'.format(group), indent=2):
                 return False
 
         return True
@@ -1358,13 +1351,10 @@ class OrthrusRuntime(object):
         return True
 
     def runtime_abtests(self):
-        for rootdir, id in [('{}/{}'.format(self.job_token.rootdir, jobId), jobId) for jobId in
-                            [self.job_token.joba_id,
-                             self.job_token.jobb_id]]:
-            if id == self.job_token.joba_id:
-                group = 'control'
-            else:
-                group = 'experiment'
+        count = 0
+        for rootdir, id in [('{}/{}'.format(self.job_token.rootdir, jobId), jobId) for jobId in self.job_token.jobids]:
+            group = 'Config {}'.format(count)
+            count += 1
 
             if not util.pprint_decorator_fargs(util.func_wrapper(self.analyze_wrapper, rootdir, id),
                                                'Analyzing crashes in {} group'.format(group), indent=2):
@@ -1430,7 +1420,7 @@ class OrthrusValidate(object):
             util.color_print(util.bcolors.OKGREEN, "\t\t\t[+] {}".format(prog))
 
         if not util.pprint_decorator_fargs(util.func_wrapper(util.validate_inst, self._config),
-                                           'Checking if requirements are met', indent=2,
-                                           success_msg=self.success_msg):
+                                           'Checking if requirements are met', indent=2):
             return False
+        util.color_print(util.bcolors.OKGREEN, self.success_msg)
         return True

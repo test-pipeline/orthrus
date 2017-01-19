@@ -125,7 +125,7 @@ class TestOrthrusSpectrum(unittest.TestCase):
         cmd.run()
 
         # Add a/b test job
-        abconf_dict = {'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast', 'fuzzerB_args': ''}
+        abconf_dict = {'num_jobs': 2, 'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast', 'fuzzerB_args': ''}
         with open(cls.abconf_file, 'w') as abconf_fp:
             json.dump(abconf_dict, abconf_fp, indent=4)
         args = parse_cmdline(cls.description, ['add', '--job=main @@', '-i=./afl-crash-out.tar.gz', '--abconf={}'.
@@ -143,7 +143,7 @@ class TestOrthrusSpectrum(unittest.TestCase):
         # cmd.run()
         # Simulate old triage
         sim_unique_dir = cls.orthrusdirname + '/jobs/abtests/{}/{}/unique'.format(cls.add_cmd_abtest.job.id,
-                                                                         cls.add_cmd_abtest.job.joba_id)
+                                                                         cls.add_cmd_abtest.job.jobids[0])
         if not os.path.isdir(sim_unique_dir):
             os.mkdir(sim_unique_dir)
 

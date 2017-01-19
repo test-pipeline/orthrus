@@ -90,7 +90,8 @@ class TestOrthrusStart(unittest.TestCase):
         cls.add_cmd.run()
 
         ## abtest
-        abconf_dict = {'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast', 'fuzzerB_args': '-p coe'}
+        abconf_dict = {'num_jobs': 2, 'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast',
+                       'fuzzerB_args': '-p coe'}
         with open(cls.abconf_file, 'w') as abconf_fp:
             json.dump(abconf_dict, abconf_fp, indent=4)
         args = parse_cmdline(cls.description, ['add', '--job=main @@',

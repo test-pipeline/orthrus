@@ -40,7 +40,8 @@ class TestOrthrusTriage(unittest.TestCase):
         cmd = OrthrusStop(args, cls.config, True)
         cmd.run()
         # Add a/b test job
-        abconf_dict = {'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast', 'fuzzerB_args': ''}
+        abconf_dict = {'num_jobs': 2, 'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast',
+                       'fuzzerB_args': ''}
         with open(cls.abconf_file, 'w') as abconf_fp:
             json.dump(abconf_dict, abconf_fp, indent=4)
         args = parse_cmdline(cls.description, ['add', '--job=main @@', '-s=./seeds', '--abconf={}'.
@@ -57,10 +58,11 @@ class TestOrthrusTriage(unittest.TestCase):
         cmd = OrthrusStop(args, cls.config, True)
         cmd.run()
         # Simulate old triage unique and exploitable dirs
-        sim_dirs = [cls.orthrusdirname + '/jobs/abtests/{}/{}/unique'.format(cls.add_cmd_abtest.job.id,
-                                                                         cls.add_cmd_abtest.job.joba_id),
-                   cls.orthrusdirname + '/jobs/abtests/{}/{}/exploitable'.format(cls.add_cmd_abtest.job.id,
-                                                                         cls.add_cmd_abtest.job.joba_id)]
+        sim_dirs = []
+        for id in cls.add_cmd_abtest.job.jobids:
+            sim_dirs.append(cls.orthrusdirname + '/jobs/abtests/{}/{}/unique'.format(cls.add_cmd_abtest.job.id, id))
+            sim_dirs.append(cls.orthrusdirname + '/jobs/abtests/{}/{}/exploitable'.format(cls.add_cmd_abtest.job.id, id))
+
         for dir in sim_dirs:
             os.makedirs(dir)
 
