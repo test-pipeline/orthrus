@@ -311,7 +311,7 @@ class OrthrusAdd(object):
 
         asanjob_config['session'] = "ASAN"
         # https://github.com/rc0r/afl-utils/issues/34
-        asanjob_config['interactive'] = False
+        # asanjob_config['interactive'] = False
 
         if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
             asanjob_config['master_instances'] = 0
@@ -335,7 +335,7 @@ class OrthrusAdd(object):
         hardenjob_config['timeout'] = "3000+"
         hardenjob_config['mem_limit'] = "800"
         hardenjob_config['session'] = "HARDEN"
-        hardenjob_config['interactive'] = False
+        # hardenjob_config['interactive'] = False
 
         if fuzzer:
             hardenjob_config['fuzzer'] = fuzzer
