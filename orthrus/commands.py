@@ -304,10 +304,11 @@ class OrthrusAdd(object):
         asanjob_config['timeout'] = "3000+"
 
         # See: https://github.com/mirrorer/afl/blob/master/docs/notes_for_asan.txt
-        if util.is64bit():
-            asanjob_config['mem_limit'] = "30000000"
-        else:
-            asanjob_config['mem_limit'] = "800"
+        asanjob_config['mem_limit'] = "none"
+        # if util.is64bit():
+        #     asanjob_config['mem_limit'] = "none"
+        # else:
+        #     asanjob_config['mem_limit'] = "none"
 
         asanjob_config['session'] = "ASAN"
         # https://github.com/rc0r/afl-utils/issues/34
@@ -333,7 +334,7 @@ class OrthrusAdd(object):
         hardenjob_config['cmdline'] = self.job.params
         # hardenjob_config['file'] = "@@"
         hardenjob_config['timeout'] = "3000+"
-        hardenjob_config['mem_limit'] = "800"
+        hardenjob_config['mem_limit'] = "none"
         hardenjob_config['session'] = "HARDEN"
         # hardenjob_config['interactive'] = False
 
