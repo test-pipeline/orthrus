@@ -55,10 +55,11 @@ Adding/removing a/b test jobs is identical to their routine counterparts, except
 $ cat abtest.conf
 {
 
-  "fuzzerA" = "afl-fuzz"
-  "fuzzerA_args" = ""
-  "fuzzerB" = "afl-fuzz-fast"
-  "fuzzerB_args" = ""
+  "fuzzerA": "afl-fuzz"
+  "fuzzerA_args": ""
+  "fuzzerB": "afl-fuzz-fast"
+  "fuzzerB_args": ""
+  "num_jobs": 2
 }
 
 $ orthrus add --job="main @@" -s=./seeds --abtest=./abtest.conf
@@ -226,7 +227,7 @@ Monitoring test coverage for a/b tests is WIP
 
 ## Step 6: Triage crashes (via afl-utils/exploitable)
 
-You can triage all crashes for an a/b test job, like so (**requires ASAN binary**)
+You can triage all crashes for an a/b test job, like so:
 
 ```
 $ orthrus triage -j 1271685425
@@ -281,7 +282,11 @@ Experiment group
          Triaged crashes : 0
 ```
 
-## Step 7: User interface for fuzz status and coverage
+## Step 7: Spectrum analysis
+
+Spectrum analysis is WIP
+
+## Step 8: User interface for fuzz status and coverage
 
 - You may view configured jobs, like so
 ```
@@ -322,7 +327,7 @@ Experiment group
 
 - Coverage measurement for A/B tests is WIP.
 
-## Step 8: Destroy orthrus session
+## Step 9: Destroy orthrus session
 
 See [Step 8 of Workflow](https://github.com/test-pipeline/orthrus/blob/dev/docs/Workflow.md#step-8-destroy-orthrus-session)
 

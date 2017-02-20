@@ -5,7 +5,7 @@ import orthrus
 setup(
     name = "orthrus",
     version = orthrus.__version__,
-    author = "Markus Leutner, and Bhargava Shastry",
+    author = "Bhargava Shastry, and Markus Leutner",
     author_email = "bshastry@sec.t-labs.tu-berlin.de",
     description = "A tool for end-to-end security testing.",
     license = "GPLv3",

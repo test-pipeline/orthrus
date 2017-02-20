@@ -293,7 +293,7 @@ $ orthrus triage -j 1167520733
 
 ## Step 7: Obtain crash spectrum
 
-- Crash spectrum technically means basic block coverage of crashing executions (slice) and differential basic block coverage of crashing vs. non crashing input (dice)
+- Crash spectrum technically means basic block coverage of crashing executions (slice) and differential basic block coverage of crashing minus non crashing input (dice)
 - To obtain the spectra, do
 ```
 $ orthrus spectrum -j 3138688894
