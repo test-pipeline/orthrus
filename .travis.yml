@@ -25,11 +25,12 @@ python:
 before_install:
         - pip install coveralls
         - pip install pytest pytest-cov
-        - sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-3.8 50
-        - sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-3.8 50
-        - sudo apt-get -y autoremove clang clang++
 
 install: ./install_deps.sh
+
+after_install:
+        - sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-3.8 50
+        - sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-3.8 50
 
 script: cd testdata/Automake-Autoconf-Template-Project && coverage run --rcfile=../../.coveragerc ../../setup.py test
 after_success:
