@@ -5,7 +5,7 @@ dist: trusty
 addons:
         apt:
                 sources:
-                        - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.8 main'
+                        - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty main'
                           key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
                 packages:
                         - clang-3.8
@@ -25,12 +25,10 @@ python:
 before_install:
         - pip install coveralls
         - pip install pytest pytest-cov
-
-install: ./install_deps.sh
-
-after_install:
         - sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-3.8 50
         - sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-3.8 50
+
+install: ./install_deps.sh
 
 script: cd testdata/Automake-Autoconf-Template-Project && coverage run --rcfile=../../.coveragerc ../../setup.py test
 after_success:
