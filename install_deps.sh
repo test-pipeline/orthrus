@@ -45,4 +45,4 @@ echo -e "\t[+] Testing if SanitizerCoverage works as expected"
 cat <<EOF >> tmp.c
 int main() { return 0; }
 EOF
-which clang-3.8 && clang -v && clang -fsanitize=address -fsanitize-coverage=2 tmp.c && rm a.out && rm tmp.c
+update-alternatives --list clang && clang -v && clang -fsanitize=address -fsanitize-coverage=2 tmp.c && rm a.out && rm tmp.c
