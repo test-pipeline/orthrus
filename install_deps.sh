@@ -41,9 +41,5 @@ echo -e "\t[+] Installing pysancov"
 wget -q https://raw.githubusercontent.com/llvm-mirror/compiler-rt/release_38/lib/sanitizer_common/scripts/sancov.py &> /dev/null
 chmod +x sancov.py &> /dev/null
 sudo mv sancov.py /usr/local/bin/pysancov &> /dev/null
-echo -e "\t[+] Testing if SanitizerCoverage works as expected"
-cat <<EOF >> tmp.c
-int main() { return 0; }
-EOF
 export PATH=`echo $PATH | sed 's/\/usr\/local\/clang-3.5.0\/bin://g'`
-echo $PATH && update-alternatives --list clang && which clang && clang-3.8 -v & clang -v && clang -fsanitize=address -fsanitize-coverage=bb tmp.c && rm a.out && rm tmp.c
+clang++ --version && clang --version
