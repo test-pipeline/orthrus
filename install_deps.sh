@@ -6,6 +6,11 @@ rm -f afl-latest.tgz && cd afl-*
 echo -e "\t[+] Installing afl"
 sudo make install
 cd ..
+echo -e "\t[+] Install aflfast"
+git clone https://github.com/mboehme/aflfast.git
+cd aflfast
+make && sudo mv afl-fuzz /usr/local/bin/afl-fuzz-fast
+cd ..
 echo -e "\t[+] Setting core_pattern"
 echo core | sudo tee /proc/sys/kernel/core_pattern
 echo -e "\t[+] Running autotools in test dir"
@@ -32,3 +37,7 @@ wget -q https://github.com/mrash/afl-cov/archive/0.6.tar.gz && tar xzf 0.6.tar.g
 rm 0.6.tar.gz && cd afl-cov-0.6
 sudo cp afl-cov /usr/local/bin/
 cd ..
+echo -e "\t[+] Installing pysancov"
+wget -q https://raw.githubusercontent.com/llvm-mirror/compiler-rt/release_38/lib/sanitizer_common/scripts/sancov.py &> /dev/null
+chmod +x sancov.py &> /dev/null
+sudo mv sancov.py /usr/local/bin/pysancov &> /dev/null
