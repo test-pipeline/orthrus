@@ -45,4 +45,5 @@ echo -e "\t[+] Testing if SanitizerCoverage works as expected"
 cat <<EOF >> tmp.c
 int main() { return 0; }
 EOF
-echo $PATH && update-alternatives --list clang && which clang && clang-3.8 -v & clang -v && clang-3.8 -fsanitize=address -fsanitize-coverage=bb tmp.c && rm a.out && rm tmp.c
+export PATH=`echo $PATH | sed 's/\/usr\/local\/clang-3.5.0\/bin://g'`
+echo $PATH && update-alternatives --list clang && which clang && clang-3.8 -v & clang -v && clang -fsanitize=address -fsanitize-coverage=bb tmp.c && rm a.out && rm tmp.c
