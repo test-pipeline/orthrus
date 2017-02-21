@@ -43,4 +43,4 @@ chmod +x sancov.py &> /dev/null
 sudo mv sancov.py /usr/local/bin/pysancov &> /dev/null
 echo -e "\t[+] Copy gdb-orthrus.py to orthrus-local"
 mkdir -p $HOME/.orthrus
-cp $HOME/test-pipeline/orthrus/gdb-orthrus/gdb_orthrus.py $HOME/.orthrus
+wget https://raw.githubusercontent.com/test-pipeline/orthrus/master/gdb-orthrus/gdb_orthrus.py -P $HOME/.orthrus
