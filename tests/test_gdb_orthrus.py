@@ -11,7 +11,7 @@ class TestGdbOrthrus(unittest.TestCase):
     def test_gdb_orthrus(self):
         cmd = ['gdb', '-q', '-ex=r', '-ex=call $jsonify("tmp.json")', '-ex=quit', '--args', '{}/binaries/harden-dbg/bin/main_no_abort'
             .format(self.orthrusdirname), glob.glob('{}/unique/harden/HARDEN*'.format(self.add_cmd.job.rootdir))[0]]
-        ret = subprocess.Popen(cmd).wait()#, stdout=open(os.devnull), stderr=subprocess.STDOUT).wait()
+        ret = subprocess.Popen(cmd, stdout=open(os.devnull), stderr=subprocess.STDOUT).wait()
         self.assertTrue(((ret == 0) and os.path.exists("tmp.json")))
 
     @classmethod
