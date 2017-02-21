@@ -41,5 +41,6 @@ echo -e "\t[+] Installing pysancov"
 wget -q https://raw.githubusercontent.com/llvm-mirror/compiler-rt/release_38/lib/sanitizer_common/scripts/sancov.py &> /dev/null
 chmod +x sancov.py &> /dev/null
 sudo mv sancov.py /usr/local/bin/pysancov &> /dev/null
-export PATH=`echo $PATH | sed 's/\/usr\/local\/clang-3.5.0\/bin://g'`
-clang++ --version && clang --version
+echo -e "\t[+] Copy gdb-orthrus.py to orthrus-local"
+mkdir -p $HOME/.orthrus
+cp $HOME/test-pipeline/orthrus/gdb-orthrus/gdb_orthrus.py $HOME/.orthrus
