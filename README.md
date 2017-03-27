@@ -1,6 +1,8 @@
 # Orthrus [![Build Status](https://travis-ci.org/test-pipeline/orthrus.svg?branch=master)](https://travis-ci.org/test-pipeline/orthrus) [![License](http://img.shields.io/:license-gpl3-blue.svg?style=flat-square)](http://www.gnu.org/licenses/gpl-3.0.html) [![Coverage Status](https://coveralls.io/repos/github/test-pipeline/orthrus/badge.svg?branch=master)](https://coveralls.io/github/test-pipeline/orthrus?branch=master)
 
-Orthrus is a tool for managing, conducting, and assessing security (fuzz) testing for [autotools][1] projects. At the moment, it supports Clang/LLVM instrumentation and the AFL ecosystem (afl-fuzz, afl-utils, afl-cov). The ultimate aim is for Orthrus to be a generic wrapper around state-of-the-art fuzz and instrumentation tools on the one hand, and disparate build systems on the other.
+Orthrus is a tool for managing, conducting, and assessing dictionary-based security (fuzz) testing for [autotools][1] projects. At the moment, it supports Clang/LLVM instrumentation and the AFL ecosystem (afl-fuzz, afl-utils, afl-cov). The ultimate aim is for Orthrus to be a generic wrapper around state-of-the-art fuzz and instrumentation tools on the one hand, and disparate build systems on the other.
+
+NEW: The dictionary-based fuzzing feature is scheduled for the next release.
 
 # Installation
 
@@ -21,7 +23,7 @@ Please read [docs/Workflow_abtests.md](docs/Workflow_abtests.md).
 # Full usage
 ```
 $ orthrus -h
-usage: Orthrus version_string by Markus Leutner, and Bhargava Shastry <https://github.com/test-pipeline/orthrus> 
+usage: Orthrus 1.1 by Bhargava Shastry, and Markus Leutner <https://github.com/test-pipeline/orthrus> 
        [-h] [-v]
        {create,add,remove,start,stop,show,triage,coverage,spectrum,runtime,destroy,validate}
        ...
