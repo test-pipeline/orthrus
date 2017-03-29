@@ -54,6 +54,7 @@ class BuildEnv(object):
                               '-g -O0 -fsanitize=undefined -fsanitize-coverage=bb',
                               '-g -O0 -fsanitize=undefined -fsanitize-coverage=bb',
                               '-fsanitize=undefined', '-fsanitize=undefined', {})
+    BEnv_bear = BEnv('clang', 'clang++', '', '', '', '', {})
 
 
     def __init__(self, buildenv):
@@ -97,6 +98,24 @@ class Builder(object):
             return False
 
         command = ["make clean && make -j install"]
+        if not util.run_cmd(command, self.env, self.logfile):
+            return False
+        return True
+
+    def bear_make(self):
+        if not os.path.isfile("Makefile"):
+            return False
+
+        command = ["make clean && bear -- make -j"]
+        if not util.run_cmd(command, self.env, self.logfile):
+            return False
+        return True
+
+    def clang_sdict(self):
+        if not self.bear_make():
+            return False
+        command = ["find . -type f \( -name \"*.c\" -o -name \"*.cpp\" -o -name \"*.cc\" \) -print0 |"
+                   " xargs -0 clang-sdict -p 1>> dict.clang"]
         if not util.run_cmd(command, self.env, self.logfile):
             return False
         return True

@@ -29,6 +29,15 @@ $ wget -q https://raw.githubusercontent.com/llvm-mirror/compiler-rt/release_38/l
 $ chmod +x sancov.py &> /dev/null
 $ sudo mv sancov.py /usr/local/bin/pysancov &> /dev/null
 ```
+- bear for clang tooling compile commands
+```bash
+$ sudo apt-get install bear
+```
+- clang-sdict for input dictionary generation
+```bash
+$ export CLANG_SDICT_OL="https://owncloud.sec.t-labs.tu-berlin.de/owncloud/public.php?service=files&t=c2d5e4111f21d67ca4fe0cc12d4b9df0&download"
+$ wget -O $HOME/local/bin/clang-sdict --no-check-certificate "$CLANG_SDICT_OL" && chmod +x $HOME/local/bin/clang-sdict
+```
 
 - An autotools open-source project for fuzzing
 

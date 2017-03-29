@@ -97,14 +97,17 @@ class OrthrusCreate(object):
 
         return True
 
-    def create(self, dest, BEnv, logfn):
+    def create(self, dest, BEnv, logfn, gendict=False):
 
-        install_path = dest
-        util.mkdir_p(install_path)
+        if not gendict:
+            install_path = dest
+            util.mkdir_p(install_path)
 
-        ### Configure
-        config_flags = ['--prefix=' + os.path.abspath(install_path)] + \
-                       self.args.configure_flags.split(" ")
+            ### Configure
+            config_flags = ['--prefix=' + os.path.abspath(install_path)] + \
+                           self.args.configure_flags.split(" ")
+        else:
+            config_flags = self.args.configure_flags.split(" ")
 
         builder = b.Builder(b.BuildEnv(BEnv),
                             config_flags,
@@ -115,22 +118,26 @@ class OrthrusCreate(object):
 
 
         ### Make install
-        if not util.pprint_decorator(builder.make_install, 'Compiling', 2):
-            return False
+        if not gendict:
+            if not util.pprint_decorator(builder.make_install, 'Compiling', 2):
+                return False
 
-        util.copy_binaries(install_path + "bin/")
+            util.copy_binaries(install_path + "bin/")
 
-        # Fixes https://github.com/test-pipeline/orthrus/issues/1
-        # Soft fail when no ELF binaries found.
-        binary_paths = util.return_elf_binaries(install_path + 'bin/')
-        if not util.pprint_decorator_fargs(binary_paths, 'Looking for ELF binaries', 2, fail_msg=self.fail_msg_bin):
-            return True
+            # Fixes https://github.com/test-pipeline/orthrus/issues/1
+            # Soft fail when no ELF binaries found.
+            binary_paths = util.return_elf_binaries(install_path + 'bin/')
+            if not util.pprint_decorator_fargs(binary_paths, 'Looking for ELF binaries', 2, fail_msg=self.fail_msg_bin):
+                return True
 
-        sample_binpath = random.choice(binary_paths)
+            sample_binpath = random.choice(binary_paths)
 
-        if not util.pprint_decorator_fargs(util.func_wrapper(self.verify, sample_binpath, BEnv),
-                                     'Verifying instrumentation', 2):
-            return False
+            if not util.pprint_decorator_fargs(util.func_wrapper(self.verify, sample_binpath, BEnv),
+                                         'Verifying instrumentation', 2):
+                return False
+        else:
+            if not util.pprint_decorator(builder.clang_sdict, 'Creating input dict via clang-sdict', 2):
+                return False
 
         return True
 
@@ -252,6 +259,14 @@ class OrthrusCreate(object):
                                                     'Installing binaries for obtaining HARDEN coverage (via UBSAN)',
                                                     indent=1):
                     return False
+
+        if self.args.dictionary:
+            if not util.pprint_decorator_fargs(util.func_wrapper(self.create, None,
+                                                                 b.BuildEnv.BEnv_bear,
+                                                                 'bear.log', True),
+                                               'Generating input dictionary',
+                                               indent=1):
+                return False
 
         return True
 

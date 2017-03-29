@@ -47,6 +47,11 @@ class TestOrthrusCreate(unittest.TestCase):
         cmd = OrthrusCreate(args, self.config)
         self.assertTrue(cmd.run())
 
+    def test_create_dict(self):
+        args = parse_cmdline(self.description, ['create', '-dict'])
+        cmd = OrthrusCreate(args, self.config)
+        self.assertTrue(cmd.run())
+
     @classmethod
     def touch_blacklist(cls):
         with open(cls.blacklist_file, 'w') as file:

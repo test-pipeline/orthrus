@@ -17,6 +17,7 @@ addons:
                         - automake
                         - python3-setuptools
                         - gdb
+                        - bear
 
 language: python
 python:

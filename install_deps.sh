@@ -44,3 +44,7 @@ sudo mv sancov.py /usr/local/bin/pysancov &> /dev/null
 echo -e "\t[+] Copy gdb-orthrus.py to orthrus-local"
 mkdir -p $HOME/.orthrus
 wget https://raw.githubusercontent.com/test-pipeline/orthrus/master/gdb-orthrus/gdb_orthrus.py -P $HOME/.orthrus
+echo -e "\t[+] Installing clang-sdict to /usr/local/bin"
+CLANG_SDICT_OL="https://owncloud.sec.t-labs.tu-berlin.de/owncloud/public.php?service=files&t=c2d5e4111f21d67ca4fe0cc12d4b9df0&download"
+sudo wget -O /usr/local/bin/clang-sdict --no-check-certificate "$CLANG_SDICT_OL" && sudo chmod +x /usr/local/bin/clang-sdict
+
