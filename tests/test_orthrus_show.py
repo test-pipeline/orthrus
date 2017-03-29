@@ -8,6 +8,7 @@ class TestOrthrusShow(unittest.TestCase):
     orthrusdirname = '.orthrus'
     config = {'orthrus': {'directory': orthrusdirname}}
     abconf_file = orthrusdirname + '/conf/abconf.conf'
+    routineconf_file = orthrusdirname + '/conf/routineconf.conf'
 
     def test_show_jobs(self):
         args = parse_cmdline(self.description, ['show', '-conf'])
@@ -79,7 +80,11 @@ class TestOrthrusShow(unittest.TestCase):
         cmd = OrthrusCreate(args, cls.config)
         cmd.run()
         # Add job
-        args = parse_cmdline(cls.description, ['add', '--job=main @@', '-s=./seeds'])
+        routineconf_dict = {'fuzzer': 'afl-fuzz', 'fuzzer_args': ''}
+        with open(cls.routineconf_file, 'w') as routineconf_fp:
+            json.dump(routineconf_dict, routineconf_fp, indent=4)
+        args = parse_cmdline(cls.description, ['add', '--job=main @@', '-s=./seeds', '--jobtype=routine',
+                                               '--jobconf={}'.format(cls.routineconf_file)])
         cls.add_cmd = OrthrusAdd(args, cls.config)
         cls.add_cmd.run()
         # Add a/b test job
@@ -87,8 +92,8 @@ class TestOrthrusShow(unittest.TestCase):
                        'fuzzerB_args': ''}
         with open(cls.abconf_file, 'w') as abconf_fp:
             json.dump(abconf_dict, abconf_fp, indent=4)
-        args = parse_cmdline(cls.description, ['add', '--job=main @@', '-s=./seeds', '--abconf={}'.
-                             format(cls.abconf_file)])
+        args = parse_cmdline(cls.description, ['add', '--job=main @@', '-s=./seeds', '--jobconf={}'.
+                             format(cls.abconf_file), '--jobtype=abtests'])
         cls.add_cmd_abtest = OrthrusAdd(args, cls.config)
         cls.add_cmd_abtest.run()
 

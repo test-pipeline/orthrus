@@ -8,6 +8,7 @@ class TestOrthrusSpectrum(unittest.TestCase):
     orthrusdirname = '.orthrus'
     config = {'orthrus': {'directory': orthrusdirname}}
     abconf_file = orthrusdirname + '/conf/abconf.conf'
+    routineconf_file = orthrusdirname + '/conf/routineconf.conf'
 
     def compare_dice_json(self, file1, file2):
 
@@ -106,8 +107,12 @@ class TestOrthrusSpectrum(unittest.TestCase):
         cmd = OrthrusCreate(args, cls.config)
         cmd.run()
         # Add routine job
-        args = parse_cmdline(cls.description, ['add', '--job=main @@',
-                                                '-i=./afl-crash-out.tar.gz'])
+        routineconf_dict = {'fuzzer': 'afl-fuzz', 'fuzzer_args': ''}
+        with open(cls.routineconf_file, 'w') as routineconf_fp:
+            json.dump(routineconf_dict, routineconf_fp, indent=4)
+
+        args = parse_cmdline(cls.description, ['add', '--job=main @@', '-i=./afl-crash-out.tar.gz', '--jobtype=routine',
+                                               '--jobconf={}'.format(cls.routineconf_file)])
         cls.add_cmd = OrthrusAdd(args, cls.config)
         cls.add_cmd.run()
         # Start routine job fuzzing
@@ -128,8 +133,8 @@ class TestOrthrusSpectrum(unittest.TestCase):
         abconf_dict = {'num_jobs': 2, 'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast', 'fuzzerB_args': ''}
         with open(cls.abconf_file, 'w') as abconf_fp:
             json.dump(abconf_dict, abconf_fp, indent=4)
-        args = parse_cmdline(cls.description, ['add', '--job=main @@', '-i=./afl-crash-out.tar.gz', '--abconf={}'.
-                             format(cls.abconf_file)])
+        args = parse_cmdline(cls.description, ['add', '--job=main @@', '-i=./afl-crash-out.tar.gz', '--jobconf={}'.
+                             format(cls.abconf_file), '--jobtype=abtests'])
         cls.add_cmd_abtest = OrthrusAdd(args, cls.config)
         cls.add_cmd_abtest.run()
         # Start a/b test job

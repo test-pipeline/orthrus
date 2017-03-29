@@ -449,12 +449,18 @@ class OrthrusAdd(object):
                                           'failed. Are you sure you did orthrus create -asan or -fuzz'):
             return False
 
-        if self._args.abconf:
-            self.jobtype = 'abtests'
-        else:
-            self.jobtype = 'routine'
+        valid_jobtype = ((self._args.jobtype == 'routine') or (self._args.jobtype == 'abtests'))
 
-        self.job = j.job(self._args.job, self.jobtype, self.orthrusdir, self._args.abconf)
+        if not util.pprint_decorator_fargs((self._args.jobtype and self._args.jobconf and valid_jobtype),
+                                           "Checking job type", 2,
+                                           'failed. --jobtype=[routine|abtests] or --jobconf argument missing, or'
+                                           ' invalid job type.'):
+            return False
+
+        self.jobtype = self._args.jobtype
+        self.jobconf = self._args.jobconf
+
+        self.job = j.job(self._args.job, self.jobtype, self.orthrusdir, self.jobconf)
 
         self.rootdirs = []
         self.ids = []
@@ -468,8 +474,8 @@ class OrthrusAdd(object):
         if self.jobtype == 'routine':
             self.rootdirs.append(self.job.rootdir)
             self.ids.append(self.job.id)
-            self.fuzzers.append(None)
-            self.fuzzer_param.append(None)
+            self.fuzzers.extend(self.job.fuzzers)
+            self.fuzzer_param.extend(self.job.fuzzer_args)
         else:
             self.rootdirs.extend(self.job.rootdir + '/{}'.format(id) for id in self.job.jobids)
             self.ids.extend(self.job.jobids)

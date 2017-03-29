@@ -9,62 +9,65 @@ class TestOrthrusAdd(unittest.TestCase):
     config = {'orthrus': {'directory': orthrusdirname}}
     archive_dir = orthrusdirname + '/archive'
     abconf_file = orthrusdirname + '/conf/abconf.conf'
+    routineconf_file = orthrusdirname + '/conf/routineconf.conf'
 
     def test_add_job(self):
-        args = parse_cmdline(self.description, ['add', '--job=main @@'])
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--jobtype=routine', '--jobconf={}'.
+                             format(self.routineconf_file)])
         self.cmd = OrthrusAdd(args, self.config)
         self.assertTrue(self.cmd.run())
 
     def test_add_and_seed(self):
-        args = parse_cmdline(self.description, ['add', '--job=main @@',
-                            '-s=./seeds'])
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--jobtype=routine', '--jobconf={}'.
+                             format(self.routineconf_file), '-s=./seeds'])
         self.cmd = OrthrusAdd(args, self.config)
         self.assertTrue(self.cmd.run())
 
     def test_add_and_import(self):
-        args = parse_cmdline(self.description, ['add', '--job=main @@',
-                    '-i=./afl-out.tar.gz'])
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--jobtype=routine', '--jobconf={}'.
+                             format(self.routineconf_file), '-i=./afl-out.tar.gz'])
         self.cmd = OrthrusAdd(args, self.config)
         self.assertTrue(self.cmd.run())
 
     def test_add_and_import_crashes(self):
-        args = parse_cmdline(self.description, ['add', '--job=main @@',
-                    '-i=./afl-crash-out.tar.gz'])
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--jobtype=routine', '--jobconf={}'.
+                             format(self.routineconf_file), '-i=./afl-crash-out.tar.gz'])
         self.cmd = OrthrusAdd(args, self.config)
         self.assertTrue(self.cmd.run())
 
     def test_add_and_import_archive(self):
-        args = parse_cmdline(self.description, ['add', '--job=main @@',
-            '-i=./afl-arch-out.tar.gz'])
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--jobtype=routine', '--jobconf={}'.
+                             format(self.routineconf_file), '-i=./afl-arch-out.tar.gz'])
         self.cmd = OrthrusAdd(args, self.config)
         self.assertTrue(self.cmd.run())
 
     def test_add_abtest_job(self):
-        args = parse_cmdline(self.description, ['add', '--job=main @@', '--abconf={}'.format(self.abconf_file)])
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--jobtype=abtests', '--jobconf={}'.
+                             format(self.abconf_file)])
         self.cmd = OrthrusAdd(args, self.config)
         self.assertTrue(self.cmd.run())
 
     def test_add_abtest_and_seed(self):
-        args = parse_cmdline(self.description, ['add', '--job=main @@', '--abconf={}'.format(self.abconf_file),
-                                                '-s=./seeds'])
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--jobtype=abtests', '--jobconf={}'.
+                             format(self.abconf_file), '-s=./seeds'])
         self.cmd = OrthrusAdd(args, self.config)
         self.assertTrue(self.cmd.run())
 
     def test_add_abtest_and_import(self):
-        args = parse_cmdline(self.description, ['add', '--job=main @@', '--abconf={}'.format(self.abconf_file),
-                                                '-i=./afl-out.tar.gz'])
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--jobtype=abtests', '--jobconf={}'.
+                             format(self.abconf_file), '-i=./afl-out.tar.gz'])
         self.cmd = OrthrusAdd(args, self.config)
         self.assertTrue(self.cmd.run())
 
     def test_add_abtest_and_import_crashes(self):
-        args = parse_cmdline(self.description, ['add', '--job=main @@', '--abconf={}'.format(self.abconf_file),
-                                                '-i=./afl-crash-out.tar.gz'])
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--jobtype=abtests', '--jobconf={}'.
+                             format(self.abconf_file), '-i=./afl-crash-out.tar.gz'])
         self.cmd = OrthrusAdd(args, self.config)
         self.assertTrue(self.cmd.run())
 
     def test_add_abtest_and_import_archive(self):
-        args = parse_cmdline(self.description, ['add', '--job=main @@', '--abconf={}'.format(self.abconf_file),
-                                                '-i=./afl-arch-out.tar.gz'])
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--jobtype=abtests', '--jobconf={}'.
+                             format(self.abconf_file), '-i=./afl-arch-out.tar.gz'])
         self.cmd = OrthrusAdd(args, self.config)
         self.assertTrue(self.cmd.run())
 
@@ -75,8 +78,11 @@ class TestOrthrusAdd(unittest.TestCase):
         cmd.run()
         abconf_dict = {'num_jobs': 2, 'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast',
                        'fuzzerB_args': ''}
+        routineconf_dict = {'fuzzer': 'afl-fuzz', 'fuzzer_args': ''}
         with open(cls.abconf_file, 'w') as abconf_fp:
             json.dump(abconf_dict, abconf_fp, indent=4)
+        with open(cls.routineconf_file, 'w') as routineconf_fp:
+            json.dump(routineconf_dict, routineconf_fp, indent=4)
 
     @classmethod
     def tearDownClass(cls):

@@ -7,6 +7,7 @@ class TestOrthrusShow(unittest.TestCase):
     description = 'Test harness'
     orthrusdirname = '.orthrus'
     config = {'orthrus': {'directory': orthrusdirname}}
+    routineconf_file = orthrusdirname + '/conf/routineconf.conf'
 
     # Create
     def test_create_early_exit(self):
@@ -19,9 +20,16 @@ class TestOrthrusShow(unittest.TestCase):
 
     # Add
     def test_add_early_exit(self):
-        args = parse_cmdline(self.description, ['add', '--job=main @@', '-s=./seeds'])
+        routineconf_dict = {'fuzzer': 'afl-fuzz', 'fuzzer_args': ''}
+        util.mkdir_p(self.orthrusdirname + '/conf')
+        with open(self.routineconf_file, 'w') as routineconf_fp:
+            json.dump(routineconf_dict, routineconf_fp, indent=4)
+
+        args = parse_cmdline(self.description, ['add', '--job=main @@', '--jobtype=routine', '--jobconf={}'.
+                             format(self.routineconf_file), '-s=./seeds'])
         cmd = OrthrusAdd(args, self.config)
         self.assertFalse(cmd.run())
+        shutil.rmtree(self.orthrusdirname)
 
     # Remove
     def test_remove_early_exit(self):

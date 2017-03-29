@@ -21,7 +21,7 @@ RUNTIME_HELP = """Perform dynamic analysis of existing AFL corpus"""
 DESTROY_HELP = """Destroy an orthrus workspace"""
 VALIDATE_HELP = """Check if all Orthrus dependencies are met"""
 ## A/B Tests
-ABTEST_ADD_HELP = """Add an A/B test job based on supplied config"""
+TEST_ADD_HELP = """Add a test job of given type and config"""
 
 TEST_SLEEP = 5
 
@@ -136,17 +136,16 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
     add_parser = subparsers.add_parser('add', help=ADD_HELP)
     add_parser.add_argument('-n', '--job', required=True, type=str,
                             help='Add a job with executable command line invocation string')
-    # add_parser.add_argument('-j', '--job-id', nargs='?',
-    #                         type=str, default="",
-    #                         help='Job Id for the job which should be selected')
     add_parser.add_argument('-i', '--import', dest='_import', nargs='?',
                             type=str, default="",
                             help='Import an AFL fuzzing output directory provided as tar.gz')
     add_parser.add_argument('-s', '--sample', nargs='?',
                             type=str, default="",
                             help='A single file or directory of afl testcases for fuzzing')
-    add_parser.add_argument('-abtest-conf', '--abconf', nargs='?', type=str,
-                            default="", help=ABTEST_ADD_HELP)
+    add_parser.add_argument('-type', '--jobtype', nargs='?', type=str,
+                        default="", help=TEST_ADD_HELP)
+    add_parser.add_argument('-conf', '--jobconf', nargs='?', type=str,
+                            default="", help=TEST_ADD_HELP)
     add_parser.set_defaults(func=addfunc)
 
     # Command 'remove'
