@@ -18,7 +18,10 @@ $ orthrus validate
                         [+] afl-cov
                         [+] lcov
                         [+] genhtml
-                [+] Checking if requirements are met.
+                        [+] sancov-3.8
+                        [+] llvm-symbolizer-3.8
+                        [+] pysancov
+                [+] Checking if requirements are met... done
                 [+] All requirements met. Orthrus is ready for use!
 ```
 
@@ -27,7 +30,7 @@ $ orthrus validate
 - Creates the following binaries
   - ASAN+AFL instrumentation (fuzzing)
   - AFL+HARDEN instrumentation only (fuzzing)
-  - ASAN Debug (triage) **Note: If you don't pass the `-asan` flag during orthrus create, you won't be able to triage crashes**
+  - ASAN Debug (triage)
   - HARDEN Debug (triage)
   - Gcov (coverage)
 - All binaries installed in `.orthrus/binaries` subdir relative to WD root
@@ -64,9 +67,16 @@ $ orthrus create -fuzz -asan -cov
 ASAN+AFL (slave)
 - Each job allocated an independent data directory
   - Can be operated (started, stopped, managed) independently
+- Fuzzer and arguments are specified in a configuration file
 
 ```
-$ orthrus add --job="main @@"
+$ cat routine.conf
+{
+"fuzzer": "afl-fuzz",
+"fuzzer_args": ""
+}
+
+$ orthrus add --job="main @@" --jobtype=routine --jobconf=routine.conf
 [+] Adding fuzzing job to Orthrus workspace
                 [+] Check Orthrus workspace... done
                 [+] Adding job for [main]... done
@@ -91,7 +101,7 @@ $ orthrus remove -j 1167520733
 afl-sync-dir e.g., SESSION000, SESSION001, etc.)
 
 ```
-$ orthrus add --job="main @@" -i=./afl-out.tar.gz
+$ orthrus add --job="main @@" -i=./afl-out.tar.gz --jobtype=routine --jobconf=routine.conf
 [+] Adding fuzzing job to Orthrus workspace
                 [+] Check Orthrus workspace... done
                 [+] Adding job for [main]... done
@@ -143,7 +153,7 @@ llect.cmin -- /home/bhargava/work/gitlab/orthrus/testdata/Automake-Autoconf-Temp
 
 - You can seed a job, like so
 ```
-$ orthrus add --job="main @@" -s=./seeds
+$ orthrus add --job="main @@" -s=./seeds --jobtype=routine --jobconf=routine.conf
 [+] Adding fuzzing job to Orthrus workspace
                 [+] Check Orthrus workspace... done
                 [+] Adding job for [main]... done

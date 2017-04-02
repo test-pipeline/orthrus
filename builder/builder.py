@@ -106,7 +106,7 @@ class Builder(object):
         if not os.path.isfile("Makefile"):
             return False
 
-        command = ["make clean && bear -- make -j"]
+        command = ["make clean && bear make -j"]
         if not util.run_cmd(command, self.env, self.logfile):
             return False
         return True

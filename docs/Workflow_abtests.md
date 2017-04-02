@@ -62,7 +62,7 @@ $ cat abtest.conf
   "num_jobs": 2
 }
 
-$ orthrus add --job="main @@" -s=./seeds --abtest=./abtest.conf
+$ orthrus add --job="main @@" -s=./seeds --jobtype=abtests --jobconf=./abtest.conf
 [+] Adding fuzzing job to Orthrus workspace
 		[+] Checking Orthrus workspace... done
 		[+] Adding job... done
