@@ -1,12 +1,9 @@
-# Ubuntu 14.04 Trusty support
+# Ubuntu 16.04 Xenial
 sudo: required
-dist: trusty
+dist: xenial
 
 addons:
         apt:
-                sources:
-                        - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty main'
-                          key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
                 packages:
                         - clang-3.8
                         - libclang-common-3.8-dev
@@ -17,6 +14,7 @@ addons:
                         - automake
                         - python3-setuptools
                         - gdb
+                        - bear
 
 language: python
 python:
