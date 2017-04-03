@@ -17,6 +17,7 @@ addons:
                         - automake
                         - python3-setuptools
                         - gdb
+                        - libstdc++6
 
 language: python
 python:
