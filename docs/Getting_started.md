@@ -29,9 +29,12 @@ $ wget -q https://raw.githubusercontent.com/llvm-mirror/compiler-rt/release_38/l
 $ chmod +x sancov.py &> /dev/null
 $ sudo mv sancov.py /usr/local/bin/pysancov &> /dev/null
 ```
-- bear for clang tooling compile commands
+- bear (v2.1.5) for clang tooling compile commands (**xenial users**: `sudo apt-get install bear`, other users, do as follows)
 ```bash
-$ sudo apt-get install bear
+$ wget https://launchpadlibrarian.net/240291131/bear_2.1.5.orig.tar.gz
+$ tar xzf bear_2.1.5.orig.tar.gz && rm bear_2.1.5.orig.tar.gz
+$ mkdir Bear-2.1.5.build && cd Bear-2.1.5.build && cmake ../Bear-2.1.5 && make -j all && make install 
+$ cd .. && rm -rf Bear-2.1.5 Bear-2.1.5.build
 ```
 - clang-sdict for input dictionary generation
 ```bash
