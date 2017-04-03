@@ -17,7 +17,6 @@ addons:
                         - automake
                         - python3-setuptools
                         - gdb
-                        - libtinfo-dev
 
 language: python
 python:
