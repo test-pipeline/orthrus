@@ -17,7 +17,7 @@ addons:
                         - automake
                         - python3-setuptools
                         - gdb
-                        - libstdc++6
+                        - libtinfo-dev
 
 language: python
 python:

@@ -52,3 +52,5 @@ sudo curl -L -o /usr/local/bin/clang-sdict "$CLANG_SDICT_DB" && sudo chmod +x /u
 echo -e "\t[+] Install bear v2.1.5"
 wget https://launchpadlibrarian.net/240291131/bear_2.1.5.orig.tar.gz && tar xzf bear_2.1.5.orig.tar.gz && rm bear_2.1.5.orig.tar.gz
 mkdir Bear-2.1.5.build && cd Bear-2.1.5.build && cmake ../Bear-2.1.5 && make -j all && sudo make install && cd .. && rm -rf Bear-2.1.5 Bear-2.1.5.build
+echo -e "\t[+] Install latest libstd++6 for clang-sdict"
+curl -L -o libstd++6.deb "http://security.ubuntu.com/ubuntu/pool/main/g/gcc-5/libstdc++6_5.4.0-6ubuntu1~16.04.4_amd64.deb" && sudo dpkg -i libstd++6.deb
