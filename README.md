@@ -2,7 +2,7 @@
 
 Orthrus is a tool for managing, conducting, and assessing dictionary-based security (fuzz) testing for [autotools][1] projects. At the moment, it supports Clang/LLVM instrumentation and the AFL ecosystem (afl-fuzz, afl-utils, afl-cov). The ultimate aim is for Orthrus to be a generic wrapper around state-of-the-art fuzz and instrumentation tools on the one hand, and disparate build systems on the other.
 
-NEW: The dictionary-based fuzzing feature is scheduled for the next release.
+**NEW**: The dictionary-based fuzzing feature is new. Do `git create -dict` to generate a fuzzing dictionary and `git add --jobconf` to specify fuzz options (e.g., `-x dict`) for making use of the generated dictionary for fuzzing.
 
 # Installation
 
