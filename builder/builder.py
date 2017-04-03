@@ -108,8 +108,6 @@ class Builder(object):
 
         command = ["make clean && bear make -j"]
         if not util.run_cmd(command, self.env, self.logfile):
-            with open(self.logfile, 'r') as fin:
-                print fin.read()
             return False
         return True
 
@@ -119,5 +117,7 @@ class Builder(object):
         command = ["find . -type f \( -name \"*.c\" -o -name \"*.cpp\" -o -name \"*.cc\" \) -print0 |"
                    " xargs -0 clang-sdict -p 1>> dict.clang"]
         if not util.run_cmd(command, self.env, self.logfile):
+            with open(self.logfile, 'r') as fin:
+                print fin.read()
             return False
         return True
