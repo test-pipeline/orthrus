@@ -49,3 +49,6 @@ echo -e "\t[+] Installing clang-sdict to /usr/local/bin"
 #sudo wget -O /usr/local/bin/clang-sdict --no-check-certificate "$CLANG_SDICT_OL" && sudo chmod +x /usr/local/bin/clang-sdict
 CLANG_SDICT_DB="https://www.dropbox.com/s/7zo880suvdtk0an/clang-sdict?dl=0"
 sudo curl -L -o /usr/local/bin/clang-sdict "$CLANG_SDICT_DB" && sudo chmod +x /usr/local/bin/clang-sdict
+echo -e "\t[+] Install bear v2.1.5"
+wget https://launchpadlibrarian.net/240291131/bear_2.1.5.orig.tar.gz && tar xzf bear_2.1.5.orig.tar.gz && rm bear_2.1.5.orig.tar.gz
+mkdir Bear-2.1.5.build && cd Bear-2.1.5.build && cmake ../Bear-2.1.5 && make -j all && sudo make install && cd .. && rm -rf Bear-2.1.5 Bear-2.1.5.build
