@@ -28,6 +28,9 @@ before_install:
         - pip install pytest pytest-cov
         - sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-3.8 50
         - sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-3.8 50
+        - sudo add-apt-repository -y ppa:george-edison55/cmake-3.x
+        - sudo apt-get update -q
+        - sudo apt-get install -y cmake
 
 install: ./install_deps.sh
 
