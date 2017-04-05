@@ -56,5 +56,5 @@ mkdir Bear-2.1.5.build && cd Bear-2.1.5.build && cmake ../Bear-2.1.5 && make -j 
 #wget http://www.cmake.org/files/v3.2/cmake-3.2.2.tar.gz && tar xf cmake-3.2.2.tar.gz && cd cmake-3.2.2
 #./configure && make -j && sudo make install && cd .. && rm cmake-3.2.2.tar.gz
 echo -e "\t[+] Install clang tooling infrastructure"
-git clone git@github.com:test-pipeline/clang.git && cd clang/tools/clang-sdict git clone git@github.com:test-pipeline/clang-ginfer.git
+git clone https://github.com/test-pipeline/clang.git && cd clang/tools/clang-sdict git clone https://github.com/test-pipeline/clang-ginfer.git
 cd ../../../ && mkdir build-clang && cd build-clang && cmake ../clang && ninja
