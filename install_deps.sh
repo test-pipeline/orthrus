@@ -52,7 +52,8 @@ wget https://raw.githubusercontent.com/test-pipeline/orthrus/master/gdb-orthrus/
 echo -e "\t[+] Install bear v2.1.5"
 wget https://launchpadlibrarian.net/240291131/bear_2.1.5.orig.tar.gz && tar xzf bear_2.1.5.orig.tar.gz && rm bear_2.1.5.orig.tar.gz
 mkdir Bear-2.1.5.build && cd Bear-2.1.5.build && cmake ../Bear-2.1.5 && make -j all && sudo make install && cd .. && rm -rf Bear-2.1.5 Bear-2.1.5.build
-echo -e "\t[+] Install cmake v3.2"
+echo -e "\t[+] Install cmake v3.7"
+sudo apt-get remove -y cmake cmake-data
 wget http://www.cmake.org/files/v3.7/cmake-3.7.2.tar.gz && tar xf cmake-3.7.2.tar.gz && cd cmake-3.7.2
 ./configure && make && sudo make install && cd .. && rm cmake-3.7.2.tar.gz
 echo -e "\t[+] Install clang tooling infrastructure"
