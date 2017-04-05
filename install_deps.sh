@@ -55,7 +55,7 @@ mkdir Bear-2.1.5.build && cd Bear-2.1.5.build && cmake ../Bear-2.1.5 && make -j 
 echo -e "\t[+] Install cmake v3.7"
 sudo apt-get remove -y cmake cmake-data
 wget http://www.cmake.org/files/v3.7/cmake-3.7.2.tar.gz && tar xf cmake-3.7.2.tar.gz && cd cmake-3.7.2
-./configure && make && sudo make install && cd .. && rm cmake-3.7.2.tar.gz
+./configure && make && sudo make install && cd .. && rm cmake-3.7.2.tar.gz && export PATH=$PATH:/usr/local/bin
 echo -e "\t[+] Install clang tooling infrastructure"
 git clone https://github.com/test-pipeline/clang.git && mkdir -p clang/tools/clang-sdict && cd clang/tools/clang-sdict && git clone https://github.com/test-pipeline/clang-ginfer.git
 cd ../../../ && mkdir build-clang && cd build-clang && cmake ../clang && ninja
