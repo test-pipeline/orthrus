@@ -58,4 +58,4 @@ wget http://www.cmake.org/files/v3.7/cmake-3.7.2.tar.gz && tar xf cmake-3.7.2.ta
 ./configure && make && sudo make install && cd .. && rm cmake-3.7.2.tar.gz && export PATH=$PATH:/usr/local/bin
 echo -e "\t[+] Install clang tooling infrastructure"
 git clone https://github.com/test-pipeline/clang.git && mkdir -p clang/tools/clang-sdict && cd clang/tools/clang-sdict && git clone https://github.com/test-pipeline/clang-ginfer.git
-cd ../../../ && mkdir build-clang && cd build-clang && cmake ../clang && ninja
+cd ../../../ #&& mkdir build-clang && cd build-clang && cmake ../clang && ninja
