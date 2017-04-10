@@ -38,8 +38,10 @@ $ cd .. && rm -rf Bear-2.1.5 Bear-2.1.5.build
 ```
 - clang-sdict for input dictionary generation
 ```bash
-$ export CLANG_SDICT_OL="https://owncloud.sec.t-labs.tu-berlin.de/owncloud/public.php?service=files&t=c2d5e4111f21d67ca4fe0cc12d4b9df0&download"
-$ wget -O $HOME/local/bin/clang-sdict --no-check-certificate "$CLANG_SDICT_OL" && chmod +x $HOME/local/bin/clang-sdict
+$ export CLANG_SDICT="https://www.dropbox.com/s/lqayfheheo3coag/fork-6173707-6216-gb24cc33-153448-2017-04-10.tar.gz?dl=0"
+$ curl -o clang.tar.gz -L "$CLANG_SDICT"
+$ tar xzf clang.tar.gz -C $HOME/local
+$ export PATH=$PATH:$HOME/local
 ```
 
 - An autotools open-source project for fuzzing
