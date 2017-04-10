@@ -31,6 +31,6 @@ before_install:
 
 install: ./install_deps.sh
 
-script: cd testdata/Automake-Autoconf-Template-Project && export PATH=`echo $PATH | sed 's/\/usr\/local\/clang-3.5.0\/bin://g'` && PYTHONUNBUFFERED=1 coverage run --rcfile=../../.coveragerc ../../setup.py test
+script: cd testdata/Automake-Autoconf-Template-Project && export PATH=`echo $PATH | sed 's/\/usr\/local\/clang-3.5.0\/bin://g'`:$HOME/local/bin && PYTHONUNBUFFERED=1 coverage run --rcfile=../../.coveragerc ../../setup.py test
 after_success:
         - coveralls
