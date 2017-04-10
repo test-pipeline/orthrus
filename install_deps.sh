@@ -44,18 +44,15 @@ sudo mv sancov.py /usr/local/bin/pysancov &> /dev/null
 echo -e "\t[+] Copy gdb-orthrus.py to orthrus-local"
 mkdir -p $HOME/.orthrus
 wget https://raw.githubusercontent.com/test-pipeline/orthrus/master/gdb-orthrus/gdb_orthrus.py -P $HOME/.orthrus
-#echo -e "\t[+] Installing clang-sdict to /usr/local/bin"
-#CLANG_SDICT_OL="https://owncloud.sec.t-labs.tu-berlin.de/owncloud/public.php?service=files&t=c2d5e4111f21d67ca4fe0cc12d4b9df0&download"
-#sudo wget -O /usr/local/bin/clang-sdict --no-check-certificate "$CLANG_SDICT_OL" && sudo chmod +x /usr/local/bin/clang-sdict
-#CLANG_SDICT_DB="https://www.dropbox.com/s/7zo880suvdtk0an/clang-sdict?dl=0"
-#sudo curl -L -o /usr/local/bin/clang-sdict "$CLANG_SDICT_DB" && sudo chmod +x /usr/local/bin/clang-sdict
+CLANG_SDICT_DB="https://www.dropbox.com/s/7zo880suvdtk0an/clang-sdict?dl=0"
+sudo curl -L -o /usr/local/bin/clang-sdict "$CLANG_SDICT_DB" && sudo chmod +x /usr/local/bin/clang-sdict
 echo -e "\t[+] Install bear v2.1.5"
 wget https://launchpadlibrarian.net/240291131/bear_2.1.5.orig.tar.gz && tar xzf bear_2.1.5.orig.tar.gz && rm bear_2.1.5.orig.tar.gz
 mkdir Bear-2.1.5.build && cd Bear-2.1.5.build && cmake ../Bear-2.1.5 && make -j all && sudo make install && cd .. && rm -rf Bear-2.1.5 Bear-2.1.5.build
-echo -e "\t[+] Install cmake v3.7"
-sudo apt-get remove -y cmake cmake-data
-wget http://www.cmake.org/files/v3.7/cmake-3.7.2.tar.gz && tar xf cmake-3.7.2.tar.gz && cd cmake-3.7.2
-./configure && make && sudo make install && cd .. && rm cmake-3.7.2.tar.gz && export PATH=$PATH:/usr/local/bin
-echo -e "\t[+] Install clang tooling infrastructure"
-git clone https://github.com/test-pipeline/clang.git && mkdir -p clang/tools/clang-sdict && cd clang/tools/clang-sdict && git clone https://github.com/test-pipeline/clang-ginfer.git
-cd ../../../ #&& mkdir build-clang && cd build-clang && export PATH=`echo $PATH | sed 's/\/usr\/local\/clang-3.5.0\/bin://g'` && cmake ../clang && ninja
+#echo -e "\t[+] Install cmake v3.7"
+#sudo apt-get remove -y cmake cmake-data
+#wget http://www.cmake.org/files/v3.7/cmake-3.7.2.tar.gz && tar xf cmake-3.7.2.tar.gz && cd cmake-3.7.2
+#./configure && make && sudo make install && cd .. && rm cmake-3.7.2.tar.gz && export PATH=$PATH:/usr/local/bin
+#echo -e "\t[+] Install clang tooling infrastructure"
+#git clone https://github.com/test-pipeline/clang.git && mkdir -p clang/tools/clang-sdict && cd clang/tools/clang-sdict && git clone https://github.com/test-pipeline/clang-ginfer.git
+#cd ../../../ #&& mkdir build-clang && cd build-clang && export PATH=`echo $PATH | sed 's/\/usr\/local\/clang-3.5.0\/bin://g'` && cmake ../clang && ninja
