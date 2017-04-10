@@ -44,15 +44,8 @@ sudo mv sancov.py /usr/local/bin/pysancov &> /dev/null
 echo -e "\t[+] Copy gdb-orthrus.py to orthrus-local"
 mkdir -p $HOME/.orthrus
 wget https://raw.githubusercontent.com/test-pipeline/orthrus/master/gdb-orthrus/gdb_orthrus.py -P $HOME/.orthrus
-CLANG_SDICT_DB="https://www.dropbox.com/s/7zo880suvdtk0an/clang-sdict?dl=0"
-sudo curl -L -o /usr/bin/clang-sdict "$CLANG_SDICT_DB" && sudo chmod +x /usr/bin/clang-sdict
+CLANG_SDICT_DB="https://www.dropbox.com/s/lqayfheheo3coag/fork-6173707-6216-gb24cc33-153448-2017-04-10.tar.gz?dl=0"
+curl -o clang.tar.gz -L "$CLANG_SDICT_DB" && tar xzf clang.tar.gz -C $HOME && chmod +x $HOME/local/bin/clang-sdict
 echo -e "\t[+] Install bear v2.1.5"
 wget https://launchpadlibrarian.net/240291131/bear_2.1.5.orig.tar.gz && tar xzf bear_2.1.5.orig.tar.gz && rm bear_2.1.5.orig.tar.gz
 mkdir Bear-2.1.5.build && cd Bear-2.1.5.build && cmake ../Bear-2.1.5 && make -j all && sudo make install && cd .. && rm -rf Bear-2.1.5 Bear-2.1.5.build
-#echo -e "\t[+] Install cmake v3.7"
-#sudo apt-get remove -y cmake cmake-data
-#wget http://www.cmake.org/files/v3.7/cmake-3.7.2.tar.gz && tar xf cmake-3.7.2.tar.gz && cd cmake-3.7.2
-#./configure && make && sudo make install && cd .. && rm cmake-3.7.2.tar.gz && export PATH=$PATH:/usr/local/bin
-#echo -e "\t[+] Install clang tooling infrastructure"
-#git clone https://github.com/test-pipeline/clang.git && mkdir -p clang/tools/clang-sdict && cd clang/tools/clang-sdict && git clone https://github.com/test-pipeline/clang-ginfer.git
-#cd ../../../ #&& mkdir build-clang && cd build-clang && export PATH=`echo $PATH | sed 's/\/usr\/local\/clang-3.5.0\/bin://g'` && cmake ../clang && ninja
