@@ -51,7 +51,7 @@ class TestOrthrusCreate(unittest.TestCase):
         args = parse_cmdline(self.description, ['create', '-dict'])
         cmd = OrthrusCreate(args, self.config)
         # TODO: Fix Test infra for dict
-        self.assertFalse(cmd.run())
+        self.assertTrue(cmd.run())
 
     @classmethod
     def touch_blacklist(cls):
