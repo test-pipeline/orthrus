@@ -1282,7 +1282,7 @@ class OrthrusSpectrum(object):
             group = 'Config {}'.format(count)
             count += 1
             if not util.pprint_decorator_fargs(util.func_wrapper(self.spectrum_wrapper, rootdir, id),
-                                               'Triaging crashes in {}'.format(group), indent=2):
+                                               'Obtaining spectrum for {}'.format(group), indent=2):
                 return False
 
         return True
@@ -1301,11 +1301,6 @@ class OrthrusSpectrum(object):
         if not util.pprint_decorator(self.job_token.materialize, 'Retrieving job ID [{}]'.format(self.job_token.id),
                                      indent=2, fail_msg=self.fail_msg):
             return False
-
-        # if self.job_token.type == 'abtests':
-        #     util.color_print(util.bcolors.WARNING, "\t[+] Spectrum generation for A/B tests is not supported at the "
-        #                                            "moment")
-        #     return True
 
         if self._args.version:
             reporter = AFLSancovReporter(self._args, None, None, None, None, None)
