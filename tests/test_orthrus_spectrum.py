@@ -47,6 +47,17 @@ class TestOrthrusSpectrum(unittest.TestCase):
         self.assertTrue(self.compare_slice_json(self.gen_slice, self.exp_slice))
         return True
 
+    def output_assert_abtests(self):
+        # Output checks
+        for dir in self.abtest_dice_dirs:
+            self.assertTrue(os.path.exists(dir), "No dice dir generated")
+        for dir in self.abtest_slice_dirs:
+            self.assertTrue(os.path.exists(dir), "No slice dir generated")
+
+        for slice in self.abtest_gen_slices:
+            self.assertTrue(self.compare_slice_json(slice, self.abtest_exp_slice))
+        return True
+
     def test_spectrum(self):
         args = parse_cmdline(self.description, ['spectrum', '-j', self.add_cmd.job.id, '-q'])
         cmd = OrthrusSpectrum(args, self.config)
@@ -80,6 +91,10 @@ class TestOrthrusSpectrum(unittest.TestCase):
         args = parse_cmdline(self.description, ['spectrum', '-j', self.add_cmd_abtest.job.id])
         cmd = OrthrusSpectrum(args, self.config)
         self.assertTrue(cmd.run())
+
+        self.assertTrue(self.output_assert_abtests())
+        for dice in self.abtest_gen_dices:
+            self.assertTrue(self.compare_dice_json(dice, self.abtest_exp_dice))
 
     def test_spectrum_multiple(self):
         args = parse_cmdline(self.description, ['spectrum', '-j', self.add_cmd.job.id, '--dd-num=3', '--overwrite'])
@@ -170,6 +185,18 @@ class TestOrthrusSpectrum(unittest.TestCase):
 
         cls.dice_dir = '{}/crash-analysis/spectrum/asan/dice'.format(cls.add_cmd.job.rootdir)
         cls.slice_dir = '{}/crash-analysis/spectrum/asan/slice'.format(cls.add_cmd.job.rootdir)
+
+        ## Abtests
+        cls.abtest_dice_dirs = ['{}/crash-analysis/spectrum/asan/dice'.format(rootdir) for rootdir in cls.add_cmd_abtest.rootdirs]
+        cls.abtest_slice_dirs = ['{}/crash-analysis/spectrum/asan/slice'.format(rootdir) for rootdir in cls.add_cmd_abtest.rootdirs]
+
+        cls.abtest_gen_slices = ['{}/crash-analysis/spectrum/asan/slice/' \
+                                 'ASAN:SESSION000:id:000000,sig:06,src:000000,op:havoc,rep:2.json'.format(rootdir) for rootdir in cls.add_cmd_abtest.rootdirs]
+        cls.abtest_exp_slice = './expects/abtests/asan/spectrum/slice/ASAN:SESSION000:id:000000,sig:06,src:000000,op:havoc,rep:2.json'
+
+        cls.abtest_gen_dices = ['{}/crash-analysis/spectrum/asan/dice/' \
+                                 'ASAN:SESSION000:id:000000,sig:06,src:000000,op:havoc,rep:2.json'.format(rootdir) for rootdir in cls.add_cmd_abtest.rootdirs]
+        cls.abtest_exp_dice = './expects/abtests/asan/spectrum/dice/ASAN:SESSION000:id:000000,sig:06,src:000000,op:havoc,rep:2.json'
 
     @classmethod
     def tearDownClass(cls):
