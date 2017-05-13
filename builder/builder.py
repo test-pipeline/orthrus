@@ -115,7 +115,7 @@ class Builder(object):
         if not self.bear_make():
             return False
         command = ["find . -type f \( -name \"*.c\" -o -name \"*.cpp\" -o -name \"*.cc\" \) -print0 |"
-                   " xargs -0 clang-sdict -p 1>> dict.clang"]
+                   " xargs -0 -P{0} -n1 clang-sdict -p . {{}} 1>> dict.clang".format(util.getnproc())]
         if not util.run_cmd(command, self.env, self.logfile):
             return False
         return True
