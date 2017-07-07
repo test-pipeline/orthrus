@@ -68,7 +68,7 @@ class TestOrthrusSpectrum(unittest.TestCase):
         self.assertTrue(self.compare_dice_json(self.gen_dice, self.exp_dice_single))
 
     def test_spectrum_sancovbug(self):
-        args = parse_cmdline(self.description, ['spectrum', '-j', self.add_cmd.job.id, '-q', '--overwrite',
+        args = parse_cmdline(self.description, ['spectrum', '-j', self.add_cmd.job.id, '-q', '--regenerate',
                                                 '--sancov-bug'])
         cmd = OrthrusSpectrum(args, self.config)
         self.assertTrue(cmd.run())
@@ -97,7 +97,7 @@ class TestOrthrusSpectrum(unittest.TestCase):
             self.assertTrue(self.compare_dice_json(dice, self.abtest_exp_dice))
 
     def test_spectrum_multiple(self):
-        args = parse_cmdline(self.description, ['spectrum', '-j', self.add_cmd.job.id, '--dd-num=3', '--overwrite'])
+        args = parse_cmdline(self.description, ['spectrum', '-j', self.add_cmd.job.id, '--dd-num=3', '--regenerate'])
         cmd = OrthrusSpectrum(args, self.config)
         self.assertTrue(cmd.run())
 
@@ -106,7 +106,7 @@ class TestOrthrusSpectrum(unittest.TestCase):
         self.assertTrue(self.compare_dice_json(self.gen_dice, self.exp_dice_multiple))
 
     def test_spectrum_multiple_sancovbug(self):
-        args = parse_cmdline(self.description, ['spectrum', '-j', self.add_cmd.job.id, '--dd-num=3', '--overwrite',
+        args = parse_cmdline(self.description, ['spectrum', '-j', self.add_cmd.job.id, '--dd-num=3', '--regenerate',
                                                 '--sancov-bug'])
         cmd = OrthrusSpectrum(args, self.config)
         self.assertTrue(cmd.run())

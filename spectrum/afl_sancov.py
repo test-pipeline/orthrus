@@ -510,11 +510,11 @@ class AFLSancovReporter:
         self.cov_paths['dd_filter_dir'] = self.cov_paths['dice_dir'] + '/.filter'
         self.cov_paths['dd_final_stats'] = self.cov_paths['dice_dir'] + '/final_stats.dd'
 
-        if self.args.overwrite:
+        if self.args.regenerate:
             self.init_mkdirs()
         else:
             if self.is_dir(self.cov_paths['top_dir']):
-                print "[*] Existing coverage dir %s found, use --overwrite to " \
+                print "[*] Existing coverage dir %s found, use --regenerate to " \
                       "re-calculate coverage" % (self.cov_paths['top_dir'])
                 return False
             else:
@@ -781,7 +781,7 @@ class AFLSancovReporter:
         # lcov renamed cons and delta-diff dir added
         create_cov_dirs = 0
         if self.is_dir(self.cov_paths['top_dir']):
-            if self.args.overwrite:
+            if self.args.regenerate:
                 rmtree(self.cov_paths['top_dir'])
                 create_cov_dirs = 1
         else:

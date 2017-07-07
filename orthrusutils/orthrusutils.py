@@ -190,6 +190,8 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
     triage_parser.add_argument('-j', '--job-id', required=True,
                                type=str, default="",
                                help="""Job Id for the job which should be triaged""")
+    triage_parser.add_argument("-r", "--regenerate", action='store_true',
+                                 help="Archive and re-triage", default=False)
     triage_parser.set_defaults(func=triagefunc)
 
     # Command 'coverage'
@@ -203,7 +205,7 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
     spectrum_parser.add_argument('-j', '--job-id', type=str, default="", required=True,
                                help="""Job Id for spectrum based analysis""")
 
-    spectrum_parser.add_argument("-O", "--overwrite", action='store_true',
+    spectrum_parser.add_argument("-r", "--regenerate", action='store_true',
                                  help="Overwrite existing coverage results", default=False)
     spectrum_parser.add_argument("--disable-cmd-redirection", action='store_true',
                                  help="Disable redirection of command results to /dev/null",
@@ -239,7 +241,7 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
     runtime_parser = subparsers.add_parser('runtime', help=RUNTIME_HELP)
     runtime_parser.add_argument('-j', '--job-id', type=str, default="", required=True,
                                help="""Job Id for dynamic analysis""")
-    runtime_parser.add_argument("-regen", "--regenerate", action='store_true',
+    runtime_parser.add_argument("-r", "--regenerate", action='store_true',
                                  help="Regenerate dynamic info, archiving old results", default=False)
     runtime_parser.set_defaults(func=runtimefunc)
 

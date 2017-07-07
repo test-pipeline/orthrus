@@ -327,7 +327,10 @@ class OrthrusAdd(object):
 
         asanjob_config['session'] = "ASAN"
         # https://github.com/rc0r/afl-utils/issues/34
-        # asanjob_config['interactive'] = False
+        # FIXME: We do this due to a bug in afl-utils/afl-multicore that results in pgid not being written
+        # to disk when the 'interactive' key is undefined in the fuzzer configuration file passed to it.
+        # We set it to 0 because simplejson (that afl-utils uses) does not recognize False. Hack alert!
+        asanjob_config['interactive'] = 0
 
         if os.path.exists(self._config['orthrus']['directory'] + "/binaries/afl-harden"):
             asanjob_config['master_instances'] = 0
@@ -351,7 +354,7 @@ class OrthrusAdd(object):
         hardenjob_config['timeout'] = "3000+"
         hardenjob_config['mem_limit'] = "none"
         hardenjob_config['session'] = "HARDEN"
-        # hardenjob_config['interactive'] = False
+        hardenjob_config['interactive'] = 0
 
         if fuzzer:
             hardenjob_config['fuzzer'] = fuzzer
@@ -1043,9 +1046,10 @@ class OrthrusTriage(object):
         return True
 
     def prepare_for_rerun(self, jobroot_dir):
-        util.color_print_singleline(util.bcolors.OKGREEN, "[?] Rerun triaging? [y/n]...: ")
 
-        if not self.test and 'y' not in sys.stdin.readline()[0]:
+        if not self.test and not self._args.regenerate:
+            util.color_print(util.bcolors.WARNING, "[+] Crashes have been triaged once. If you wish "
+                                                              "to rerun triaging, pass the -r or --regenerate flag")
             return False
 
         shutil.move(jobroot_dir + "/unique/", jobroot_dir + "/unique." + time.strftime("%Y-%m-%d-%H:%M:%S"))
@@ -1259,9 +1263,9 @@ class OrthrusSpectrum(object):
             return False
 
         self.is_second_run = os.path.exists('{}/crash-analysis/spectrum'.format(jobrootdir))
-        if self.is_second_run and not self._args.overwrite:
+        if self.is_second_run and not self._args.regenerate:
             util.color_print(util.bcolors.WARNING, "\t\t[+] It looks like crash spectrum has already been generated. "
-                                                   "Please pass --overwrite to regenerate. Old data will be lost unless "
+                                                   "Please pass --regenerate to regenerate. Old data will be lost unless "
                                                    "manually archived.")
             return False
 
