@@ -268,6 +268,11 @@ class OrthrusCreate(object):
                                                indent=1):
                 return False
 
+        if self.args.binary:
+            install_path = self.config['orthrus']['directory'] + "/binaries/afl-qemu/"
+            util.copy_binaries(install_path + "bin/")
+            util.color_print(util.bcolors.OKGREEN, "\t\t[+] Installing binaries as-is for afl-qemu fuzzing...done")
+
         return True
 
 class OrthrusAdd(object):

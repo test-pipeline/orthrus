@@ -127,6 +127,10 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
                                action='store_true',
                                help="""Generate input dictionary for fuzzing""",
                                default=False)
+    create_parser.add_argument('-bin', '--binary',
+                               action='store_true',
+                               help="""Setup binaries for fuzzing in afl-qemu mode""",
+                               default=False)
     create_parser.add_argument('-d', '--configure-flags', nargs='?',
                                type=str, default="",
                                help='Additional flags for configuring the source')
