@@ -1002,16 +1002,33 @@ class OrthrusShow(object):
         for idx, routine in enumerate(self.routine_list):
             util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Configured routine jobs:")
             util.color_print(util.bcolors.OKBLUE, "\t" + str(idx) + ") [" + routine['id'] + "] " +
-                             routine['target'] + " " + routine['params'])
+                             routine['target'] + " " + routine['params'] +
+                             "\n\tNum. cores: {}".format(routine['num_cores']))
+            util.color_print(util.bcolors.OKBLUE, "\t" + '-' * 10)
+            util.color_print(util.bcolors.OKBLUE, "\t" + "Fuzzer: {}\n"
+                                                         "\tFuzzer args: {}\n"
+                                                         "\tSeeds dir: {}\n"
+                                                         "\tQEMU: {}".
+                             format(routine['fuzzers'], routine['fuzzer_args'],
+                                    routine['seed_dirs'], routine['qemus'])
+                            )
+            util.color_print(util.bcolors.OKBLUE, "\t" + '-' * 10)
         for idx, abtest in enumerate(self.abtest_list):
             util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "Configured multivariate tests:")
+            util.color_print(util.bcolors.OKBLUE, "\t" + str(idx) + ") [" + abtest['id'] + "] " +
+                             abtest['target'] + " " + abtest['params'] +
+                             "\n\tNum_cores: {}".format(abtest['num_cores']))
             for i in range(0, abtest['num_jobs']):
                 alp_idx = string.ascii_uppercase[i]
-                util.color_print(util.bcolors.OKBLUE, "\t" + str(idx) + ") [" + abtest['id'] + "] " +
-                                 abtest['target'] + " " + abtest['params'])
+                util.color_print(util.bcolors.OKBLUE, "\t" + '-' * 10)
                 util.color_print(util.bcolors.OKBLUE, "\t" + "Config {} [{}]".format(i, abtest['jobids'][i]))
-                util.color_print(util.bcolors.OKBLUE, "\t" + "Fuzzer {}: {}\t Fuzzer A args: {}".
-                                 format(alp_idx, abtest['fuzzers'][i],abtest['fuzzer_args'][i]))
+                util.color_print(util.bcolors.OKBLUE, "\t" + "Fuzzer {}: {}\n"
+                                                             "\tFuzzer args: {}\n"
+                                                             "\tSeeds dir: {}\n"
+                                                             "\tQEMU: {}"
+                                 .format(alp_idx, abtest['fuzzers'][i],abtest['fuzzer_args'][i], abtest['seed_dirs'][i],
+                                         abtest['qemus'][i]))
+            util.color_print(util.bcolors.OKBLUE, "\t" + '-' * 10)
         return True
 
     def show_cov(self):
