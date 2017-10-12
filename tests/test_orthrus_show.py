@@ -78,24 +78,28 @@ class TestOrthrusShow(unittest.TestCase):
         # Create
         args = parse_cmdline(cls.description, ['create', '-fuzz', '-cov'])
         cmd = OrthrusCreate(args, cls.config)
-        cmd.run()
+        assert cmd.run(), "Failed class cmd"
         # Add job
-        routineconf_dict = {'fuzzer': 'afl-fuzz', 'fuzzer_args': ''}
+        routineconf_dict = {'job_type': 'routine', 'fuzz_cmd': 'main @@', 'num_jobs': 1,
+                            'job_desc': [{'fuzzer': 'afl-fuzz', 'fuzzer_args': '', 'seed_dir': './seeds'}
+                                         ]
+                            }
         with open(cls.routineconf_file, 'w') as routineconf_fp:
             json.dump(routineconf_dict, routineconf_fp, indent=4)
-        args = parse_cmdline(cls.description, ['add', '--job=main @@', '-s=./seeds', '--jobtype=routine',
-                                               '--jobconf={}'.format(cls.routineconf_file)])
+        args = parse_cmdline(cls.description, ['add', '--jobconf={}'.format(cls.routineconf_file)])
         cls.add_cmd = OrthrusAdd(args, cls.config)
-        cls.add_cmd.run()
+        assert cls.add_cmd.run(), "Failed class cmd"
         # Add a/b test job
-        abconf_dict = {'num_jobs': 2, 'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast',
-                       'fuzzerB_args': ''}
+        abconf_dict = {'job_type': 'abtests', 'fuzz_cmd': 'main @@', 'num_jobs': 2,
+                       'job_desc': [{'fuzzer': 'afl-fuzz', 'fuzzer_args': '', 'seed_dir': './seeds'},
+                                    {'fuzzer': 'afl-fuzz-fast', 'fuzzer_args': '', 'seed_dir': './seeds'}
+                                    ]
+                       }
         with open(cls.abconf_file, 'w') as abconf_fp:
             json.dump(abconf_dict, abconf_fp, indent=4)
-        args = parse_cmdline(cls.description, ['add', '--job=main @@', '-s=./seeds', '--jobconf={}'.
-                             format(cls.abconf_file), '--jobtype=abtests'])
+        args = parse_cmdline(cls.description, ['add', '--jobconf={}'.format(cls.abconf_file)])
         cls.add_cmd_abtest = OrthrusAdd(args, cls.config)
-        cls.add_cmd_abtest.run()
+        assert cls.add_cmd_abtest.run(), "Failed class cmd"
 
     @classmethod
     def tearDownClass(cls):

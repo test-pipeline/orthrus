@@ -20,13 +20,15 @@ class TestOrthrusShow(unittest.TestCase):
 
     # Add
     def test_add_early_exit(self):
-        routineconf_dict = {'fuzzer': 'afl-fuzz', 'fuzzer_args': ''}
+        routineconf_dict = {'job_type': 'routine', 'fuzz_cmd': 'main @@', 'num_jobs': 1,
+                            'job_desc': [{'fuzzer': 'afl-fuzz', 'fuzzer_args': '', 'seed_dir': './seeds'}
+                                         ]
+                            }
         util.mkdir_p(self.orthrusdirname + '/conf')
         with open(self.routineconf_file, 'w') as routineconf_fp:
             json.dump(routineconf_dict, routineconf_fp, indent=4)
 
-        args = parse_cmdline(self.description, ['add', '--job=main @@', '--jobtype=routine', '--jobconf={}'.
-                             format(self.routineconf_file), '-s=./seeds'])
+        args = parse_cmdline(self.description, ['add', '--jobconf={}'.format(self.routineconf_file)])
         cmd = OrthrusAdd(args, self.config)
         self.assertFalse(cmd.run())
         shutil.rmtree(self.orthrusdirname)

@@ -282,29 +282,29 @@ class OrthrusAdd(object):
         self._config = config
         self.orthrusdir = self._config['orthrus']['directory']
 
-    def copy_samples(self, jobroot_dir):
+    def copy_samples(self, jobroot_dir, seed_dir):
         samplevalid = False
 
-        if os.path.isdir(self._args.sample):
-            for dirpath, dirnames, filenames in os.walk(self._args.sample):
+        if os.path.isdir(seed_dir):
+            for dirpath, dirnames, filenames in os.walk(seed_dir):
                 for fn in filenames:
                     fpath = os.path.join(dirpath, fn)
                     if os.path.isfile(fpath):
                         shutil.copy(fpath, jobroot_dir + "/afl-in/")
             if filenames:
                 samplevalid = True
-        elif os.path.isfile(self._args.sample):
+        elif os.path.isfile(seed_dir):
             samplevalid = True
-            shutil.copy(self._args.sample, jobroot_dir + "/afl-in/")
+            shutil.copy(seed_dir, jobroot_dir + "/afl-in/")
 
         if not samplevalid:
             return False
 
         return True
 
-    def seed_job(self, rootdir, id):
+    def seed_job(self, rootdir, id, seed_dir):
 
-        if not util.pprint_decorator_fargs(util.func_wrapper(self.copy_samples, rootdir),
+        if not util.pprint_decorator_fargs(util.func_wrapper(self.copy_samples, rootdir, seed_dir),
                                           'Adding initial samples for job ID [{}]'.format(id), 2,
                                           'seed dir or file invalid. No seeds copied'):
             return False
@@ -369,16 +369,42 @@ class OrthrusAdd(object):
 
         self.write_config(hardenjob_config, "{}/harden-job.conf".format(jobroot_dir))
 
+    def write_qemu_config(self, afl_in, afl_out, jobroot_dir, fuzzer, fuzzer_params):
+        ## Create an afl-utils JSON config for AFL-HARDEN
+        qemujob_config = {}
+        qemujob_config['input'] = afl_in
+        qemujob_config['output'] = afl_out
+        qemujob_config['target'] = ".orthrus/binaries/afl-qemu/bin/{}".format(self.job.target)
+        qemujob_config['cmdline'] = self.job.params
+        # hardenjob_config['file'] = "@@"
+        qemujob_config['timeout'] = "3000+"
+        qemujob_config['mem_limit'] = "none"
+        qemujob_config['session'] = "QEMU"
+        qemujob_config['interactive'] = 0
+
+        if fuzzer:
+            qemujob_config['fuzzer'] = fuzzer
+
+        if fuzzer_params:
+            qemujob_config['afl_margs'] = fuzzer_params + " -Q"
+        else:
+            qemujob_config['afl_margs'] = "-Q"
+
+        self.write_config(qemujob_config, "{}/qemu-job.conf".format(jobroot_dir))
+
     def write_config(self, config_dict, config_file):
         with open(config_file, 'wb') as file:
             json.dump(config_dict, file, indent=4)
 
-    def config_wrapper(self, afl_in, afl_out, jobroot_dir, fuzzer=None, fuzzer_params=None):
-        self.write_asan_config(afl_in, afl_out, jobroot_dir, fuzzer, fuzzer_params)
-        self.write_harden_config(afl_in, afl_out, jobroot_dir, fuzzer, fuzzer_params)
+    def config_wrapper(self, afl_in, afl_out, jobroot_dir, fuzzer, fuzzer_params, qemu):
+        if qemu:
+            self.write_qemu_config(afl_in, afl_out, jobroot_dir, fuzzer, fuzzer_params)
+        else:
+            self.write_asan_config(afl_in, afl_out, jobroot_dir, fuzzer, fuzzer_params)
+            self.write_harden_config(afl_in, afl_out, jobroot_dir, fuzzer, fuzzer_params)
         return True
 
-    def config_job(self, rootdir, id, fuzzer=None, fuzzer_params=None):
+    def config_job(self, rootdir, id, fuzzer, fuzzer_params, qemu):
         afl_dirs = [rootdir + '/{}'.format(dirname) for dirname in ['afl-in', 'afl-out']]
 
         for dir in afl_dirs:
@@ -386,8 +412,8 @@ class OrthrusAdd(object):
 
         # HT: http://stackoverflow.com/a/13694053/4712439
         if not util.pprint_decorator_fargs(util.func_wrapper(self.config_wrapper, afl_dirs[0], afl_dirs[1],
-                                                             rootdir, fuzzer, fuzzer_params),
-                                           'Configuring {} job for ID [{}]'.format(self.jobtype, id), 2):
+                                                             rootdir, fuzzer, fuzzer_params, qemu),
+                                           'Configuring {} job for ID [{}]'.format(self.job.jobtype, id), 2):
             return False
 
         return True
@@ -438,12 +464,12 @@ class OrthrusAdd(object):
         util.minimize_and_reseed(self.orthrusdir, rootdir, id, target, params)
         return True
 
-    def run_helper(self, rootdir, id, fuzzer, fuzzer_param):
-        if not self.config_job(rootdir, id, fuzzer, fuzzer_param):
+    def run_helper(self, rootdir, id, fuzzer, fuzzer_param, seed_dir, qemu):
+        if not self.config_job(rootdir, id, fuzzer, fuzzer_param, qemu):
             return False
         if self._args._import and not self.import_job(rootdir, id, self.job.target, self.job.params):
             return False
-        if self._args.sample and not self.seed_job(rootdir, id):
+        if not self.seed_job(rootdir, id, seed_dir):
             return False
 
         return True
@@ -454,44 +480,40 @@ class OrthrusAdd(object):
 
         if not util.pprint_decorator_fargs(util.func_wrapper(os.path.exists, self.orthrusdir + "/binaries/"),
                                           "Checking Orthrus workspace", 2,
-                                          'failed. Are you sure you did orthrus create -asan or -fuzz'):
+                                          'failed. Are you sure you did orthrus create -asan, -fuzz or -bin'):
             return False
 
-        valid_jobtype = ((self._args.jobtype == 'routine') or (self._args.jobtype == 'abtests'))
-
-        if not util.pprint_decorator_fargs((self._args.jobtype and self._args.jobconf and valid_jobtype),
-                                           "Checking job type", 2,
-                                           'failed. --jobtype=[routine|abtests] or --jobconf argument missing, or'
-                                           ' invalid job type.'):
-            return False
-
-        self.jobtype = self._args.jobtype
-        self.jobconf = self._args.jobconf
-
-        self.job = j.job(self._args.job, self.jobtype, self.orthrusdir, self.jobconf)
+        self.job = j.job(self.orthrusdir, self._args.jobconf)
 
         self.rootdirs = []
         self.ids = []
         self.fuzzers = []
         self.fuzzer_param = []
+        self.seed_dirs = []
+        self.qemus = []
 
-        if not util.pprint_decorator(self.job.materialize, 'Adding {} job'.format(self.jobtype), 2,
-                                     'Invalid a/b test configuration or existing job found!'):
+        if not util.pprint_decorator(self.job.materialize, 'Adding job', 2,
+                                     'Invalid job configuration or a duplicate!'):
             return False
 
-        if self.jobtype == 'routine':
+        if self.job.jobtype == 'routine':
             self.rootdirs.append(self.job.rootdir)
             self.ids.append(self.job.id)
             self.fuzzers.extend(self.job.fuzzers)
             self.fuzzer_param.extend(self.job.fuzzer_args)
+            self.seed_dirs.extend(self.job.seeddirs)
+            self.qemus.extend(self.job.qemus)
         else:
             self.rootdirs.extend(self.job.rootdir + '/{}'.format(id) for id in self.job.jobids)
             self.ids.extend(self.job.jobids)
             self.fuzzers.extend(self.job.fuzzers)
             self.fuzzer_param.extend(self.job.fuzzer_args)
+            self.seed_dirs.extend(self.job.seeddirs)
+            self.qemus.extend(self.job.qemus)
 
-        for rootdir, id, fuzzer, fuzzer_param in zip(self.rootdirs, self.ids, self.fuzzers, self.fuzzer_param):
-            if not self.run_helper(rootdir, id, fuzzer, fuzzer_param):
+        for rootdir, id, fuzzer, fuzzer_param, seed_dir, qemu in zip(self.rootdirs, self.ids, self.fuzzers, self.fuzzer_param,
+                                                     self.seed_dirs, self.qemus):
+            if not self.run_helper(rootdir, id, fuzzer, fuzzer_param, seed_dir, qemu):
                 return False
         return True
 
@@ -545,6 +567,7 @@ class OrthrusStart(object):
                         "right job ID. orthrus show -j might help"
         self.is_harden = os.path.exists(self.orthrusdir + "/binaries/afl-harden")
         self.is_asan = os.path.exists(self.orthrusdir + "/binaries/afl-asan")
+        self.is_qemu = os.path.exists(self.orthrusdir + "/binaries/afl-qemu")
 
     def check_core_pattern(self):
         cmd = ["cat /proc/sys/kernel/core_pattern"]
@@ -575,10 +598,14 @@ class OrthrusStart(object):
                 self.core_per_subjob = self.total_cores / 2
             elif (self.is_harden and not self.is_asan) or (not self.is_harden and self.is_asan):
                 self.core_per_subjob = self.total_cores
+            elif self.is_qemu and not self.is_asan and not self.is_harden:
+                self.core_per_subjob = self.total_cores
         else:
             if self.is_harden and self.is_asan:
                 self.core_per_subjob = self.total_cores / (2 * self.job_token.num_jobs)
             elif (self.is_harden and not self.is_asan) or (not self.is_harden and self.is_asan):
+                self.core_per_subjob = self.total_cores / self.job_token.num_jobs
+            elif self.is_qemu and not self.is_asan and not self.is_harden:
                 self.core_per_subjob = self.total_cores / self.job_token.num_jobs
 
     def _start_fuzzers(self, jobroot_dir, job_type):
@@ -645,6 +672,17 @@ class OrthrusStart(object):
 
             self.print_cmd_diag("/logs/afl-asan.log")
 
+        elif self.is_qemu:
+            qemu_file = self.orthrusdir + "/logs/afl-qemu.log"
+            cmd = ["afl-multicore", "--config={}".format(jobroot_dir) + "/qemu-job.conf", start_cmd, \
+                   str(self.core_per_subjob), "-v"]
+
+            if not util.pprint_decorator_fargs(util.func_wrapper(util.run_cmd, " ".join(cmd), env, qemu_file),
+                                               'Starting AFL QEMU fuzzer as master', indent=2):
+                return False
+
+            self.print_cmd_diag("/logs/afl-qemu.log")
+
         return True
 
     def start_and_cover(self):
@@ -664,12 +702,18 @@ class OrthrusStart(object):
             # set due to the way gcov works.
             if self._args.coverage:
                 if self.job_token.type == 'routine':
-                    if not util.pprint_decorator_fargs(util.func_wrapper(util.run_afl_cov, self.orthrusdir, rootdir,
+                    if not self.job_token.qemus:
+                        if not util.pprint_decorator_fargs(util.func_wrapper(util.run_afl_cov, self.orthrusdir, rootdir,
                                                                         self.job_token.target, self.job_token.params, True,
                                                                         self.test),
                                                        'Starting afl-cov for {} job ID [{}]'.format(self.job_token.type, id),
                                                        indent=2):
-                        return False
+                            return False
+                    else:
+                        util.color_print(util.bcolors.WARNING,
+                                         "\t\t[+] Live coverage in afl-qemu mode is not supported at the"
+                                         " moment")
+                        return True
                 else:
                     util.color_print(util.bcolors.WARNING, "\t\t[+] Live coverage for a/b tests is not supported at the"
                                                            " moment")
@@ -678,11 +722,12 @@ class OrthrusStart(object):
 
     def min_and_reseed(self):
 
-        for rootdir, id in zip(self.rootdirs, self.ids):
+        for rootdir, id, qemu in zip(self.rootdirs, self.ids, self.qemus):
             if len(os.listdir(rootdir + "/afl-out/")) > 0:
 
                 if not util.pprint_decorator_fargs(util.func_wrapper(util.minimize_and_reseed, self.orthrusdir, rootdir,
-                                                                     id, self.job_token.target, self.job_token.params),
+                                                                     id, self.job_token.target, self.job_token.params,
+                                                                     qemu),
                                                    'Minimizing afl sync dir for {} job ID [{}]'.
                                                            format(self.job_token.type,id),
                                                    indent=2):
@@ -699,6 +744,13 @@ class OrthrusStart(object):
                                           'failed. Are you sure you ran orthrus create -asan -fuzz?'):
             return False
 
+
+        if self.is_qemu:
+            if not util.pprint_decorator_fargs((not (self.is_harden or self.is_asan)),
+                                           "Checking sanity of configuration", 2,
+                                           'failed. Running afl-qemu together with vanilla afl not supported!'):
+                return False
+
         util.color_print(util.bcolors.BOLD + util.bcolors.HEADER, "[+] Starting fuzzing jobs")
 
         self.job_token = j.jobtoken(self.orthrusdir, self._args.job_id)
@@ -707,7 +759,7 @@ class OrthrusStart(object):
                                      indent=2, fail_msg=self.fail_msg):
             return False
 
-        self.total_cores = int(util.getnproc())
+        self.total_cores = self.job_token.num_cores
 
         '''
         n = number of cores
@@ -733,13 +785,16 @@ class OrthrusStart(object):
 
         self.rootdirs = []
         self.ids = []
+        self.qemus = []
 
         if self.job_token.type == 'routine':
             self.rootdirs.append(self.job_token.rootdir)
             self.ids.append(self.job_token.id)
+            self.qemus.append(self.job_token.qemus)
         else:
             self.rootdirs.extend(self.job_token.rootdir + '/{}'.format(id) for id in self.job_token.jobids)
             self.ids.extend(self.job_token.jobids)
+            self.qemus.extend(self.job_token.qemus)
 
         if self._args.minimize:
             if not self.min_and_reseed():
@@ -747,10 +802,6 @@ class OrthrusStart(object):
 
         if not self.start_and_cover():
             return False
-
-        # for rootdir, id in zip(self.rootdirs, self.ids):
-        #     if not self.min_and_reseed(rootdir, id):
-        #         return False
 
         return True
     
@@ -805,15 +856,19 @@ class OrthrusStop(object):
                                             self.job_token.type, self.job_token.id), indent=2):
                 return False
         else:
-            kill_cmd = ["afl-multikill -S HARDEN && afl-multikill -S ASAN"]
+            if not self.is_qemu:
+                kill_cmd = ["afl-multikill -S HARDEN && afl-multikill -S ASAN"]
+            else:
+                kill_cmd = ["afl-multikill -S QEMU"]
+
             if not util.pprint_decorator_fargs(util.func_wrapper(util.run_cmd, kill_cmd),
-                                               "Stopping {} job for ID [{}]".format(self.job_token.type,
-                                                                                    self.job_token.id),
-                                               indent=2):
+                                                   "Stopping {} job for ID [{}]".format(self.job_token.type,
+                                                                                        self.job_token.id),
+                                                   indent=2):
                 return False
 
         ## Kill afl-cov only for routine jobs
-        if self._args.coverage and self.job_token.type == 'routine':
+        if self._args.coverage and self.job_token.type == 'routine' and not self.is_qemu:
             util.color_print_singleline(util.bcolors.OKGREEN, "\t\t[+] Stopping afl-cov for {} job... ".
                                         format(self.job_token.type))
             for pid in self.get_afl_cov_pid():
@@ -840,6 +895,18 @@ class OrthrusStop(object):
         if not util.pprint_decorator(self.job_token.materialize, 'Retrieving job ID [{}]'.format(self.job_token.id),
                                      indent=2):
             return False
+
+        if self.job_token.type == 'routine' and self.job_token.qemus:
+            self.is_qemu = True
+        elif self.job_token.type == 'abtests' and (self.job_token.qemus[0] and self.job_token.qemus[1]):
+            self.is_qemu = True
+        else:
+            self.is_qemu = False
+
+        if self._args.coverage and self.is_qemu:
+            util.color_print(util.bcolors.WARNING, "\t\t[-] You are trying to stop an afl-cov process that likely does"
+                                                   " not exist since it appears you are fuzzing in qemu mode. Please "
+                                                   "remove the -c option in the future.")
 
         return self.run_helper()
 

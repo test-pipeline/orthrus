@@ -138,18 +138,18 @@ def parse_cmdline(description, args, createfunc=None, addfunc=None, removefunc=N
 
     # Command 'add'
     add_parser = subparsers.add_parser('add', help=ADD_HELP)
-    add_parser.add_argument('-n', '--job', required=True, type=str,
-                            help='Add a job with executable command line invocation string')
+    # add_parser.add_argument('-n', '--job', required=True, type=str,
+    #                         help='Add a job with executable command line invocation string')
     add_parser.add_argument('-i', '--import', dest='_import', nargs='?',
                             type=str, default="",
                             help='Import an AFL fuzzing output directory provided as tar.gz')
-    add_parser.add_argument('-s', '--sample', nargs='?',
-                            type=str, default="",
-                            help='A single file or directory of afl testcases for fuzzing')
-    add_parser.add_argument('-type', '--jobtype', nargs='?', type=str,
-                        default="", help=TEST_ADD_HELP)
-    add_parser.add_argument('-conf', '--jobconf', nargs='?', type=str,
-                            default="", help=TEST_ADD_HELP)
+    # add_parser.add_argument('-s', '--sample', nargs='?',
+    #                         type=str, default="",
+    #                         help='A single file or directory of afl testcases for fuzzing')
+    # add_parser.add_argument('-type', '--jobtype', nargs='?', type=str,
+    #                     default="", help=TEST_ADD_HELP)
+    add_parser.add_argument('-conf', '--jobconf', required=True, type=str,
+                            help=TEST_ADD_HELP)
     add_parser.set_defaults(func=addfunc)
 
     # Command 'remove'
@@ -280,30 +280,40 @@ def min_or_reseed_setup(orthrus_dir, target, params):
     env = os.environ.copy()
     env.update(export)
     isasan = False
+    launch = ""
 
     if os.path.exists(orthrus_dir + "/binaries/afl-harden"):
         launch = orthrus_dir + "/binaries/afl-harden/bin/" + target + " " + \
                  params.replace("&", "\&")
-    else:
+    elif os.path.exists(orthrus_dir + "/binaries/afl-asan"):
         isasan = True
         launch = orthrus_dir + "/binaries/afl-asan/bin/" + target + " " + \
+                 params
+    elif os.path.exists(orthrus_dir + "/binaries/afl-qemu"):
+        launch = orthrus_dir + "/binaries/afl-qemu/bin/" + target + " " + \
                  params
 
     if isasan and is64bit():
         mem_limit = 30000000
     else:
-        mem_limit = 800
+        mem_limit = 1024
     return (env, launch, mem_limit)
 
-def minimize_sync_dir(orthrus_dir, jobroot_dir, job_id, target, params):
+def minimize_sync_dir(orthrus_dir, jobroot_dir, job_id, target, params, qemu):
     color_print(bcolors.OKGREEN, "\t\t[+] Minimizing corpus for job [" + job_id + "]...")
 
     env, launch, mem_limit = min_or_reseed_setup(orthrus_dir, target, params)
 
-    cmin = " ".join(
-        ["afl-minimize", "-c", jobroot_dir + "/collect", "--cmin",
-         "--cmin-mem-limit={}".format(mem_limit), "--cmin-timeout=5000", "--dry-run",
-         jobroot_dir + "/afl-out", "--", "'" + launch + "'"])
+    if not qemu:
+        cmin = " ".join(
+            ["afl-minimize", "-c", jobroot_dir + "/collect", "--cmin",
+             "--cmin-mem-limit={}".format(mem_limit), "--cmin-timeout=5000", "--dry-run",
+             jobroot_dir + "/afl-out", "--", "'" + launch + "'"])
+    else:
+        cmin = " ".join(
+            ["afl-minimize", "-c", jobroot_dir + "/collect", "--cmin",
+             "--cmin-mem-limit={}".format(mem_limit), "--cmin-timeout=5000", "--cmin-qemu", "--dry-run",
+             jobroot_dir + "/afl-out", "--", "'" + launch + "'"])
     p = subprocess.Popen(cmin, bufsize=0, shell=True, executable='/bin/bash', env=env, stdout=subprocess.PIPE)
     for line in p.stdout:
         if "[*]" in line or "[!]" in line:
@@ -330,8 +340,8 @@ def reseed_sync_dir(orthrus_dir, jobroot_dir, job_id, target, params):
         shutil.rmtree(jobroot_dir + "/collect.cmin")
     return True
 
-def minimize_and_reseed(orthrus_dir, jobroot_dir, job_id, target, params):
-    minimize_sync_dir(orthrus_dir, jobroot_dir, job_id, target, params)
+def minimize_and_reseed(orthrus_dir, jobroot_dir, job_id, target, params, qemu=False):
+    minimize_sync_dir(orthrus_dir, jobroot_dir, job_id, target, params, qemu)
     reseed_sync_dir(orthrus_dir, jobroot_dir, job_id, target, params)
     return True
 
@@ -351,10 +361,6 @@ def getnproc():
     except subprocess.CalledProcessError:
         return 1
     return nproc.rstrip()
-
-# def printfile(filename):
-#     cmd = 'cat ' + filename
-#     print subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
 
 def which(progname):
     cmd = 'which ' + progname

@@ -22,6 +22,7 @@ ROUTINEDIR = '/jobs/routine'
 ABTESTSDIR = '/jobs/abtests'
 
 JOBCONF_DICT = {'routine': [], 'abtests': []}
+DEFAULT_NUMCORES = 4
 
 
 def bootstrap(jobsconf):
@@ -63,42 +64,83 @@ def remove_id_from_conf(jobsconf, id, type):
 
 class job(object):
 
-    def __init__(self, fuzz_cmd, jobtype, orthrusdir, jobconf=None):
+    def __init__(self, orthrusdir, jobconf):
 
         self.jobconf = jobconf
-        self.jobtype = jobtype
         self.orthrusdir = orthrusdir
         self.jobsconf = self.orthrusdir + JOBCONF
-        self.fuzz_cmd = fuzz_cmd
         self.jobids = []
         self.fuzzers = []
         self.fuzzer_args = []
+        self.seeddirs = []
+        self.qemus = []
 
         ## Bootstap jobs.conf if necessary
         if not os.path.exists(self.jobsconf):
             bootstrap(self.jobsconf)
 
-    def parse_and_validate_routine_jobconf(self):
+    def parse_and_validate_jobconf(self):
         with open(self.jobconf, 'rb') as jc_fp:
             self.data = json.load(jc_fp)
 
-        self.fuzzers.append(self.data['fuzzer'])
-        self.fuzzer_args.append(self.data['fuzzer_args'])
-        return True
+        required_keys = ['fuzz_cmd', 'job_type', 'num_jobs', 'job_desc']
 
-    def parse_and_validate_abtests_jobconf(self):
-        with open(self.jobconf, 'rb') as abconf_fp:
-            self.abconf_data = json.load(abconf_fp)
+        for key in required_keys:
+            if key not in self.data:
+                raise KeyError
 
-        # Multi-variate tests must have even number of jobs
-        if self.abconf_data['num_jobs'] % 2:
-            return False
+        if not (self.data['job_type'] == 'routine' or self.data['job_type'] == 'abtests'):
+            raise ValueError
 
-        self.num_jobs = self.abconf_data['num_jobs']
+        self.fuzz_cmd = self.data['fuzz_cmd']
+        self.jobtype = self.data['job_type']
+        self.num_jobs = self.data['num_jobs']
+        self.job_desc = self.data['job_desc']
+
+        if self.jobtype == 'routine' and not (self.num_jobs == 1):
+            raise ValueError
+        elif self.jobtype == 'abtests' and not (self.num_jobs == len(self.job_desc)):
+            raise ValueError
+        elif self.jobtype == 'abtests' and self.num_jobs % 2:
+            raise ValueError
+
+        required_jobdesc_keys = ['fuzzer', 'fuzzer_args', 'seed_dir']
+        for item in self.job_desc:
+            for key in required_jobdesc_keys:
+                if key not in item:
+                    raise KeyError
+
+        ## Break down fuzz_cmd
+        self.target = self.fuzz_cmd.split(" ")[0]
+        self.params = " ".join(self.fuzz_cmd.split(" ")[1:])
+
+        ## Parse num_cores if necessary
+        if 'num_cores' in self.data:
+            self.num_cores = self.data['num_cores']
+        else:
+            self.num_cores = DEFAULT_NUMCORES
 
         for i in range(0, self.num_jobs):
-            if not self.abconf_data['fuzzer{}'.format(string.ascii_uppercase[i])]:
-                return False
+            self.seeddirs.append(self.job_desc[i]['seed_dir'])
+            self.fuzzers.append(self.job_desc[i]['fuzzer'])
+            self.fuzzer_args.append(self.job_desc[i]['fuzzer_args'])
+            if 'qemu' in self.job_desc[i] and self.job_desc[i]['qemu']:
+                self.qemus.append(True)
+            else:
+                self.qemus.append(False)
+
+        # ID | job id setup
+        if self.jobtype == 'routine':
+            crcstring = self.fuzz_cmd
+            self.id = str(binascii.crc32(crcstring) & 0xffffffff)
+            self.rootdir = self.orthrusdir + ROUTINEDIR + '/{}'.format(self.id)
+        else:
+            crcstring = self.fuzz_cmd
+            for i in range(0, self.num_jobs):
+                crcstring += self.job_desc[i]['fuzzer'] + self.job_desc[i]['fuzzer_args']
+                self.jobids.append(str(binascii.crc32(self.fuzz_cmd+str(i)) & 0xffffffff))
+            self.id = str(binascii.crc32(crcstring) & 0xffffffff)
+            self.rootdir = self.orthrusdir + ABTESTSDIR + '/{}'.format(self.id)
 
         return True
 
@@ -109,12 +151,14 @@ class job(object):
 
         if self.jobtype == 'routine':
             routine_dict = {'id': self.id, 'target': self.target, 'params': self.params, 'type': self.jobtype,
-                            'fuzzer': self.fuzzers[0], 'fuzzer_args': self.fuzzer_args[0]}
+                            'fuzzers': self.fuzzers[0], 'fuzzer_args': self.fuzzer_args[0], 'num_cores': self.num_cores,
+                            'seed_dirs': self.seeddirs[0], 'qemus': self.qemus[0], 'num_jobs': self.num_jobs}
             jobsconf_dict['routine'].append(routine_dict)
         elif self.jobtype == 'abtests':
             abtests_dict = {'id': self.id, 'target': self.target, 'params': self.params,
                             'jobids': self.jobids, 'fuzzers': self.fuzzers,
-                            'fuzzer_args': self.fuzzer_args, 'type': self.jobtype, 'num_jobs': self.num_jobs}
+                            'fuzzer_args': self.fuzzer_args, 'type': self.jobtype, 'num_jobs': self.num_jobs,
+                            'num_cores': self.num_cores, 'qemus': self.qemus, 'seed_dirs': self.seeddirs}
             jobsconf_dict['abtests'].append(abtests_dict)
 
         # Overwrites JSON file
@@ -139,37 +183,9 @@ class job(object):
 
     def materialize(self):
 
-        if not (self.jobtype == 'routine' or self.jobtype == 'abtests'):
-            raise ValueError
-
-        if self.jobtype == 'abtests' and not self.jobconf:
-            raise ValueError
-
-        if self.jobtype == 'abtests':
-            if not self.parse_and_validate_abtests_jobconf():
-                raise ValueError
-        else:
-            self.parse_and_validate_routine_jobconf()
-
-        ## Break down fuzz_cmd
-        self.target = self.fuzz_cmd.split(" ")[0]
-        self.params = " ".join(self.fuzz_cmd.split(" ")[1:])
-
-        if self.jobtype == 'routine':
-            crcstring = self.fuzz_cmd
-            self.id = str(binascii.crc32(crcstring) & 0xffffffff)
-            self.rootdir = self.orthrusdir + ROUTINEDIR + '/{}'.format(self.id)
-        else:
-            crcstring = self.fuzz_cmd
-            for i in range(0, self.num_jobs):
-                fuzzername = 'fuzzer{}'.format(string.ascii_uppercase[i])
-                fuzzerargs = fuzzername + '_args'
-                crcstring += self.abconf_data[fuzzername] + self.abconf_data[fuzzerargs]
-                self.jobids.append(str(binascii.crc32(self.fuzz_cmd+str(i)) & 0xffffffff))
-                self.fuzzers.append(self.abconf_data[fuzzername])
-                self.fuzzer_args.append(self.abconf_data[fuzzerargs])
-            self.id = str(binascii.crc32(crcstring) & 0xffffffff)
-            self.rootdir = self.orthrusdir + ABTESTSDIR + '/{}'.format(self.id)
+        # Parse and gen ID
+        if not self.parse_and_validate_jobconf():
+            return False
 
         # Check if ID exists in jobs.conf
         if does_id_exist(self.jobsconf, self.id):
@@ -204,11 +220,14 @@ class jobtoken(object):
         if self.type == 'abtests':
             self.rootdir = self.orthrusdir + ABTESTSDIR + '/{}'.format(self.id)
             self.jobids = self._jobdesc['jobids']
-            self.fuzzers = self._jobdesc['fuzzers']
-            self.fuzzer_args = self._jobdesc['fuzzer_args']
-            self.num_jobs = self._jobdesc['num_jobs']
         else:
             self.rootdir = self.orthrusdir + ROUTINEDIR + '/{}'.format(self.id)
-            self.fuzzers = self._jobdesc['fuzzer']
-            self.fuzzer_args = self._jobdesc['fuzzer_args']
+
+        self.fuzzers = self._jobdesc['fuzzers']
+        self.fuzzer_args = self._jobdesc['fuzzer_args']
+        self.seed_dirs = self._jobdesc['seed_dirs']
+        self.qemus = self._jobdesc['qemus']
+        self.num_jobs = self._jobdesc['num_jobs']
+        self.num_cores = self._jobdesc['num_cores']
+
         return True

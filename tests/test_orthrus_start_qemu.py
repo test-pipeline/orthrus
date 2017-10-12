@@ -82,18 +82,21 @@ class TestOrthrusStart(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        args = parse_cmdline(cls.description, ['create', '-asan', '-fuzz', '-cov'])
+        run_cmd("./configure && make clean && make -j")
+        args = parse_cmdline(cls.description, ['create', '-bin'])
         cmd = OrthrusCreate(args, cls.config)
         assert cmd.run(), "Failed class cmd"
 
         # Add routine job
         abconf_dict = {'job_type': 'abtests', 'fuzz_cmd': 'main @@', 'num_jobs': 2,
-                       'job_desc': [{'fuzzer': 'afl-fuzz', 'fuzzer_args': '', 'seed_dir': './seeds'},
-                                    {'fuzzer': 'afl-fuzz-fast', 'fuzzer_args': '-p coe', 'seed_dir': './seeds'}
+                       'job_desc': [{'fuzzer': 'afl-fuzz', 'fuzzer_args': '', 'seed_dir': './seeds', 'qemu': True},
+                                    {'fuzzer': 'afl-fuzz-fast', 'fuzzer_args': '-p coe', 'seed_dir': './seeds',
+                                     'qemu': True}
                                     ]
                        }
         routineconf_dict = {'job_type': 'routine', 'fuzz_cmd': 'main @@', 'num_jobs': 1,
-                            'job_desc': [{'fuzzer': 'afl-fuzz', 'fuzzer_args': '', 'seed_dir': './seeds/dummy_seed0'}
+                            'job_desc': [{'fuzzer': 'afl-fuzz', 'fuzzer_args': '', 'seed_dir': './seeds/dummy_seed0',
+                                          'qemu': True}
                                          ]
                             }
         with open(cls.routineconf_file, 'w') as routineconf_fp:

@@ -19,8 +19,8 @@ libtoolize --force
 aclocal && automake --force-missing --add-missing && autoconf
 cd ../../
 echo -e "\t[+] Installing afl-utils"
-wget -q https://github.com/rc0r/afl-utils/archive/v1.32a.tar.gz && tar xzf v1.32a.tar.gz
-rm v1.32a.tar.gz && cd afl-utils-1.32a
+wget -q https://github.com/rc0r/afl-utils/archive/v1.33a.tar.gz && tar xzf v1.33a.tar.gz
+rm v1.33a.tar.gz && cd afl-utils-1.33a
 sudo mkdir -p /usr/lib/python3.4/site-packages && sudo python3 setup.py install
 cd ../
 echo -e "\t[+] Setting up GDB and exploitable"

@@ -20,14 +20,17 @@ class TestGdbOrthrus(unittest.TestCase):
         # Create
         args = parse_cmdline(cls.description, ['create', '-fuzz'])
         cmd = OrthrusCreate(args, cls.config)
-        cmd.run()
+        assert cmd.run(), "Failed class cmd"
         # Add job
-        routineconf_dict = {'fuzzer': 'afl-fuzz', 'fuzzer_args': ''}
+        routineconf_dict = {'job_type': 'routine', 'fuzz_cmd': 'main_no_abort @@', 'num_jobs': 1,
+                            'job_desc': [{'fuzzer': 'afl-fuzz', 'fuzzer_args': '', 'seed_dir': './seeds'}
+                                         ]
+                            }
         with open(cls.routineconf_file, 'w') as routineconf_fp:
             json.dump(routineconf_dict, routineconf_fp, indent=4)
 
-        args = parse_cmdline(cls.description, ['add', '--job=main_no_abort @@', '--jobtype=routine', '--jobconf={}'.
-                                               format(cls.routineconf_file), '-i=./afl-crash-out-rename.tar.gz'])
+        args = parse_cmdline(cls.description, ['add', '--jobconf={}'.format(cls.routineconf_file),
+                                               '-i=./afl-crash-out-rename.tar.gz'])
         cls.add_cmd = OrthrusAdd(args, cls.config)
         cls.add_cmd.run()
 

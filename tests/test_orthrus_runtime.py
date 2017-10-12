@@ -105,54 +105,75 @@ class TestOrthrusRuntime(unittest.TestCase):
         # Create
         args = parse_cmdline(cls.description, ['create', '-asan', '-fuzz'])
         cmd = OrthrusCreate(args, cls.config)
-        cmd.run()
+        assert cmd.run(), "Failed class cmd"
         # Add routine job 1 (asan only)
-        routineconf_dict = {'fuzzer': 'afl-fuzz', 'fuzzer_args': ''}
+        routineconf_dict = {'job_type': 'routine', 'fuzz_cmd': 'test_asan @@', 'num_jobs': 1,
+                            'job_desc': [{'fuzzer': 'afl-fuzz', 'fuzzer_args': '', 'seed_dir': './seeds'}
+                                         ]
+                            }
         with open(cls.routineconf_file, 'w') as routineconf_fp:
             json.dump(routineconf_dict, routineconf_fp, indent=4)
 
-        args = parse_cmdline(cls.description, ['add', '--job=test_asan @@', '--jobtype=routine', '--jobconf={}'.
-                             format(cls.routineconf_file), '-i=./afl-crash-out-rename.tar.gz'])
+        args = parse_cmdline(cls.description, ['add', '--jobconf={}'.format(cls.routineconf_file),
+                                               '-i=./afl-crash-out-rename.tar.gz'])
         cls.add_cmd1 = OrthrusAdd(args, cls.config)
-        cls.add_cmd1.run()
+        assert cls.add_cmd1.run(), "Failed class cmd"
 
         args = parse_cmdline(cls.description, ['triage', '-j', cls.add_cmd1.job.id])
         cmd = OrthrusTriage(args, cls.config, test=True)
-        cmd.run()
+        assert cmd.run(), "Failed class cmd"
 
         # Add routine job 2 (harden+asan)
-        args = parse_cmdline(cls.description, ['add', '--job=main_no_abort @@', '--jobtype=routine', '--jobconf={}'.
-                             format(cls.routineconf_file), '-i=./afl-crash-out-rename.tar.gz'])
+        routineconf2_dict = {'job_type': 'routine', 'fuzz_cmd': 'main_no_abort @@', 'num_jobs': 1,
+                            'job_desc': [{'fuzzer': 'afl-fuzz', 'fuzzer_args': '', 'seed_dir': './seeds'}
+                                         ]
+                            }
+        with open(cls.routineconf_file, 'w') as routineconf_fp:
+            json.dump(routineconf2_dict, routineconf_fp, indent=4)
+
+        args = parse_cmdline(cls.description, ['add', '--jobconf={}'.format(cls.routineconf_file),
+                                               '-i=./afl-crash-out-rename.tar.gz'])
         cls.add_cmd2 = OrthrusAdd(args, cls.config)
-        cls.add_cmd2.run()
+        assert cls.add_cmd2.run(), "Failed class cmd"
 
         args = parse_cmdline(cls.description, ['triage', '-j', cls.add_cmd2.job.id])
         cmd = OrthrusTriage(args, cls.config, test=True)
-        cmd.run()
+        assert cmd.run(), "Failed class cmd"
 
         # Add a/b test job (asan only)
-        abconf_dict = {'num_jobs':2, 'fuzzerA': 'afl-fuzz', 'fuzzerA_args': '', 'fuzzerB': 'afl-fuzz-fast',
-                       'fuzzerB_args': ''}
+        abconf_dict = {'job_type': 'abtests', 'fuzz_cmd': 'test_asan @@', 'num_jobs': 2,
+                       'job_desc': [{'fuzzer': 'afl-fuzz', 'fuzzer_args': '', 'seed_dir': './seeds'},
+                                    {'fuzzer': 'afl-fuzz-fast', 'fuzzer_args': '', 'seed_dir': './seeds'}
+                                    ]
+                       }
         with open(cls.abconf_file, 'w') as abconf_fp:
             json.dump(abconf_dict, abconf_fp, indent=4)
-        args = parse_cmdline(cls.description, ['add', '--job=test_asan @@', '-i=./afl-crash-out.tar.gz', '--jobconf={}'.
-                             format(cls.abconf_file), '--jobtype=abtests'])
+        args = parse_cmdline(cls.description, ['add', '-i=./afl-crash-out.tar.gz',
+                                               '--jobconf={}'.format(cls.abconf_file)])
         cls.add_cmd_abtest = OrthrusAdd(args, cls.config)
-        cls.add_cmd_abtest.run()
+        assert cls.add_cmd_abtest.run(), "Failed class cmd"
 
         args = parse_cmdline(cls.description, ['triage', '-j', cls.add_cmd_abtest.job.id])
         cmd = OrthrusTriage(args, cls.config, test=True)
         cmd.run()
 
         # Add a/b test job (asan + harden)
-        args = parse_cmdline(cls.description, ['add', '--job=main_no_abort @@', '-i=./afl-crash-out.tar.gz', '--jobconf={}'.
-                             format(cls.abconf_file), '--jobtype=abtests'])
+        abconf2_dict = {'job_type': 'abtests', 'fuzz_cmd': 'main_no_abort @@', 'num_jobs': 2,
+                       'job_desc': [{'fuzzer': 'afl-fuzz', 'fuzzer_args': '', 'seed_dir': './seeds'},
+                                    {'fuzzer': 'afl-fuzz-fast', 'fuzzer_args': '', 'seed_dir': './seeds'}
+                                    ]
+                       }
+        with open(cls.abconf_file, 'w') as abconf_fp:
+            json.dump(abconf2_dict, abconf_fp, indent=4)
+
+        args = parse_cmdline(cls.description, ['add', '-i=./afl-crash-out.tar.gz',
+                                               '--jobconf={}'.format(cls.abconf_file)])
         cls.add_cmd_abtest2 = OrthrusAdd(args, cls.config)
-        cls.add_cmd_abtest2.run()
+        assert cls.add_cmd_abtest2.run(), "Failed class cmd"
 
         args = parse_cmdline(cls.description, ['triage', '-j', cls.add_cmd_abtest2.job.id])
         cmd = OrthrusTriage(args, cls.config, test=True)
-        cmd.run()
+        assert cmd.run(), "Failed class cmd"
 
     @classmethod
     def tearDownClass(cls):
