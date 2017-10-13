@@ -1,6 +1,7 @@
 import unittest
-from orthrus.commands import *
-from orthrusutils.orthrusutils import *
+from orthrus.orthrus_create import OrthrusCreate
+from orthrus.orthrus_destroy import OrthrusDestroy
+from orthrusutils.orthrusutils import parse_cmdline
 
 class TestOrthrusDestroy(unittest.TestCase):
 

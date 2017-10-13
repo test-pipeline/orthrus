@@ -1,6 +1,8 @@
 import unittest
-from orthrus.commands import *
-from orthrusutils.orthrusutils import *
+import shutil
+import os
+from orthrus.orthrus_create import OrthrusCreate
+from orthrusutils.orthrusutils import parse_cmdline
 
 class TestOrthrusCreate(unittest.TestCase):
 

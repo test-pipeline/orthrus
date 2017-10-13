@@ -1,6 +1,6 @@
 import unittest
 from orthrusutils.orthrusutils import *
-from orthrus.commands import *
+from orthrus.orthrus_validate import OrthrusValidate
 
 class TestOrthrusValidate(unittest.TestCase):
 
@@ -18,11 +18,5 @@ class TestOrthrusValidate(unittest.TestCase):
         self.assertFalse(cmd.run())
 
     def setUp(self):
-        # self.config_pass = {'dependencies': [('clang', 'on'), ('gcc', 'on'), ('afl-fuzz', 'on'),
-        #                                                 ('afl-clang', 'on'), ('afl-clang++', 'on'),
-        #                                                 ('afl-collect', 'on'), ('afl-minimize', 'on'),
-        #                                                 ('afl-multicore', 'on'), ('gdb', 'on'), ('afl-cov', 'on'),
-        #                                                 ('lcov', 'on'), ('genhtml', 'on')]}
         self.config_pass = parse_config('../../conf/orthrus.conf')
-
         self.config_fail = {'dependencies': [('joombaloomba', 'on')]}

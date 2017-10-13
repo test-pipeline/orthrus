@@ -1,6 +1,10 @@
 import unittest
-from orthrus.commands import *
+import json
 from orthrusutils.orthrusutils import *
+from orthrus.orthrus_add import OrthrusAdd
+from orthrus.orthrus_create import OrthrusCreate
+from orthrus.orthrus_spectrum import OrthrusSpectrum
+from orthrus.orthrus_triage import OrthrusTriage
 
 class TestOrthrusSpectrum(unittest.TestCase):
 
